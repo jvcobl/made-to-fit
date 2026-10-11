@@ -96,7 +96,7 @@ function faced(S, r) {
   else if (r.dim && DIM_WORD[r.dim]) out.push('It was ' + DIM_WORD[r.dim][r.dir === 'under' ? 1 : 0] + ' for you.');
   const f = r.f || {};
   if (f.e != null) out.push(f.e < 25 ? 'You were running on empty.' : f.e < 50 ? 'You were low on energy.' : 'You had energy to spare.');
-  if (!r.why && (r.dim === 'sound' || (r.dim === 'light' && r.dir !== 'under'))) out.push(f.gear === 'none' ? 'You had no gear for it yet. Moss sells some.' : f.gear === 'own' ? 'Your gear was in your bag.' : 'You already had your gear on.');
+  if (!r.why && (r.dim === 'sound' || (r.dim === 'light' && r.dir !== 'under'))) out.push(f.gear === 'none' ? 'You had no gear for it yet.' : f.gear === 'own' ? 'Your gear was in your bag.' : 'You already had your gear on.');
   if (f.burn) out.push('You had woken up heavy that day.');
   if (r.k === 'barrier' && f.owner === '' && f.off >= 2) out.push('Nobody in charge was there to ask.');
   return out.slice(0, 4);

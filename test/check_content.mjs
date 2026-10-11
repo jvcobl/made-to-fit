@@ -90,7 +90,7 @@ for (const d of Object.keys(C.NIGHT)) for (const flags of [{}, { bea_bus: 1, fol
   try { const out = C.NIGHT[d]({ flags, met, fixes: {}, bonds: {}, blend: {} }); if (!Array.isArray(out) || !out.every((x) => Array.isArray(x) && x.length === 2 && x[1])) err('NIGHT[' + d + '] returned a bad list'); } catch (e) { err('NIGHT[' + d + '] threw: ' + e.message); }
 }
 // flags the code reads and writes (keys built at runtime are listed here on purpose)
-const RUNTIME = /^(shift\d|missed\d|low1_\d|low2_\d|dusk\d|asked_\w+|gilasked_\w+|told_\w+|late\d|hpm\d)$/;
+const RUNTIME = /^(shift\d|missed\d|low1_\d|low2_\d|dusk\d|asked_\w+|gilasked_\w+|told_\w+|late\d|hpm\d|rowdim\d)$/;
 for (const f of fs.readdirSync(src).concat(fs.readdirSync(path.join(src, 'games')).map((x) => 'games/' + x))) {
   if (!f.endsWith('.js')) continue; const code = fs.readFileSync(path.join(src, f), 'utf8');
   for (const m of code.matchAll(/S\.flags\.(\w+)\b\s*=(?!=)/g)) note(flagWrites, m[1], f);

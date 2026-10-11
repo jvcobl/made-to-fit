@@ -3,6 +3,7 @@
 // listener stops keys reaching the game), and the clock stops underneath them.
 import { esc } from './util.js';
 import * as SAVE from './save.js';
+import { offerFile, readPicked } from './files.js';
 import { SUPPORT, CONTENT_NOTES, INGREDIENTS } from './notes.js';
 
 // actions the player can rebind, with their default physical keys (e.code, so they follow position, not letter)
@@ -67,7 +68,7 @@ export class Menus {
     if (this.open) return;
     const G = this.G; const inVisit = G.S.day >= 1;
     this.push('pause', () => `<h2>Paused</h2><p class="lede">The town waits while this is open.</p>
-      <div class="ovlist"><button class="btn primary" data-back>Resume</button><button class="btn" id="pSet">Settings</button>${inVisit ? '<button class="btn" id="pCode">Your save code</button>' : ''}<button class="btn" id="pIn">What's in this game</button><button class="btn" id="pSup">Support</button><button class="btn" id="pQuit">Quit to the title</button></div>
+      <div class="ovlist"><button class="btn primary" data-back>Resume</button><button class="btn" id="pSet">Settings</button>${inVisit ? '<button class="btn" id="pCode">Play on another device</button>' : ''}<button class="btn" id="pIn">What's in this game</button><button class="btn" id="pSup">Support</button><button class="btn" id="pQuit">Quit to the title</button></div>
       <p class="small">${esc(G.saveNote ? G.saveNote() : '')}</p>`, {
       bind: (el) => {
         el.querySelector('#pSet').onclick = () => this.settings();
@@ -168,11 +169,18 @@ export class Menus {
   // ---------- codes ----------
   async saveCode() {
     const G = this.G; const save = G.lastSave ? G.lastSave() : null;
-    const code = save ? await SAVE.makeSaveCode(save) : '';
-    this.push('code', () => `<h2>Your save code</h2><p>${code ? 'This code holds your visit as it was at ' + esc(save.label || 'your last save') + '. Paste it into "Played before?" on the title screen, here or on another device. Your name is not in it.' : 'There is nothing to save yet. The game saves each morning.'}</p>${code ? `<textarea class="codebox" readonly rows="5" aria-label="Save code">${esc(code)}</textarea><div class="ovlist row"><button class="btn" id="cCopy">Copy</button></div>` : ''}<div class="pfoot"><button class="btn primary" data-back>Back</button></div>`, {
+    let code = ''; try { code = save ? await SAVE.makeSaveCode(save) : ''; } catch (e) { code = ''; }
+    this.push('code', () => `<h2>Play on another device</h2><p>${code ? 'Your game saves on this device by itself. To carry it to another phone or computer, copy this code or save it as a file. There, choose <b>Played before?</b> on the title screen.' : 'There is nothing to carry yet. The game starts saving on your first morning in Larkspur.'}</p>${code ? `<p class="small">It holds your game as it was at ${esc(save.label || 'your last save')}. Your name is not in it.</p><textarea class="codebox" readonly rows="4" aria-label="Save code">${esc(code)}</textarea><div class="ovlist row"><button class="btn" id="cCopy">Copy the code</button><button class="btn" id="cFile">Save as a file</button></div><p class="small" id="cMsg" role="status"></p>` : ''}<div class="pfoot"><button class="btn primary" data-back>Back</button></div>`, {
       bind: (el) => {
         const ta = el.querySelector('.codebox'); if (ta) { ta.onfocus = () => ta.select(); }
+        const msg = (t) => { const m = el.querySelector('#cMsg'); if (m) m.textContent = t; };
         const cp = el.querySelector('#cCopy'); if (cp) cp.onclick = async () => { let ok = false; try { await navigator.clipboard.writeText(code); ok = true; } catch (e) { /* the frame may block the clipboard */ } if (!ok) { ta.focus(); ta.select(); try { ok = document.execCommand('copy'); } catch (e) { /* fine */ } } cp.textContent = ok ? 'Copied' : 'Selected: copy it with your keyboard or menu'; };
+        const fb = el.querySelector('#cFile'); if (fb) fb.onclick = async () => {
+          fb.setAttribute('aria-disabled', 'true'); msg('');
+          const r = await offerFile('made-to-fit-save.txt', code + '\n');
+          fb.removeAttribute('aria-disabled');
+          msg(r === 'saved' ? 'Saved as made-to-fit-save.txt.' : r === 'declined' ? 'Not saved.' : 'Saving a file isn\'t possible here. Copy the code instead.');
+        };
       },
     });
   }
@@ -180,10 +188,13 @@ export class Menus {
   playedBefore() {
     return new Promise((resolve) => {
       let done = false; const fin = (v) => { if (done) return; done = true; resolve(v); };
-      this.push('code', () => `<h2>Played before?</h2><p>Paste a save code (it starts with MTFS) or a visit code (it starts with MTF1).</p><textarea class="codebox" rows="5" aria-label="Your code" placeholder="MTF1-… or MTFS1…"></textarea><p class="codeerr" role="alert"></p><div class="pfoot"><button class="btn" data-back>Back</button><button class="btn primary" id="cUse">Use this code</button></div><div class="recapbox"><p><b>No code?</b> Start ten years later from a recap: make your creature, set your room, and choose six things about your first week. About two minutes.</p><button class="btn" id="cRecap">Start from a recap</button></div>`, {
+      this.push('code', () => `<h2>Played before?</h2><p>Paste a save code (it starts with MTFS) or a visit code (it starts with MTF1), or open a save file.</p><textarea class="codebox" rows="5" aria-label="Your code" placeholder="MTF1-… or MTFS1…"></textarea><p class="codeerr" role="alert"></p><div class="pfoot"><button class="btn" data-back>Back</button><button class="btn" id="cOpen">Open a save file</button><input type="file" id="cFileIn" accept=".txt,text/plain" hidden><button class="btn primary" id="cUse">Use this code</button></div><div class="recapbox"><p><b>No code?</b> Start ten years later from a recap: make your creature, set your room, and choose six things about your first week. About two minutes.</p><button class="btn" id="cRecap">Start from a recap</button></div>`, {
         focus: '.codebox',
         bind: (el) => {
           el.querySelector('#cRecap').onclick = () => { fin({ recap: true }); this.closeAll(); };
+          const fileIn = el.querySelector('#cFileIn');
+          el.querySelector('#cOpen').onclick = () => { try { fileIn.value = ''; fileIn.click(); } catch (e) { el.querySelector('.codeerr').textContent = 'Opening files isn\'t possible here. Paste the code instead.'; } };
+          fileIn.onchange = async () => { const t = await readPicked(fileIn.files && fileIn.files[0]); if (t == null) { el.querySelector('.codeerr').textContent = 'That file isn\'t a save file from this game.'; return; } el.querySelector('.codebox').value = t.trim(); el.querySelector('#cUse').click(); };
           el.querySelector('#cUse').onclick = async () => {
             const raw = el.querySelector('.codebox').value || ''; const err = el.querySelector('.codeerr');
             if (/MTFS/i.test(raw)) { const r = await SAVE.readSaveCode(raw); if (r.save) { fin({ save: r.save }); this.closeAll(); return; } err.textContent = { browser: 'This browser can\'t open that kind of code. Recent Chrome, Edge, Firefox or Safari can.', newer: 'That code is from a newer version of the game.' }[r.error] || 'That code doesn\'t look right. Check for a missing letter.'; return; }

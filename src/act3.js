@@ -221,7 +221,7 @@ export const ACT3 = {
     homerow: ['The quiet zone stops where the council says it stops.', 'Your house is on Home Row.'],
   },
   // at the meeting, Rue sits where Clover did
-  bystander: { hollis: { over: { other: ['rue', 'Bit nippy. I\'ll keep my coat on.'] }, under: { other: ['rue', 'Bit nippy. I\'ll keep my coat on.'] } } },
+  bystander: { hollis: { over: { light: ['rue', 'Now I can\'t see my notes. Fine. I know them by heart.'], sound: ['rue', 'I liked the murmur. It meant people came.'], other: ['rue', 'Bit nippy. I\'ll keep my coat on.'] }, under: { other: ['rue', 'Bit nippy. I\'ll keep my coat on.'] } } },
   blendArg: { who: 'hollis', t: 'But the Smooth Scores still say we\'re coping beautifully!' },
   rueSpeaks: { sum: 'Rue tells the hall what the measures never asked.', lines: ['Can I say something? I ran those measures, once.', 'They counted whether we looked all right. They never asked whether we were.'] },
   setup(R) {

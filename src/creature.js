@@ -404,18 +404,20 @@ export class Creature {
     swap(this.baked, mergeKit(list));
   }
   topKit(K, kind, p, main) {
+    // a spiky body's spikes stand up to half a radius proud: lift what sits on top so it shows above them
+    const lift = 0.34 * (p.spike || 0), big = 1 + 0.35 * (p.spike || 0);
     if (kind === 'ears') {
-      for (const sx of [-1, 1]) { const m = mtx(surf(sx * 0.55, 0.84, 0.02, p, -0.04), 0, 0, -sx * 0.35, 1, 1, 0.55); K.push([sph(0.26, 14, 10), main, m], [circ(0.13, 14), P.inner, m.clone().multiply(at(0, 0, 0.145))]); }
+      for (const sx of [-1, 1]) { const m = mtx(surf(sx * 0.55, 0.84, 0.02, p, -0.04 + lift), 0, 0, -sx * 0.35, 1, 1, 0.55); K.push([sph(0.26, 14, 10), main, m], [circ(0.13, 14), P.inner, m.clone().multiply(at(0, 0, 0.145))]); }
     } else if (kind === 'longears') {
-      for (const sx of [-1, 1]) { const m = mtx(surf(sx * 0.32, 0.95, 0, p, -0.05).add(_t.set(sx * 0.12, 0.38, 0)), 0, 0, -sx * 0.32, 1, 1, 0.6); K.push([cap(0.11, 0.62, 4, 10), main, m], [cap(0.055, 0.42, 4, 8), P.inner, m.clone().multiply(mtx(_t.set(0, 0.02, 0.06), 0, 0, 0, 1, 1, 0.4))]); }
+      for (const sx of [-1, 1]) { const m = mtx(surf(sx * 0.32, 0.95, 0, p, -0.05 + lift).add(_t.set(sx * 0.12, 0.38, 0)), 0, 0, -sx * 0.32, 1, 1, 0.6); K.push([cap(0.11, 0.62, 4, 10), main, m], [cap(0.055, 0.42, 4, 8), P.inner, m.clone().multiply(mtx(_t.set(0, 0.02, 0.06), 0, 0, 0, 1, 1, 0.4))]); }
     } else if (kind === 'horns') {
-      for (const sx of [-1, 1]) K.push([cone(0.11, 0.44, 12), P.horn, mtx(surf(sx * 0.42, 0.88, 0.12, p, -0.03).add(_t.set(sx * 0.08, 0.18, 0)), 0, 0, -sx * 0.45)]);
+      for (const sx of [-1, 1]) K.push([cone(0.11, 0.44, 12), P.horn, mtx(surf(sx * 0.42, 0.88, 0.12, p, -0.03 + lift).add(_t.set(sx * 0.08, 0.18, 0)), 0, 0, -sx * 0.45, big, big, big)]);
     } else if (kind === 'antennae') {
       const tip = paint(shadeHex(this.look.color, -0.35), 0.4);
-      for (const sx of [-1, 1]) { const s = mtx(surf(sx * 0.22, 0.97, 0.05, p, -0.03).add(_t.set(sx * 0.08, 0.24, 0)), 0, 0, -sx * 0.3); K.push([cyl(0.022, 0.022, 0.5, 6), P.stalk, s], [sph(0.09, 12, 8), tip, s.clone().multiply(at(0, 0.27, 0))]); }
+      for (const sx of [-1, 1]) { const s = mtx(surf(sx * 0.22, 0.97, 0.05, p, -0.03 + lift).add(_t.set(sx * 0.08, 0.24, 0)), 0, 0, -sx * 0.3); K.push([cyl(0.022, 0.022, 0.5, 6), P.stalk, s], [sph(0.09, 12, 8), tip, s.clone().multiply(at(0, 0.27, 0))]); }
     } else if (kind === 'tuft') {
-      const b = surf(0, 1, 0, p, -0.05);
-      for (const a of [-0.45, 0, 0.45]) K.push([cone(0.09, 0.34, 8), main, mtx(_t.set(b.x + Math.sin(a) * 0.14, b.y + 0.13, b.z), 0, 0, -a)]);
+      const b = surf(0, 1, 0, p, -0.05 + lift);
+      for (const a of [-0.45, 0, 0.45]) K.push([cone(0.09, 0.34, 8), main, mtx(_t.set(b.x + Math.sin(a) * 0.14, b.y + 0.13 * big, b.z), 0, 0, -a, big, big, big)]);
     }
   }
   wearKit(K, kind, p) {

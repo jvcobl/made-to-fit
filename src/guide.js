@@ -44,15 +44,24 @@ export class Guide {
   // which scene the marker lives in follows the player
   attach(scene) { if (this.scene === scene) return; if (this.mark.parent) this.mark.parent.remove(this.mark); scene.add(this.mark); this.scene = scene; }
   showTrail(on) { this.trailOn = on; this.repath = 0; if (!on) this.trail.count = 0; }
-  // what to point at right now: in town, the objective; indoors, the door when the objective is outside
+  // what to point at right now: in town, the objective; indoors, the thing the objective means in this room (your
+  // desk, your bed, Gil) or else the door, when the objective is outside
   pick() {
     const G = this.G; const obj = G.story.objective();
-    if (!obj || !obj.at || G.mode !== 'play') return null;
+    if (!obj || G.mode !== 'play') return null;
+    const r = G.loc === 'town' ? null : G.rooms[G.loc];
+    if (r && obj.inside === G.loc) { const s = this.spotOf(obj.spot); return s ? { x: s.x, z: s.z, label: obj.spotLabel || '', obj, room: true, here: true } : null; }
+    if (!obj.at) return null;
     if (G.loc === 'town') return { x: obj.at[0], z: obj.at[1], label: obj.label || '', obj };
-    const r = G.rooms[G.loc]; if (!r) return null;
-    if (obj.inside === G.loc) return null;
+    if (!r) return null;
     const out = r.inter.find((i) => i.id === 'out'); if (!out) return null;
     return { x: out.x, z: out.z, label: 'Head out', obj, room: true };
+  }
+  // a spot inside the room you are in: a resident here, or one of the room's things
+  spotOf(id) {
+    const G = this.G; if (!id) return null;
+    const n = G.npcs[id]; if (n && n.c.root.visible && n.c.root.parent === G.player.root.parent) return n.c.root.position;
+    const r = G.rooms[G.loc]; const it = r && r.inter.find((i) => i.id === id); return it ? { x: it.x, z: it.z } : null;
   }
   update(dt) {
     const G = this.G; const set = G.settings.guide || 'full';

@@ -7,7 +7,9 @@
 
 export const KEYS = { settings: 'mtf.settings', save: 'mtf.save', carry: 'mtf.carry', oldSettings: 'whobends.settings', test: 'mtf.test' };
 export const SAVE_V = 1;
-export const PHASES = Object.freeze(['morning', 'shift', 'meeting', 'end']);
+// morning, after the shift, after the meeting and the end are the story's own checkpoints; free is an autosave during
+// free play (S.resumeAt says where), and setup is a creature made with the room still to arrange
+export const PHASES = Object.freeze(['morning', 'shift', 'meeting', 'end', 'free', 'setup']);
 // MIGRATE[v](S, save) brings a state restored from a version-v save up to v + 1 and returns it (or changes it in
 // place). restoreState runs them in order after merging; version 1 needs none.
 export const MIGRATE = {};
@@ -36,7 +38,7 @@ const cut = (s, n) => (s.length <= n ? s : s.slice(0, /[\ud800-\udbff]/.test(s[n
 const tidy = (s, n) => cut(String(s == null ? '' : s).replace(/</g, '\u2039').replace(/>/g, '\u203a'), n);
 const keyOk = (k) => !BAD_KEYS.has(k) && k.length <= MAX_KEY && !BAD_KEY_CHARS.test(k);
 const utf8Bytes = (s) => new TextEncoder().encode(s).length;
-const labelFor = (day, phase) => (day >= 1 ? 'Day ' + day : 'Arrival') + ', ' + phase;
+const labelFor = (day, phase) => (day >= 1 ? 'Day ' + day : 'Arrival') + ', ' + (phase === 'free' ? 'during the day' : phase === 'setup' ? 'moving in' : phase);
 
 // ---------- storage ----------
 // Even reading localStorage throws in a sandboxed frame, so every use goes through store() inside a try.
@@ -150,7 +152,8 @@ export function writeSave(meta, S) {
   const rec = { v: SAVE_V, build: tidy(m.build, 40), act: m.act !== undefined ? m.act : st.act || 1, day, phase, label: tidy(m.label, MAX_LABEL) || labelFor(day, phase), savedAt: new Date().toISOString(), S: snap.data };
   const chk = validateSave(rec);
   if (!chk.ok) return { ok: false, error: 'invalid', why: chk.why, bytes: snap.bytes };
-  return putJSON(KEYS.save, chk.save);
+  // the checked record comes back too, so a save code still works when the browser keeps nothing
+  return Object.assign(putJSON(KEYS.save, chk.save), { save: chk.save });
 }
 // { save } (validated; the name is kept) | { error: 'none' | 'corrupt' | 'newer' | 'blocked' }
 export function readSave() {

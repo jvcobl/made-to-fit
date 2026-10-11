@@ -1,17 +1,16 @@
-# Who Bends, prototype 5
+# Made to Fit
 
-A free, roughly 30-minute 3D browser game about person-environment fit. You build your own creature, set your needs by arranging your new room, and spend three days in Larkspur, a cozy town planned around a statue of the "Standard Resident" that nobody actually matches. When a place pinches, the game asks one question: who adjusts?
+A free 3D browser game about person-environment fit, about 40 minutes, plus two short return visits. You make a small creature, set up your room the way you like it (light, sound, company, how you like to be told things, when your day starts, how much change you like), then spend three days in Larkspur, a cozy town planned around a statue of the "Standard Resident" that nobody actually matches. When a place doesn't fit you, the game asks one question: who adjusts? You can push through, use gear, ask someone, note a fix for the town, or leave, and each answer costs someone something. Ten and twenty years later you can come back and see what lasted.
 
-The playable build is one self-contained HTML file (Three.js is bundled in; only Google Fonts load from outside).
+The playable build is one self-contained HTML file (Three.js is bundled in; only Google Fonts load from outside). It runs on desktop and phone browsers, with keyboard, mouse or touch.
 
-## New in prototype 5
-- **Seven hands-on tasks.** Sort the mail and check lantern permits at the Works, sketch fixes on graph paper at Clover's shed (a zoning puzzle and a plain-language note), fish at the pond, paint lanterns for people you know, and Blend's feed. The room is the difficulty: glare, chatter, interruptions and drift come from the live fit engine, and the results say what the room cost you. Every task has a Calm pace with no timer and can be skipped.
-- **Interruptions are a choice.** Someone stops at your desk: "Sure, go ahead" answers now, "In a sec?" sends them back until you finish.
-- **Clear wayfinding.** Bea walks you to work on day one, signposts, a lantern beacon, an edge arrow, a "Show the way" trail and a route on the phone map. The clock card always says what is next and where.
-- **People who remember you.** Lantern's People guide fills as you listen: what is too much and too little for each resident, how they say no, what helps. Three lines unlock a postcard of how they bend too. After a first chat you guess how it went; what they say later is usually warmer. Residents who know you adjust places before you ask, in whichever direction you need.
-- **Blend's economy.** Smooth Mode spends Calm, and Calm comes from a feed with random prizes, an odds drawer and wanting/enjoying meters. Blend's nudges stay inside the story and can be turned off.
-- **Natural endings.** A jar of twelve kept moments, a pond that goes still after three fish, and dusk that ends the day.
-- **Field notes.** 27 short notes with sources and evidence-strength tags, each unlocked after the thing it describes has happened.
+## What's in it
+- **Act 1, Arrival (three days).** Work at the Works (sort the mail, stamp permits), meet eight residents, sketch fixes at the Fix-It Shed, find backers, and take proposals to the town meeting on Tuesday at six. Wednesday is the Lantern Festival, then "Who decided?" looks back at a few of your moments, and an ending page says what Larkspur will remember.
+- **Act 2, Ten Years On, and Act 3, Twenty Years On (one day each).** Your fixes in use and aged, a robot built to the founders' spec, a kiosk that listens to one kind of voice, a crossing timed to the Standard's stride, a newcomer whose needs are the opposite of yours, and the Shed in your hands.
+- **Hands-on tasks.** Sort, Stamp, the zoning sketch and the plain note, fishing, painting lanterns, festival mail and teaching the robot the room as it is. Every task has a calm pace with no timer.
+- **Saving.** The game saves on the device as you play (calm moments, room changes, opening the menu, closing the tab) and Continue returns to the same minute and spot. "Play on another device" in the menu gives a save code or a save file; "Played before?" on the title screen opens either. Nothing leaves the device unless the player copies it.
+- **Access.** Text size, reduced motion, an optional mood tint, captions for sounds, a calm task pace, remappable keys, a screen-reader feed for every line and card, and no flashing above three times a second (checked frame by frame).
+- **Field notes.** Short notes with sources and evidence-strength tags, unlocked after the thing they describe has happened.
 
 ## Build
 ```
@@ -21,34 +20,27 @@ node build.mjs artifact   # dist/who-bends-artifact.html, without document tags,
 ```
 
 ## Files
-- `src/main.js` runs the game loop and the world: movement and collision, residents on routines, crowds, the sensory mapping from fit to light, sound and camera, Blend's mechanics, input and the `window.__wb` test hooks.
-- `src/story.js` runs the season: title, prologue, room setup, days, shifts, the "who adjusts?" barriers, hints and Lantern, the fix pipeline, the council, the festival and the ending. It also interprets the scripts in `content.js`.
-- `src/content.js` holds every word: cast and routines, conversations, hints, barrier text, Blend's copy, endings and field notes.
-- `src/sim.js` is the fit engine and season state: place levels by time of day, pinch in both directions, drains and recovery, the 1,000-resident town-fit model, fixes and endings.
-- `src/render.js` covers the renderer, sky, daylight, post-processing (bloom plus a color grade that carries the sensory effects), the camera rig and the see-through circle.
-- `src/town.js` and `src/rooms.js` build the town and the three interiors procedurally, with no model files.
-- `src/creature.js` builds creatures from one parametric body, so a look can drift smoothly toward the Standard Resident. Each creature has a near form (about ten draws, every part as before) and a baked form (its parts merged into one or two draws).
-- `src/lod.js` decides each frame which residents get the near form (you, whoever you are talking to, and up to four residents close to you or to what the camera is looking at) and draws every other creature's blob shadow in one instanced mesh.
-- `src/audio.js` generates the music, ambience, babble voices and sound effects with WebAudio.
-- `src/ui.js` and `src/style.css` hold the interface.
-- `src/guide.js` handles wayfinding (beacon, trail, edge arrow, phone-map route) and Bea's walk to work.
-- `src/games/` holds the mini-games: `kit.js` (the shared frame, pace, pause and skip, and the room modifiers), `sort.js`, `stamp.js`, `blueprint.js` (the zoning sketch and the plain note), `pond.js`, `paint.js` and `feed.js`.
+- `src/main.js`: the game loop and the world (movement, residents, crowds, autosave triggers, test hooks).
+- `src/story.js`: Act 1 (prologue, days, cards, talk, fixes, the meeting, the festival, the ending) and saving.
+- `src/returns.js`, `src/act2.js`, `src/act3.js`, `src/talk23.js`: the return visits.
+- `src/content.js`, `src/notes.js`: every word (cast, conversations, cards, endings, field notes).
+- `src/sim.js`: the fit engine. `src/save.js`: saves, codes and validation. `src/files.js`: save files.
+- `src/render.js`, `src/town.js`, `src/rooms.js`, `src/creature.js`, `src/robot.js`, `src/layers.js`, `src/lod.js`: the 3D world, built procedurally.
+- `src/ui.js`, `src/menus.js`, `src/style.css`: the interface. `src/games/`: the tasks.
 
 ## Testing
-URL parameters for local runs: `?test=1` (lighter rendering), `fast=1` (fast time, instant text), `mgslow=1` (mini-games at normal speed inside a fast run), `mute=1`, `seed=N`, `fixedstep=1` (nothing advances by itself; `window.__wb.step(n)` advances the game, the open task and the 3D render by exactly n frames of 1/60 s).
+URL parameters for local runs: `?test=1` (lighter rendering), `fast=1` (fast time, instant text), `mute=1`, `seed=N`, `fixedstep=1` (nothing advances by itself; `window.__wb.step(n)` advances everything by n frames), `autosave=0`, `comfort=1`.
 
-- `python3 test/play.py <fixer|blender|asker|leaver|random> <seed> <sens|std|lively> [wheels] [screenshot-dir|-] [mobile]` plays a whole season in headless Chromium and prints a JSON summary.
-- `python3 test/ui_tour.py` screenshots the phone, a hint, the council and the festival.
-- `python3 test/audio_smoke.py` runs with sound on and checks the audio engine.
-- `python3 test/perf.py [high] [low]` plays into the busiest scenes (noon square, the Works, the Hall and the town meeting, the festival) and fails if draw calls go over budget (150 per scene, 200 at the festival) or any shader compiles after warm-up or when the festival starts.
-- `python3 test/flash.py [sort] [stamp] [works] [outdoor]` is the photosensitivity check (WCAG 2.3.1): it steps the game one frame at a time for a light-sensitive player, measures each frame in a 6 by 6 grid, and fails if any tile has more than 3 general flashes in a second. It takes several minutes per scenario.
-- `python3 test/mg.py [mobile] <sens|std|lively>` plays the two Works tasks with real pointer input; `test/visit.py`, `test/bp.py`, `test/pond.py`, `test/pond2.py`, `test/paint.py`, `test/feed.py` and `test/people.py` cover the visitor choice, the sketches, the pond, painting, the feed and the People guide; `test/faces.py` checks portrait framing on a phone.
+- `python3 test/human.py <desktop|phone> <engaged|pusher|mixed> <outdir>` plays the whole game the way a person does (real clicks, taps and keys, the real clock), writes every word on screen to a transcript and screenshots each new screen.
+- `python3 test/autosave.py` checks saving as you play, Continue, leaving the page, the save code and the save file.
+- `python3 test/tasks_view.py` screenshots every task on a laptop and a phone.
+- `python3 test/keys.py` plays conversations with the keyboard only (E, Space, Enter) and checks that the key that closes the last line doesn't start the conversation again.
+- `node test/check_content.mjs` checks every script (labels, conditions, flags, notes).
+- `python3 test/play.py`, `act2.py`, `act3.py`, `saves.py`, `saves23.py`, `a11y.py`, `phone23.py`, `perf.py`, `flash.py` and the rest cover endings, the later visits, saves, accessibility (axe), phone layout, draw-call budgets and photosensitivity.
 
-Headless Chromium renders with SwiftShader, so run at most two seasons in parallel on an 8 GB machine.
+Headless Chromium renders with SwiftShader: run browser tests one at a time on a small machine.
 
 ## Known gaps
-- No human playtests yet. Run the five-person cold test ("what was that about?") before adding content.
-- Mini-game timing and difficulty were tuned in headless SwiftShader at 2 to 10 frames a second; check them on real phones and laptops.
-- A focused scripted player can build all six fixes. Test with real players before tuning.
-- Audio and performance have only been checked in a headless browser.
-- Each resident has three or four short conversations; a release needs more writing and the Korean translation.
+- No cold human playtests yet; the automated players stand in for them.
+- Mini-game timing was tuned in headless SwiftShader; check it on real phones and laptops.
+- Each resident has a few short conversations; a release would want more writing, and the Korean translation.

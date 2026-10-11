@@ -618,7 +618,9 @@ test('writeSave and readSave: round trip, and every way storage can fail', () =>
   withStorage(new MemoryStorage(), (ls) => {
     assert.equal(SV.readSave().error, 'none');
     const w = SV.writeSave(META, S);
-    assert.deepEqual(w, { ok: true, error: null, bytes: Buffer.byteLength(ls.getItem(SV.KEYS.save), 'utf8') });
+    assert.deepEqual({ ok: w.ok, error: w.error, bytes: w.bytes }, { ok: true, error: null, bytes: Buffer.byteLength(ls.getItem(SV.KEYS.save), 'utf8') });
+    // the written record comes back too (the save file and the code are made from it), and it is what was stored
+    assert.deepEqual(w.save, JSON.parse(ls.getItem(SV.KEYS.save)));
     const r = SV.readSave();
     assert.ok(r.save, r.error);
     assert.deepEqual([r.save.v, r.save.build, r.save.act, r.save.day, r.save.phase, r.save.label], [SV.SAVE_V, 'test-build', 1, 2, 'morning', 'Tuesday morning']);

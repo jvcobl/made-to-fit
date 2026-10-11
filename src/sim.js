@@ -24,6 +24,9 @@ export const PLACES = {
   festival: { sound: [0.82, 0.82, 0.82, 0.82], light: [0.7, 0.7, 0.7, 0.7], people: [0.92, 0.92, 0.92, 0.92], talk: 0.6, change: 0.6, demand: true },
 };
 export const OWNERS = { works: 'gil', market: 'moss', commons: 'clover', farend: 'wren', hall: 'hollis' };
+// fixes that only answer too much of something (a quiet corner does nothing for an empty square, nor a bus board for a
+// day with too few surprises); the others help whichever way a place misses
+export const FIX_OVER_ONLY = new Set(['quiet', 'board']);
 export const FIX_FOR = { works: { light: 'dim', talk: 'plain', wheels: 'ramp' }, market: { sound: 'quiet', people: 'quiet' }, transit: { change: 'board', sound: 'board' }, homerow: { people: 'lanterns', talk: 'lanterns' }, farend: { people: 'lanterns' } };
 export const bandOf = (min) => (min < 660 ? 0 : min < 840 ? 1 : min < 1080 ? 2 : 3);
 export const timeDemand = (min) => clamp((min - 420) / 840);
@@ -87,7 +90,8 @@ export function tick(S, mins, ctx) {
   const smooth = S.blend.has && S.blend.smooth;
   const masked = S.masking || smooth;
   // hiding a pinch doesn't make it cost less: it costs the same energy, and some of you besides (below)
-  let drain = 0.03 + T * 0.36;
+  // (tuned so that pushing through a badly fitting day still runs you down by evening, without a wall every day)
+  let drain = 0.03 + T * 0.3;
   // home rests you; so does the first twenty minutes after you leave somewhere that didn't fit
   if (ctx.zone === 'home' || (S.restUntil && S.min < S.restUntil)) drain = -0.12;
   S.energy = clamp(S.energy - drain * mins, 0, S.maxE);

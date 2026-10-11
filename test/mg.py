@@ -38,6 +38,12 @@ with sync_playwright() as p:
         for _ in range(20):
             pg.wait_for_timeout(400)
             if pg.evaluate("__wb.target() === 'works'"): pg.evaluate("__wb.act()"); break
+        # inside, the shift starts when you sit down at your desk
+        until("__wb.loc() === 'works' && __wb.mode() === 'play' && !__wb.busy() && !__wb.waiter()", 30000)
+        pg.evaluate("(() => { const s = __wb.G.rooms.works.spots.mydesk; __wb.G.place([s[0] + 0.6, s[1]]); })()")
+        for _ in range(20):
+            pg.wait_for_timeout(300)
+            if pg.evaluate("__wb.target() === 'mydesk'"): pg.evaluate("__wb.act()"); break
         until("__wb.mg() !== null", 60000)
     def tap(x, y):
         if mobile: pg.touchscreen.tap(x, y)
@@ -77,7 +83,7 @@ with sync_playwright() as p:
         shot('mg-%s-result' % gid, 1500)
         r = pg.query_selector('.mg-over .go'); 
         if r: bb = r.bounding_box(); tap(bb['x'] + bb['width'] / 2, bb['y'] + bb['height'] / 2)
-        until("!__wb.mg() && __wb.loc() === 'town' && !__wb.busy()", 60000)
+        until("!__wb.mg() && !__wb.busy() && __wb.mode() === 'play'", 60000)  # (after a shift you are still at your desk)
         if day == 1:
             pg.evaluate("__wb.G.story.finishDay('sleep')")
             until("!!(__wb.panel() && __wb.panel().includes('evening'))", 60000) and shot('evening1', 600)

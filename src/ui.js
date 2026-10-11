@@ -6,7 +6,7 @@ import { FIELD_NOTES, NOTE_SECTIONS, SUPPORT } from './notes.js';
 import { drawFitCard, saveFitCard, cardAltText } from './fitcard.js';
 import { PLAQUE as PLAQUE_TEXT } from './look.js';
 const SETUP_NAMES = { lamp: 'Lamp', radio: 'Radio', sign: 'Door sign', note: 'House rules', clock: 'Clock', calendar: 'Calendar' };
-import { FIXES, pinch, townFit, fixState, supporters, approvedCount, SEASON_CAP } from './sim.js';
+import { FIXES, pinch, fixState, supporters, approvedCount, SEASON_CAP } from './sim.js';
 import { ZONES } from './town.js';
 import { FISH } from './games/pond.js';
 import { PACK_PRICE, SINGLE_PRICE, MORE_MAX, cardName, cardTile, drawPack, addCards, packLine, packSentence, moreSentence } from './packs.js';
@@ -28,6 +28,8 @@ export const ICON = {
 const $ = (h) => { const d = document.createElement('div'); d.innerHTML = h.trim(); return d.firstElementChild; };
 export const isTouch = () => (typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches) || 'ontouchstart' in window;
 const DAYNAME = ['Moving day', 'Monday', 'Tuesday', 'Wednesday'];
+// what a screen reader says for each creature colour
+const COLOR_NAMES = { '#f2a99a': 'Salmon pink', '#f6cf5b': 'Sunflower yellow', '#9fd3b0': 'Mint green', '#93c2ee': 'Sky blue', '#bfa9f0': 'Lavender', '#f3a0c2': 'Rose pink', '#ffc98e': 'Apricot', '#9edcd6': 'Aqua', '#cde38f': 'Lime green', '#e4796a': 'Coral red', '#7d9fe0': 'Cornflower blue', '#c9b8a6': 'Sand' };
 export const COMFORT_OPTS = [['hum', 'Hum'], ['tap', 'Tap'], ['rock', 'Rock'], ['spin', 'Spin'], ['flap', 'Flap'], ['pace', 'Pace'], ['charm', 'Fiddle with a charm']];
 
 export class UI {
@@ -40,7 +42,7 @@ export class UI {
       <div id="caption"></div>
       <div id="bubbles"></div>
       <div id="hud" hidden>
-        <div class="clock"><div class="dial"></div><div class="cl"><div class="when"></div><div class="obj"></div><div class="pstrip" role="group" aria-label="How this place fits you" hidden></div><button class="way" id="wayBtn" hidden>${ICON.way}<span>Show the way</span></button></div></div>
+        <div class="clock"><div class="dial"></div><div class="cl"><div class="when"></div><div class="obj"></div><button class="way" id="wayBtn" hidden>${ICON.way}<span>Show the way</span></button><div class="pstrip" role="group" aria-label="How this place fits you" hidden></div></div></div>
         <div class="hudbtns"><button class="btn hb" id="phoneBtn" aria-label="Phone">${ICON.phone}<span class="lbl">Phone</span>${this.touch ? '' : '<kbd class="kphone"></kbd>'}</button><button class="btn hb" id="setBtn" aria-label="Menu: pause and settings">${ICON.cog}<span class="lbl">Menu</span></button></div>
         <div class="dock"><div class="energy" title="Energy for today"><svg viewBox="0 0 36 36"><circle class="track" cx="18" cy="18" r="14" fill="none" stroke-width="5"/><circle class="bar" cx="18" cy="18" r="14" fill="none" stroke-width="5" stroke-linecap="round" stroke-dasharray="88" stroke-dashoffset="0"/></svg><span class="elabel">Energy</span></div><div class="gearbtns"></div></div>
       </div>
@@ -68,6 +70,10 @@ export class UI {
     this.dialog.addEventListener('click', (e) => { if (e.target.closest('.choice')) return; this.advance(); });
     this.el('.gearbtns').addEventListener('click', (e) => { const b = e.target.closest('[data-g]'); if (!b) return; const g = b.dataset.g; if (g === 'smooth') this.G.setSmooth(!this.G.S.blend.smooth); else if (g === 'look') this.G.look.toggle(); else this.G.toggleGear(g); this.gearKey = ''; });
     window.addEventListener('keydown', (e) => this.key(e));
+    // a panel that is taller than the screen scrolls, and then keeps its buttons pinned at the bottom
+    { const fit = () => { const p = this.panel; if (p && !p.hidden) p.classList.toggle('scrolls', p.scrollHeight > p.clientHeight + 2); };
+      if (typeof MutationObserver !== 'undefined') new MutationObserver(() => requestAnimationFrame(fit)).observe(this.panel, { childList: true, subtree: true });
+      window.addEventListener('resize', fit); }
     window.addEventListener('keyup', (e) => { const k = keyName(e); if (this.holding && this.holding.key && (k === '1' || k === ' ' || k === 'Enter')) this.bendRelease(); });
     if (this.touch) document.body.classList.add('touch');
   }
@@ -128,7 +134,7 @@ export class UI {
     const extra = d.querySelector('.extra'); extra.innerHTML = o.extra || '';
     const txt = d.querySelector('.text'); const full = o.text;
     if (o.voice) o.voice(full);
-    { const S = this.G.S; const c = o.who ? CAST[o.who] : null; const who = o.kind === 'gut' ? 'Your gut' : o.kind === 'notice' ? (o.label || '') + ', you notice' : o.who === 'you' ? (S.name || 'You') : c ? c.name : ''; this.announce((who ? who + ': ' : '') + full + (o.extra ? ' ' + o.extra : '')); }
+    { const S = this.G.S; const c = o.who ? CAST[o.who] : null; const who = o.kind === 'gut' ? 'Your gut' : o.kind === 'notice' ? (o.label || '') + ', you notice' : o.who === 'you' ? (S.name || 'You') : c ? c.name : o.who || ''; this.announce((who ? who + ': ' : '') + full + (o.extra ? ' ' + o.extra : '')); }
     const cps = FAST ? 1e9 : { slow: 28, normal: 52, fast: 95, instant: 1e9 }[this.set.textSpeed] || 52;
     return new Promise((resolve) => {
       let shown = 0; const wrap = (s) => (o.kind === 'hint' ? '<span class="hintword">' + esc(s) + '</span>' : esc(s));
@@ -163,7 +169,7 @@ export class UI {
   barrier(b) {
     this.dialog.hidden = true;
     const el = this.barrierEl; el.hidden = false;
-    el.innerHTML = (b.face ? `<div class="bface"><img src="${b.face.img}" alt=""><div><b>${esc(b.face.name)}</b><span>${esc(b.face.sub || '')}</span></div></div>` : '') + `<h3>${esc(b.title)}</h3><div class="desc">${esc(b.text)}</div>` + (b.notice ? `<div class="noticeline"><b>${esc(b.noticeLabel)}</b>${esc(b.notice)}</div>` : '') + (b.gut ? `<div class="gutline">${esc(b.gut)}</div>` : '') + `<div class="q">Who adjusts?</div>` + (b.coach ? `<div class="coach">${esc(b.coach)}</div>` : '') + `<div class="opts"></div>`;
+    el.innerHTML = (b.face ? `<div class="bface"><img src="${b.face.img}" alt=""><div><b>${esc(b.face.name)}</b><span>${esc(b.face.sub || '')}</span></div></div>` : '') + `<h3>${esc(b.title)}</h3><div class="desc">${esc(b.text)}</div>` + (b.notice ? `<div class="noticeline"><b>${esc(b.noticeLabel)}</b> ${esc(b.notice)}</div>` : '') + (b.gut ? `<div class="gutline">${esc(b.gut)}</div>` : '') + `<div class="q">Who adjusts?</div>` + (b.coach ? `<div class="coach">${esc(b.coach)}</div>` : '') + `<div class="opts"></div>`;
     const box = el.querySelector('.opts');
     return new Promise((resolve) => {
       const buttons = b.options.map((o, i) => {
@@ -182,7 +188,7 @@ export class UI {
         box.appendChild(btn); return btn;
       });
       this.waiter = { type: 'barrier', buttons };
-      this.announce((b.face ? b.face.name + ' is asking. ' : '') + b.title + '. ' + b.text + ' Who adjusts? ' + b.options.map((o, i) => (i + 1) + '. ' + o.who + ': ' + o.label + (o.disabled ? ', not available: ' + o.reason : ', ' + o.sub)).join('. '));
+      this.announce((b.face ? b.face.name + ' is asking. ' : '') + b.title + '. ' + b.text + (b.notice ? ' ' + b.noticeLabel + ', you notice: ' + b.notice : '') + (b.gut ? ' Your gut: ' + b.gut : '') + ' Who adjusts? ' + b.options.map((o, i) => (i + 1) + '. ' + o.who + ': ' + o.label + (o.disabled ? ', not available: ' + o.reason : ', ' + o.sub)).join('. '));
     });
   }
   // Push through: hold it, or tap once and it fills by itself (tap again to stop). Holding is never required.
@@ -232,7 +238,8 @@ export class UI {
     h.querySelector('.when').textContent = day + ' · ' + fmtTime(S.min);
     const text = obj ? obj.t || '' : '';
     if (this._obj !== text) { this._obj = text; h.querySelector('.obj').textContent = text; }
-    this.el('#wayBtn').hidden = !(obj && obj.at) || this.G.mode !== 'play' || !!this.G.busy || !!this.waiter || this.G.mgActive || (obj.inside && obj.inside === this.G.loc);
+    const here = obj && obj.inside && obj.inside === this.G.loc; // inside the place the objective names: show the way to its spot, if it has one
+    this.el('#wayBtn').hidden = !(obj && (here ? obj.spot : obj.at)) || this.G.mode !== 'play' || !!this.G.busy || !!this.waiter || this.G.mgActive;
     h.querySelector('.dial').style.setProperty('--sun', Math.round(clamp((S.min - 420) / 900) * 100) + '%');
     const e = S.energy / 100; const bar = h.querySelector('.bar'); bar.style.strokeDashoffset = String(88 * (1 - e));
     h.querySelector('.energy').classList.toggle('low', e < 0.3);
@@ -296,7 +303,7 @@ export class UI {
       : ret ? `${back}<button class="btn" id="tNew">New game</button>` : '<button class="btn accent" id="tNew">Begin</button>';
     const banner = o.storage && o.storage !== 'ok' ? '<div class="tbanner" role="status">This browser isn\'t keeping saves here (a private window, or storage is blocked). You can still copy a save code from the Menu at any point, and paste it here next time.</div>' : '';
     const p = this.openPanel('title', `<h1>Made to Fit</h1><div class="sub">a town built for someone else</div>${banner}<div class="row">${main}<button class="btn" id="tSet">Settings</button></div>
-      <div class="fine">About 40 minutes, then two short return visits if you like. Best with sound. No account, no tracking, nothing to buy. Nothing flashes more than three times a second.<div class="links"><button class="linkbtn" id="tIng">What keeps you playing</button><button class="linkbtn" id="tIn">What's in this game</button><button class="linkbtn" id="tPb">Played before?</button></div></div>`);
+      <div class="fine">About 40 minutes, then two short return visits if you like. Best with sound. Your game saves on this device as you play: no account, no tracking, nothing to buy. Nothing flashes more than three times a second.<div class="links"><button class="linkbtn" id="tIng">What keeps you playing</button><button class="linkbtn" id="tIn">What's in this game</button><button class="linkbtn" id="tPb">Played before?</button></div></div>`);
     const M = this.G.menus;
     p.querySelector('#tSet').onclick = () => M.settings();
     p.querySelector('#tIng').onclick = () => M.ingredients();
@@ -312,11 +319,11 @@ export class UI {
   }
   creator(look, onChange) {
     const S = this.G.S; const L = Object.assign({}, look);
-    const sec = (title, key, opts, cur) => `<h3 class="sec">${title}</h3><div class="chips" data-k="${key}">` + opts.map(([v, n]) => `<button class="chip ${v === cur ? 'on' : ''}" data-v="${v}">${esc(n)}</button>`).join('') + '</div>';
+    const sec = (title, key, opts, cur) => `<h3 class="sec">${title}</h3><div class="chips" data-k="${key}" role="group" aria-label="${esc(title)}">` + opts.map(([v, n]) => `<button class="chip ${v === cur ? 'on' : ''}" data-v="${v}" aria-pressed="${v === cur}">${esc(n)}</button>`).join('') + '</div>';
     const html = `<h2>This is you.</h2><p class="lede">Nobody else in Larkspur looks quite like this. That is the point.</p>
-      <div class="two"><div><h3 class="sec"><label for="cname">Name</label></h3><input type="text" id="cname" maxlength="14" value="${esc(S.name)}" autocomplete="off"></div><div><h3 class="sec">Pronouns</h3><div class="chips" data-k="pronoun">${['they', 'she', 'he'].map((v) => `<button class="chip ${v === S.pronoun ? 'on' : ''}" data-v="${v}">${v}</button>`).join('')}</div></div></div>
+      <div class="two"><div><h3 class="sec"><label for="cname">Name</label></h3><input type="text" id="cname" maxlength="14" value="${esc(S.name)}" autocomplete="off"></div><div><h3 class="sec">Pronouns</h3><div class="chips" data-k="pronoun" role="group" aria-label="Pronouns">${['they', 'she', 'he'].map((v) => `<button class="chip ${v === S.pronoun ? 'on' : ''}" data-v="${v}" aria-pressed="${v === S.pronoun}">${v}</button>`).join('')}</div></div></div>
       ${sec('Shape', 'shape', OPTIONS.shape, L.shape)}
-      <h3 class="sec">Color</h3><div class="chips" data-k="color">${OPTIONS.color.map((c) => `<button class="swatch ${c === L.color ? 'on' : ''}" data-v="${c}" style="background:${c}" aria-label="color ${c}"></button>`).join('')}</div>
+      <h3 class="sec">Color</h3><div class="chips" data-k="color" role="group" aria-label="Color">${OPTIONS.color.map((c) => `<button class="swatch ${c === L.color ? 'on' : ''}" data-v="${c}" style="background:${c}" aria-label="${esc(COLOR_NAMES[c] || 'Color')}" aria-pressed="${c === L.color}"></button>`).join('')}</div>
       ${sec('Pattern', 'pattern', OPTIONS.pattern, L.pattern)}${sec('On top', 'top', OPTIONS.top, L.top)}${sec('Something you always wear', 'wear', OPTIONS.wear, L.wear)}${sec('Your voice', 'voice', OPTIONS.voice, L.voice)}
       ${sec('Getting around', 'wheels', [['feet', 'On foot'], ['wheels', 'On wheels']], L.wheels ? 'wheels' : 'feet')}
       ${sec('Your comfort move', 'comfort', COMFORT_OPTS, L.comfort || 'hum')}<p class="small">What your creature does when a place fits it.</p>
@@ -324,14 +331,14 @@ export class UI {
     const p = this.openPanel('creator', html);
     p.addEventListener('click', (e) => {
       const b = e.target.closest('[data-v]'); if (!b) return; const k = b.parentElement.dataset.k; const v = b.dataset.v;
-      b.parentElement.querySelectorAll('[data-v]').forEach((x) => x.classList.toggle('on', x === b));
+      b.parentElement.querySelectorAll('[data-v]').forEach((x) => { x.classList.toggle('on', x === b); x.setAttribute('aria-pressed', String(x === b)); });
       if (k === 'pronoun') S.pronoun = v; else if (k === 'wheels') L.wheels = v === 'wheels'; else L[k] = v;
       this.G.audio.sfx('select'); onChange(L, k);
     });
     p.querySelector('#rand').onclick = () => {
       const pk = (a) => a[Math.floor(Math.random() * a.length)];
       L.shape = pk(OPTIONS.shape)[0]; L.color = pk(OPTIONS.color); L.pattern = pk(OPTIONS.pattern)[0]; L.top = pk(OPTIONS.top)[0]; L.wear = pk(OPTIONS.wear)[0]; L.voice = pk(OPTIONS.voice)[0]; L.comfort = pk(COMFORT_OPTS)[0];
-      p.querySelectorAll('.chips').forEach((c) => { const k = c.dataset.k; const cur = k === 'wheels' ? (L.wheels ? 'wheels' : 'feet') : k === 'pronoun' ? S.pronoun : L[k]; c.querySelectorAll('[data-v]').forEach((x) => x.classList.toggle('on', x.dataset.v === cur)); });
+      p.querySelectorAll('.chips').forEach((c) => { const k = c.dataset.k; const cur = k === 'wheels' ? (L.wheels ? 'wheels' : 'feet') : k === 'pronoun' ? S.pronoun : L[k]; c.querySelectorAll('[data-v]').forEach((x) => { x.classList.toggle('on', x.dataset.v === cur); x.setAttribute('aria-pressed', String(x.dataset.v === cur)); }); });
       this.G.audio.sfx('whoosh'); onChange(L, 'all');
     };
     return new Promise((r) => { p.querySelector('#done').onclick = () => { S.name = (p.querySelector('#cname').value || 'Sam').trim().slice(0, 14) || 'Sam'; this.closePanel(); this.G.audio.sfx('good'); r(L); }; });
@@ -470,8 +477,8 @@ export class UI {
       const F = FIXES[k]; const st = fixState(S, k); const n = supporters(S, k); const who = F.backers.map((b) => CAST[b].name + ((S.support[k] || []).includes(b) ? ' ✓' : '')).join(', ');
       const label = { idea: 'idea: take it to Clover', proposal: n + ' of 2 backers', ready: F.approve === 'gil' ? 'ready for Gil or the meeting' : 'ready for the town meeting', approved: 'approved', built: 'built', tabled: 'not this time', onfile: 'on file for next season' }[st] || st;
       const T = STAKES[k]; const sk = stakes[k];
-      const loss = !T || st === 'idea' ? '' : sk === 'listened' ? `Who loses: ${esc(T.lessLoss)} Changed: ${esc(T.variantName)}. ${esc(T.cost)}` : sk === 'overruled' ? `Who loses: ${esc(T.loses)} You kept the design as it was.` : `Who loses: ${esc(T.loses)} ${esc(CAST[T.who].name)} hasn't had a say yet.`;
-      return `<div class="card"><b>${esc(F.name)}</b><span class="pill ${st}">${label}</span><div class="meta">${esc(F.what)}</div>${st === 'proposal' ? `<div class="meta">Ask: ${esc(who)}</div>` : ''}${F.also ? `<div class="meta also">Also helps: ${esc(F.also)}</div>` : ''}${loss ? `<div class="meta loses">${loss}</div>` : ''}<div class="meta" style="font-style:italic">${esc(F.principle)}</div></div>`;
+      const loss = !T || st === 'idea' ? '' : sk === 'listened' ? `${esc(T.lessLoss)} The change: ${esc(T.variantName)}. ${esc(T.cost)}` : sk === 'overruled' ? `Who loses: ${esc(T.loses)} You kept the design as it was.` : `Who loses: ${esc(T.loses)} ${esc(CAST[T.who].name)} hasn't had a say yet.`;
+      return `<div class="card"><b>${esc(F.name)}</b> <span class="pill ${st}">${label}</span><div class="meta">${esc(F.what)}</div>${st === 'proposal' ? `<div class="meta">Ask: ${esc(who)}</div>` : ''}${F.also ? `<div class="meta also">Also helps: ${esc(F.also)}</div>` : ''}${loss ? `<div class="meta loses">${loss}</div>` : ''}<div class="meta" style="font-style:italic">Design principle: ${esc(F.principle)}</div></div>`;
     }).join('');
     const cap = `<p class="small">Fixes this visit: ${approvedCount(S)} of ${SEASON_CAP}. A town can only build so much in a season.</p>`;
     return rows ? cap + rows : '<p class="lede">Nothing yet. When a place pinches, note it, or listen to people who mention what pinches them.</p>';
@@ -496,7 +503,6 @@ export class UI {
     on('#drop', () => { G.blendDrop(); this.renderPhone(); });
     on('#blook', () => { const t = this.phoneEl.querySelector('#blookt'); const b = this.phoneEl.querySelector('#blook'); if (t) { t.hidden = false; this.announce('Look again. ' + t.textContent); } if (b) b.hidden = true; G.audio.sfx('lantern'); });
     const del = this.phoneEl.querySelector('#del'); if (del) del.onclick = () => { if (del.dataset.sure) { G.deleteBlend(); this.renderPhone(); } else { del.dataset.sure = '1'; del.textContent = 'Yes, delete it'; this.phoneEl.querySelector('#delwarn').hidden = false; } };
-    on('#maptoggle', () => { this.mapAll = !this.mapAll; this.renderPhone(); });
     this.phoneEl.querySelectorAll('[data-sub]').forEach((b) => { b.onclick = () => { this.lanSub = b.dataset.sub; this.personOpen = null; this.G.audio.sfx('select'); this.renderPhone(); }; });
     this.phoneEl.querySelectorAll('[data-person]').forEach((b) => { b.onclick = () => { this.personOpen = b.dataset.person; this.G.audio.sfx('page'); this.renderPhone(); }; });
     on('#pback', () => { this.personOpen = null; this.renderPhone(); });
@@ -519,21 +525,33 @@ export class UI {
     const gear = (S.gear.headphones || S.gear.shades) ? `<h4 class="ph4">Your gear</h4><div class="gearrow">${S.gear.headphones ? `<button class="btn gbig ${S.wearing.headphones ? 'on' : ''}" data-g="headphones">${ICON.gear} ${S.wearing.headphones ? 'Take off' : 'Put on'} headphones</button>` : ''}${S.gear.shades ? `<button class="btn gbig ${S.wearing.shades ? 'on' : ''}" data-g="shades">${ICON.shades} ${S.wearing.shades ? 'Take off' : 'Put on'} shades</button>` : ''}</div>` : '';
     return `<h3>${this.G.story && this.G.story.ret ? this.G.story.ret.dayName() : DAYNAME[S.day] || 'Today'}</h3>${obj && obj.t ? `<div class="nowcard"><div class="nl">Now</div><div>${esc(obj.t)}</div>${obj.at ? `<button class="btn primary" id="pway">${ICON.way} Show me the way</button>` : ''}</div>` : ''}<div class="goals">${this.goalsHtml()}</div>${gear}<p class="small">Energy ${Math.round(S.energy)} of ${S.maxE} today. ${S.coins} coins.${S.burnout ? ' You woke up running on less.' : ''}</p>`;
   }
+  // the town as you feel it right now: each place coloured by how it fits you, the roads, your way, and who is out.
+  // Place names sit at the top of each block, and residents' names step aside when they would overlap.
   mapSvg(S) {
-    const all = !!this.mapAll; const tf = all ? townFit(S.fixes, S.stakes) : null;
     const col = (v) => (v < 0.12 ? '#9fd3b0' : v < 0.3 ? '#f6cf5b' : '#f2a99a');
-    const colAll = (v) => `hsl(${Math.round(v * 120)}, 55%, 72%)`;
-    const zs = ZONES.map((z) => { const r = z.rect; const v = all ? (tf.by[z.id] != null ? tf.by[z.id] : 0.5) : pinch(S, z.id, S.min).total; const fill = all ? colAll(v) : col(v); return `<rect x="${r[0] * 5}" y="${r[1] * 5}" width="${(r[2] - r[0]) * 5 - 3}" height="${(r[3] - r[1]) * 5 - 3}" rx="10" fill="${fill}" opacity="0.92"/><text x="${(r[0] + r[2]) * 2.5}" y="${(r[1] + r[3]) * 2.5}" text-anchor="middle" font-size="11" fill="#2b2530">${esc(z.name)}</text>` + (all ? `<text x="${(r[0] + r[2]) * 2.5}" y="${(r[1] + r[3]) * 2.5 + 13}" text-anchor="middle" font-size="10" fill="#2b2530">${Math.round((tf.by[z.id] || 0) * 100)}% get by</text>` : ''); }).join('');
+    // (labels get a halo in the paper colour, so a road or a neighbour's dot under them never cuts a letter)
+    const label = (x, y, t, size, mid) => `<text x="${x}" y="${y}"${mid ? ' text-anchor="middle"' : ''} font-size="${size}" fill="#2b2530" stroke="#fbf6ee" stroke-width="3" stroke-linejoin="round" paint-order="stroke">${esc(t)}</text>`;
+    const zs = ZONES.map((z) => { const r = z.rect; const v = pinch(S, z.id, S.min).total; return `<rect x="${r[0] * 5}" y="${r[1] * 5}" width="${(r[2] - r[0]) * 5 - 3}" height="${(r[3] - r[1]) * 5 - 3}" rx="10" fill="${col(v)}" opacity="0.92"/>`; }).join('');
+    const zl = ZONES.map((z) => { const r = z.rect; return label((r[0] + r[2]) * 2.5, r[1] * 5 + 15, z.name, 11, true); }).join('');
     const roads = this.G.town.mapRoads ? this.G.town.mapRoads().map(([x0, z0, x1, z1]) => `<line x1="${x0 * 5}" y1="${z0 * 5}" x2="${x1 * 5}" y2="${z1 * 5}" stroke="#fbf6ee" stroke-width="5" stroke-linecap="round" opacity="0.85"/>`).join('') : '';
     const route = this.G.routeSvg ? this.G.routeSvg() : '';
-    const ppl = this.G.npcDots().map((d) => `<circle cx="${d.x * 5}" cy="${d.z * 5}" r="5.5" fill="${d.color}" stroke="#2b2530" stroke-width="1.5"/><text x="${d.x * 5 + 8}" y="${d.z * 5 + 4}" font-size="10" fill="#2b2530">${esc(d.name)}</text>`).join('');
+    // names go where they cover no other name and no one's dot: beside, above or below their own dot
+    const placed = ZONES.map((z) => { const r = z.rect; const w = z.name.length * 5.6; const cx = (r[0] + r[2]) * 2.5; return [cx - w / 2, r[1] * 5 + 5, cx + w / 2, r[1] * 5 + 17]; });
+    const dots = this.G.npcDots().slice().sort((a, b) => a.z - b.z);
     const me = this.G.playerDot();
+    for (const d of dots.concat(me ? [me] : [])) placed.push([d.x * 5 - 6.5, d.z * 5 - 6.5, d.x * 5 + 6.5, d.z * 5 + 6.5]);
+    const hits = (b) => placed.some((q) => b[0] < q[2] && b[2] > q[0] && b[1] < q[3] && b[3] > q[1]);
+    const ppl = dots.map((d) => {
+      const x = d.x * 5, y = d.z * 5; const w = d.name.length * 5.4; let lx = x + 8, ly = y + 4;
+      for (const [ox, oy] of [[8, 4], [8, 15], [8, -7], [-8 - w, 4], [-8 - w, 15], [-8 - w, -7], [-w / 2, -9], [-w / 2, 18]]) { const b = [x + ox, y + oy - 9, x + ox + w, y + oy + 2]; if (!hits(b)) { lx = x + ox; ly = y + oy; break; } }
+      placed.push([lx, ly - 9, lx + w, ly + 2]);
+      return { dot: `<circle cx="${x}" cy="${y}" r="5.5" fill="${d.color}" stroke="#2b2530" stroke-width="1.5"/>`, name: label(lx, ly, d.name, 10) };
+    });
     const youDot = me ? `<circle cx="${me.x * 5}" cy="${me.z * 5}" r="7" fill="${S.look.color}" stroke="#fff" stroke-width="2.5"/>` : '';
-    return zs + roads + route + ppl + youDot;
+    return zs + roads + route + zl + ppl.map((o) => o.dot).join('') + youDot + ppl.map((o) => o.name).join('');
   }
   tab_map(S) {
-    const all = !!this.mapAll;
-    return `<h3>Larkspur</h3><svg class="map" viewBox="0 0 320 240">${this.mapSvg(S)}</svg><div class="legend">${all ? 'Share of 1,000 simulated residents, each with a random profile, who get through each place without a struggle.' : `<span><i style="background:#9fd3b0"></i>fits you</span><span><i style="background:#f6cf5b"></i>pinches a little</span><span><i style="background:#f2a99a"></i>pinches a lot</span><span><i style="background:#ffcf7a"></i>your way</span>`}</div><button class="btn" id="maptoggle" style="width:100%">${all ? 'Show how it fits you, right now' : 'Show how it fits a thousand residents'}</button>`;
+    return `<h3>Larkspur</h3><svg class="map" viewBox="0 0 320 240" role="img" aria-label="Map of Larkspur">${this.mapSvg(S)}</svg><div class="legend"><span><i style="background:#9fd3b0"></i>fits you</span><span><i style="background:#f6cf5b"></i>pinches a little</span><span><i style="background:#f2a99a"></i>pinches a lot</span><span><i style="background:#ffcf7a"></i>your way</span><span><i style="background:${esc(S.look.color)};border-radius:50%;box-shadow:0 0 0 2px #fff inset"></i>you</span></div>`;
   }
   // The Notebook: people you are getting to know, sights you looked again at, field notes, and the pond
   tab_notebook(S) {
@@ -605,7 +623,7 @@ export class UI {
     return `<div class="blendapp"><div style="display:flex;justify-content:space-between;align-items:baseline"><b style="font-family:var(--display);color:#d0457f">blend</b><span class="streak">🔥 ${B.streak} day streak</span></div><div class="score">${B.score}</div><div style="color:#b06090;font-size:13.5px">Smooth Score · calmer than ${Math.min(97, 40 + Math.round(B.score / 6))} in 100 people in Larkspur</div>
       ${S.flags.lantern ? `<button class="mini-btn blook" id="blook"><span class="ico" aria-hidden="true">${ICON.lantern}</span>Look again at the feed</button><p class="blookt" id="blookt" hidden>A hungrier copy of you, made to fit the feed.</p>` : ''}
       <div class="feedmount"></div>
-      <div class="toggle"><div><b style="font-family:var(--display)">Smooth Mode</b><div style="font-size:12.5px;color:#9a6a86">We handle the awkward parts for you. 15 points each time.</div></div><button class="switch ${B.smooth ? 'on' : ''}" id="smooth" aria-label="Smooth Mode"></button></div>
+      <div class="toggle"><div><b style="font-family:var(--display)">Smooth Mode</b><div style="font-size:12.5px;color:#9a6a86">We handle the awkward parts for you. 15 points each time.</div></div><button class="switch ${B.smooth ? 'on' : ''}" id="smooth" aria-label="Smooth Mode" aria-pressed="${!!B.smooth}"></button></div><p class="blplain">In plain words: while it's on, Smooth Mode pushes through for you whenever a place pinches, for 15 points a time. The pinch is still there. The town looks greyer.</p>
       ${this.G.dropReady() ? '<button class="btn" id="drop" style="width:100%">Daily drop: 25 points. The same every day.</button>' : ''}
       <div class="bl-h">BADGES</div>${B.badges.map((b) => `<span class="badge">${esc(b)}</span>`).join('') || '<span style="font-size:13px;color:#9a6a86">None yet! Smooth something to earn one.</span>'}
       <div class="bl-h">LEADERBOARD</div>${board.map(([n, v]) => `<div class="lb-row ${n.includes('(you)') ? 'me' : ''}"><span>${esc(n)}</span><span>${v}</span></div>`).join('')}
@@ -671,16 +689,16 @@ export class UI {
   }
   // ---------- the evening page: what happened, without a score ----------
   evening(d) {
-    const resp = [['bend', 'Bent'], ['gear', 'Gear'], ['ask', 'Asked'], ['fix', 'Noted a fix'], ['leave', 'Left']].map(([k, n]) => `<div class="ev-r ${k} ${d.counts[k] ? '' : 'zero'}"><div class="ic">${ICON[k]}</div><b>${d.counts[k] || 0}</b><span>${n}</span></div>`).join('');
+    const resp = [['bend', 'Pushed through'], ['gear', 'Gear'], ['ask', 'Asked'], ['fix', 'Noted a fix'], ['leave', 'Left']].map(([k, n]) => `<div class="ev-r ${k} ${d.counts[k] ? '' : 'zero'}"><div class="ic">${ICON[k]}</div><b>${d.counts[k] || 0}</b><span>${n}</span></div>`).join('');
     const marbles = d.jar.map((m) => `<i style="--c:${m.c}" title="${esc(m.t)}"></i>`).join('') + '<i class="empty"></i>'.repeat(Math.max(0, d.jarMax - d.jar.length));
     const p = this.openPanel('center evening', `<div class="tday">${esc(d.day)} evening</div><h2>${esc(d.title)}</h2>
       <h3 class="sec">Today, when a place did not fit</h3><div class="ev-row">${resp}</div>
-      <h3 class="sec">Kept moments</h3><div class="jarrow"><div class="jar">${marbles}</div><div class="jt">${d.jarText}</div></div>
+      <h3 class="sec">Your jar of kept moments</h3><div class="jarrow"><div class="jar">${marbles}</div><div class="jt">${d.jarText}</div></div>
       ${d.news.length ? `<h3 class="sec">Around town</h3><ul class="ev-news">${d.news.map((n) => `<li>${esc(n)}</li>`).join('')}</ul>` : ''}
       ${d.open ? `<h3 class="sec">Still open</h3><p class="ev-open">${esc(d.open)}</p>` : ''}
       ${d.notebook ? `<p class="ev-open">${esc(d.notebook)} It's in your phone, under Notebook.</p>` : ''}
       ${d.tomorrow.length ? `<h3 class="sec">Tomorrow</h3><ul class="ev-news">${d.tomorrow.map((n) => `<li>${esc(n)}</li>`).join('')}</ul>` : ''}
-      <div class="pfoot"><button class="btn primary" id="sleep">Sleep</button></div>`);
+      <div class="pfoot sticky"><button class="btn primary" id="sleep">Sleep</button></div>`);
     return new Promise((r) => { const go = () => { window.removeEventListener('keydown', kh); this.closePanel(); r(); }; const kh = (e) => { if (e.key === 'Enter') { e.preventDefault(); go(); } }; p.querySelector('#sleep').onclick = go; setTimeout(() => window.addEventListener('keydown', kh), 300); });
   }
   ending(d) {

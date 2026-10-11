@@ -280,8 +280,9 @@ export const ACT2 = {
   },
   npcWant() { return null; },
   // asking Gil, ten years on: you're not the new person, and the people at the next desks have changed
-  ask: { gil: { yes: '"Oh! Sure, sure. I can turn the radio off and switch off the row by your desk. Anything for an old hand."', no: '"Hm. Everyone else seems pretty happy with it? Let\'s see how it goes."', yesUnder: '"Too quiet? Ha! Easy. Radio\'s going on, low. And I\'ll swing by more. Not too much. Some."', noUnder: '"Hm. I think people like it quiet in here? Let\'s see how it goes."' } },
-  bystander: { gil: { over: { light: ['unit', 'ROW 3 PANELS: OFF. ROOM DOES NOT MATCH SPEC. SORTING SLOWER.'], other: ['tomas', 'No radio? Fine. I\'ll hum.'] }, under: { other: ['ada', 'Radio\'s on? Fine. I\'ll wear my earplugs.'] } } },
+  ask: { gil: { yes: '"Oh! Sure, sure. I can turn the radio off and switch off the row by your desk. Anything for an old hand."', no: '"Hm. Everyone else seems pretty happy with it? Let\'s see how it goes."', yesUnder: '"Too quiet? Ha! Easy. Radio\'s going on, low. And I\'ll swing by more. Not too much. Some."', noUnder: '"Hm. I think people like it quiet in here? Let\'s see how it goes."',
+    yesBy: { light: '"Oh! Sure, sure. I\'ll switch off the row over your desk. Anything for an old hand."', sound: '"Oh! Sure, sure. Radio\'s off. Anything for an old hand."' }, yesUnderBy: { sound: '"Too quiet? Ha! Easy. Radio\'s going on, low."', people: '"Bit lonely back there? I\'ll swing by more. Not too much. Some."' } } },
+  bystander: { gil: { over: { light: ['unit', 'ROW 3 PANELS: OFF. ROOM DOES NOT MATCH SPEC. SORTING SLOWER.'], other: ['tomas', 'No radio? Fine. I\'ll hum.'] }, under: { people: ['tomas', 'He swings by you more, he swings by me less. Fine.'], other: ['ada', 'Radio\'s on? Fine. I\'ll wear my earplugs.'] } } },
   // the meeting: Blend's argument, ten years on, and what Rue knows now (she makes the scores)
   blendArg: { who: 'hollis', t: 'But the Smooth Scores say people are coping beautifully! Larkspur is in the county top five.' },
   rueSpeaks: { sum: 'Rue tells the hall what the scores she makes can\'t see.', lines: ['Can I say something? I make those scores now.', 'They count taps. A bad morning doesn\'t tap.', 'They measure whether we look all right. Not whether we are.'] },

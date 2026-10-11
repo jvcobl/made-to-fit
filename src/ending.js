@@ -56,29 +56,37 @@ export function specificLine(S, key) {
     if (!top.length) return '';
     return top.map((z) => (ZONE_NAME[z] || 'Larkspur') + ' ' + (STAYED[z] || 'stayed as it was') + '.').join(' ') + (top.length > 1 ? ' You carried both' : ' You carried it') + ', and it showed in your colour.';
   }
-  if (key === 'roommade' || key === 'wider') {
-    const made = fixesMade(S);
-    return made.map((f) => { const T = STAKES[f]; const l = (S.stakes || {})[f] === 'listened'; return 'The ' + SIM.FIXES[f].short + (l ? ' (' + T.variantName + ')' : '') + ': ' + (l ? T.lessLoss : T.loses); }).join(' ');
+  // leaving was your usual answer: name where you stepped out of, and what you still left the town
+  if (key === 'movedon') {
+    const n = {}; for (const r of S.log || []) if (r.k === 'barrier' && r.v === 'leave') n[r.z] = (n[r.z] || 0) + 1;
+    const top = Object.keys(n).sort((a, b) => n[b] - n[a]).slice(0, 2).map((z) => (ZONE_NAME[z] || 'Larkspur').replace(/^The /, 'the '));
+    const filed = Object.keys(SIM.FIXES).filter((f) => ['proposal', 'ready', 'onfile', 'tabled'].includes(S.fixes[f])).length;
+    const NUM = ['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine'];
+    return ((top.length ? 'You stepped out of ' + list(top) + ' when ' + (top.length > 1 ? 'they' : 'it') + ' pinched.' : '') + (filed ? ' You still left ' + (filed > 1 ? (NUM[filed] || filed) + ' ideas' : 'an idea') + ' on file for the town.' : '')).trim();
   }
+  // (Room Made and A Little Wider: each fix, and who lost something for it, is listed under what Larkspur will
+  // remember, so the title needs no line of its own)
   return '';
 }
 // what Larkspur will remember: one plain sentence per thing that carries
 export function remember(S, rueState, extra) {
-  const out = (extra || []).slice();
+  const out = (extra || []).slice(); const filed = [];
   for (const f of Object.keys(SIM.FIXES)) {
     const st = S.fixes[f]; const F = SIM.FIXES[f]; const T = STAKES[f]; const l = (S.stakes || {})[f] === 'listened';
     // "the counter hours are in place" (not "up", which reads as time running out); a fix from an earlier visit is
     // simply still there (whoever lost something for it was told at the time, and may not live here any more)
     const up = F.inplace ? 'in place' : 'up'; const older = (S.act || 1) > 1 && ((S.fixAct || {})[f] || 1) < (S.act || 1);
     if (st === 'built' && older) out.push('The ' + F.short + ' ' + SIM.agree(f, 'is', 'are') + ' still ' + up + '.');
-    else if (st === 'built') out.push('The ' + F.short + ' ' + SIM.agree(f, 'is', 'are') + ' ' + up + (l ? ', ' + T.variantName : '') + '. ' + cap(l ? T.lessLoss : T.loses));
-    else if (st === 'approved') out.push('The ' + F.short + ' ' + SIM.agree(f, 'goes', 'go') + ' up on Thursday' + (l ? ', ' + T.variantName : '') + '. ' + cap(l ? T.lessLoss : T.loses));
+    else if (st === 'built') out.push('The ' + F.short + ' ' + SIM.agree(f, 'is', 'are') + ' ' + up + (l ? ', ' + T.variantName : '') + '. ' + (l ? T.lessLoss : 'Who lost something: ' + T.loses));
+    else if (st === 'approved') out.push('The ' + F.short + ' ' + SIM.agree(f, 'goes', 'go') + ' up on Thursday' + (l ? ', ' + T.variantName : '') + '. ' + (l ? T.lessLoss : 'Who loses something: ' + T.loses));
     else if (st === 'onfile' && S.fixRestored === f) out.push('The ' + F.short + ' came down for Unit. ' + SIM.agree(f, 'It is', 'They are') + ' on file again.');
-    else if (['proposal', 'ready', 'onfile', 'tabled'].includes(st)) out.push('Your idea for the ' + F.short + ' is on file for next season.');
+    else if (['proposal', 'ready', 'onfile', 'tabled'].includes(st)) filed.push('the ' + F.short);
   }
+  // ideas still on file, in one sentence rather than one line each
+  if (filed.length) out.push((filed.length > 1 ? 'Your ideas for ' + list(filed) + ' are' : 'Your idea for ' + filed[0] + ' is') + ' on file for next season.');
   if ((S.w || {}).wren_paid) out.push('Wren was paid for the porch lanterns, at the price on the sign.');
   const close = Object.keys(CAST).filter((id) => !CAST[id].minor && (S.bonds[id] || 0) >= 2).sort((a, b) => (S.bonds[b] || 0) - (S.bonds[a] || 0)).slice(0, 4).map((id) => CAST[id].name);
-  if (close.length) out.push(list(close) + (close.length > 1 ? ' know you now.' : ' knows you now.'));
+  if (close.length) out.push(list(close) + (close.length > 1 ? ' know you best.' : ' knows you best.'));
   const rue = rueState;
   if ((S.act || 1) === 1) out.push(rue === 'easing' ? 'Rue went to the festival without the app. Tomorrow might be a bad one. That is allowed.' : 'Rue\'s streak is at four hundred and fourteen days.');
   const B = S.blend; out.push(!B.has ? 'You never installed Blend.' : B.deleted ? 'You deleted Blend. The birds seem louder.' : B.smooth ? 'Blend\'s Smooth Mode is still on.' : 'Blend is still on your phone.');
@@ -86,7 +94,6 @@ export function remember(S, rueState, extra) {
   if (S.default && DEFAULTS[S.default] && S.default !== 'as_is') out.push('Next time: ' + DEFAULTS[S.default].t.toLowerCase() + '.');
   return out;
 }
-const cap = (s) => (s ? s[0].toUpperCase() + s.slice(1) : s);
 const list = (xs) => (xs.length > 1 ? xs.slice(0, -1).join(', ') + ' and ' + xs[xs.length - 1] : xs[0] || '');
 
 // the carry: exactly what the next visit (and the visit code) needs, and nothing personal

@@ -170,7 +170,7 @@ export class Look {
     const S = this.S; const seen = S.sights || {};
     return ROOM_ROWS.map((r) => {
       const sp = SETUP[r.key]; const sg = SIGHTS.find((x) => x.id === r.sight);
-      return { key: r.key, q: ITS_Q[r.key], opts: [sp.lo, 'Somewhere in between', sp.hi], clue: seen[r.sight] ? sg.line : 'No clue yet. Look again around ' + sg.place + '.', felt: this.feltLine(r.dim), answer: r.answer };
+      return { key: r.key, q: ITS_Q[r.key], opts: [sp.lo, 'Somewhere in between', sp.hi], clue: seen[r.sight] ? sg.line : 'No clue yet. ' + (S.flags.lantern ? 'Raise Wren\'s lantern around ' + sg.place + ' to look again.' : 'Wren left a lantern on your windowsill. Raise it around ' + sg.place + ' to look again.'), felt: this.feltLine(r.dim), answer: r.answer };
     });
   }
   // values for the two rooms side by side (0 to 1 along each row's low-to-high words)

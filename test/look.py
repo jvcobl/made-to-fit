@@ -37,6 +37,7 @@ with sync_playwright() as p:
     pg.evaluate("__wb.way()"); shot('06-way', 1500)
     for k in range(10):
         pg.wait_for_timeout(1500)
+        pg.evaluate('__wb.state().energy = 100')  # (fast time drains a day's energy in seconds; this walk is for looking)
         pos = pg.evaluate("[__wb.G.player.root.position.x, __wb.G.player.root.position.z, __wb.G.npcs.bea.c.root.position.x, __wb.G.npcs.bea.c.root.position.z, __wb.G.path.length]")
         print('pos', [round(v, 1) for v in pos])
         if k in (1, 3, 5, 8): shot('07-walk%d' % k, 100)

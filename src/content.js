@@ -78,7 +78,7 @@ export const ROUTINES_ACT = {
 
 export const HINTS = {
   henderson: { by: 'gil', t: 'It would be great if someone could take a look at the Henderson file.', literal: 'Someone could look at it, if they have time.', between: 'He wants you to do it. Today.', truth: 'between',
-    right: 'You finished the Henderson file before lunch. Gil looked relieved, then pretended he had not been worried.', wrong: 'The next morning Gil asked, very gently, how the Henderson file was coming along. It was not coming along.', asked: '"Oh! Yes. Today, if you can. Sorry, I should have just said."' },
+    right: 'You finished the Henderson file before lunch. Gil looked relieved, then pretended he had not been worried.', wrong: 'The next morning Gil asked, very gently, how the Henderson file was coming along. It was not coming along.', asked: '"Oh! Yes. Today, if you can, after the mail. Sorry, I should have just said."' },
   norush: { by: 'gil', t: 'No rush at all on the slides, whenever you get a sec!', literal: 'There is no rush.', between: 'There is a rush.', truth: 'between',
     right: 'The slides were done by three. At four, Gil presented them to the board, which he had not mentioned.', wrong: 'At four, Gil presented an empty slide that said SLIDES. He did not say anything to you about it, which was worse.', asked: '"Ha. By four, ideally. The board meets at four. Huh. I should have said."' },
   advisement: { by: 'hollis', t: 'A fascinating idea. I shall take it under advisement.', literal: 'He will think it over.', between: 'That was a polite no.', truth: 'between',
@@ -130,11 +130,15 @@ export const GUTS = {
 };
 // who else pays when an owner changes a place for you: [speaker, line]; the speaker is named on the line
 export const BYSTANDER = {
-  gil: { over: { light: ['Fen', 'Bit dim for me now. I\'ll bring my lamp tomorrow.'], other: ['Fen', 'No radio? Fine. I\'ll hum.'] }, under: { other: ['Ola', 'Radio\'s on? Fine. I\'ll wear my earplugs.'] } },
-  moss: { over: { other: ['A regular', 'Was enjoying that song. Ah well.'] }, under: { other: ['A regular', 'Bit loud for a Tuesday.'] } },
-  clover: { over: { other: ['clover', 'Freckles. I\'ll live.'] }, under: { other: ['clover', 'My hinge can wait. It\'s waited this long.'] } },
-  wren: { over: { other: ['wren', 'It is a bad radio. I will work around it.'] }, under: { other: ['wren', 'It is a bad radio. I will work around it.'] } },
-  hollis: { over: { other: ['clover', 'Bit nippy. I\'ll keep my coat on.'] }, under: { other: ['clover', 'Bit nippy. I\'ll keep my coat on.'] } },
+  // (one line per thing you can ask for, so the cost matches the change: too much light, sound or company, or too little)
+  gil: { over: { light: ['fen', 'Bit dim for me now. I\'ll bring my lamp tomorrow.'], sound: ['fen', 'No radio? Fine. I\'ll hum.'], people: ['fen', 'The long way round? Fine. My meetings just got longer.'], other: ['fen', 'No radio? Fine. I\'ll hum.'] },
+    under: { sound: ['Ola', 'Radio\'s on? Fine. I\'ll wear my earplugs.'], people: ['fen', 'He swings by you more, he swings by me less. Fine.'], light: ['fen', 'That was my spare lamp. Fine. Enjoy it.'], other: ['Ola', 'Radio\'s on? Fine. I\'ll wear my earplugs.'] } },
+  moss: { over: { sound: ['A regular', 'Was enjoying that song. Ah well.'], light: ['A regular', 'That was my shady stool. Ah well.'], people: ['A regular', 'Long way round to the till now. Ah well.'], other: ['A regular', 'Was enjoying that song. Ah well.'] },
+    under: { sound: ['A regular', 'Radio, is it? Bit loud for me. I\'ll sit further off.'], people: ['A regular', 'That was my stool. I\'ll stand.'], light: ['A regular', 'Sun in my eyes now. Ah well.'], other: ['A regular', 'Radio, is it? Bit loud for me. I\'ll sit further off.'] } },
+  clover: { over: { light: ['clover', 'That was my shady spot. Freckles. I\'ll live.'], sound: ['clover', 'That gate won\'t fix itself. It can wait ten minutes.'], people: ['clover', 'Round the back is where my good bench is. It\'s yours for now.'], other: ['clover', 'That was my shady spot. Freckles. I\'ll live.'] },
+    under: { people: ['clover', 'This gate will take twice as long now. Worth it.'], sound: ['clover', 'I usually work in silence. I\'ll manage.'], light: ['clover', 'Doors open, draft in. I\'ll keep my coat on.'], other: ['clover', 'This gate will take twice as long now. Worth it.'] } },
+  wren: { over: { other: ['wren', 'It is darker on my bench now. I will work around it.'] }, under: { other: ['wren', 'Not my station. I will work around it.'], people: ['wren', 'This is the most company I have had all week. It is fine.'] } },
+  hollis: { over: { light: ['clover', 'Now I can\'t read my notes. I\'ll squint at Hollis instead.'], sound: ['clover', 'I liked the murmur. It meant people came.'], other: ['clover', 'Bit nippy. I\'ll keep my coat on.'] }, under: { other: ['clover', 'Bit nippy. I\'ll keep my coat on.'] } },
 };
 // a hand you can give back, at their busy time on festival day (one per person per visit); zone is where it costs you
 export const FAVOURS = {
@@ -150,7 +154,7 @@ export const FAVOURS = {
   hollis: { m: 1110, zone: 'market', ask: 'Might you help hang the bunting on the square? Civic duty calls. Loudly.', from: 'Hollis',
     yes: [{ note: 'You hang bunting across the square while Hollis directs from the ground, mostly with his eyebrows.' }, { who: 'hollis', t: 'Splendid! Slightly to the left. No, the other left. Splendid!' }], keep: 'You hung bunting with Hollis',
     no: { who: 'hollis', t: 'Quite right. Quite right. I shall ask the bakery delegation.' } },
-  wren: { m: 1140, zone: 'market', ask: 'Can you carry lanterns to the square with me? One crate. It is heavy.', from: 'Wren',
+  wren: { m: 1140, zone: 'market', ask: 'Can you carry lanterns to the square with me? One crate. They have to be there by eight, even if I am not.', from: 'Wren',
     yes: [{ note: 'You carry a crate of lanterns to the square. Wren walks beside you and counts them twice.' }, { who: 'wren', t: 'One hundred and twelve. All here. Thank you for not swinging the crate.' }], keep: 'You carried lanterns with Wren',
     no: { who: 'wren', t: 'That is a clear answer. Thank you. I will take two trips.' } },
 };
@@ -161,15 +165,25 @@ export const NOTICE = {
   homerow: { people: 'Nobody on Home Row can tell from outside whether a neighbor wants company.', talk: 'Every door has a different rule, and none of them are written down.' },
   farend: { people: 'Wren\'s sign says "knock once." It is the clearest sign in town.' },
 };
+// the noticed causes above that only explain too much of something (an empty square is not the stalls' funnel at noon)
+export const NOTICE_OVER = { works: ['light', 'sound'], market: ['sound', 'people'], transit: ['change'] };
 export const ASK = {
   gil: { yes: '"Oh! Sure, sure. I can turn the radio off and switch off the row by your desk. Anything for the new person."', no: '"Hm. Everyone else seems pretty happy with it? Let\'s see how it goes."',
-    yesUnder: '"Too quiet? Ha! Easy. Radio\'s going on, low. And I\'ll swing by more. Not too much. Some."', noUnder: '"Hm. I think people like it quiet in here? Let\'s see how it goes."' },
+    yesBy: { light: '"Oh! Sure, sure. I\'ll switch off the row of panels over your desk. Anything for the new person."', sound: '"Oh! Sure, sure. Radio\'s off. Anything for the new person."', people: '"Oh! Sure. I\'ll send the walk-and-talks the long way round. Anything for the new person."' },
+    yesUnder: '"Too quiet? Ha! Easy. Radio\'s going on, low. And I\'ll swing by more. Not too much. Some."', noUnder: '"Hm. I think people like it quiet in here? Let\'s see how it goes."',
+    yesUnderBy: { sound: '"Too quiet? Ha! Easy. Radio\'s going on, low."', people: '"Bit lonely back there? I\'ll swing by more. Not too much. Some."', light: '"Too dim? There\'s a desk lamp in the cupboard. It\'s yours."' } },
   moss: { yes: '"Say no more. Stool behind the cart, love. I\'ll turn the speaker down."', no: '"Wish I could. It\'s not my music, love."',
-    yesUnder: '"Slow one today, isn\'t it? Radio\'s on. Pull up a stool and keep me company."', noUnder: '"Wish I could fill it up for you, love. It\'s a slow day for everyone."' },
-  clover: { yes: '"Shade! Course. Here, take the parasol."', no: '"Nothing I can move, sorry."',
-    yesUnder: '"Too quiet out here? Come hold this hinge. I\'ll tell you all about hinges. You\'ll regret it."', noUnder: '"I\'m up to my elbows in a gate. Later?"' },
-  wren: { yes: '"I can put the radio on. It is a bad radio."', no: '"No. I need the quiet. The Commons has music."' },
-  hollis: { yes: '"Let us open a window, then! Fresh air for democracy."', no: '"Ah. Well. We have always done it this way."' },
+    yesBy: { light: '"Say no more. Stool behind the cart, love. Out of the sun."', people: '"Say no more. Stool behind the cart, love. The crowd can go round."' },
+    yesUnder: '"Slow one today, isn\'t it? Radio\'s on. Pull up a stool and keep me company."', noUnder: '"Wish I could fill it up for you, love. It\'s a slow day for everyone."',
+    yesUnderBy: { sound: '"Slow one today, isn\'t it? Radio\'s on."', people: '"Slow one today, isn\'t it? Pull up a stool and keep me company."', light: '"Bit gloomy under the awning? I\'ll roll it back."' } },
+  clover: { yes: '"Shade! Course. Stand under the Shed\'s awning, here."', no: '"Nothing I can move, sorry."',
+    yesBy: { sound: '"Too loud? I\'ll stop hammering. For ten minutes. Maybe five."', people: '"Busy, isn\'t it? Come round the back. Nobody comes round the back."' },
+    yesUnder: '"Too quiet out here? Come hold this hinge. I\'ll tell you all about hinges. You\'ll regret it."', noUnder: '"I\'m up to my elbows in a gate. Later?"',
+    yesUnderBy: { sound: '"Too quiet? I\'ll put the radio on. One station. It\'s a good one."', light: '"Bit dim back here? I\'ll open the big doors."' } },
+  wren: { yes: '"I can close the shutter on that side."', no: '"No. I need the quiet. The Commons has music."',
+    yesUnder: '"I can put the radio on. It is a bad radio."', yesUnderBy: { people: '"You can sit on the step while I work. I will not talk much."' } },
+  hollis: { yes: '"Let us open a window, then! Fresh air for democracy."', no: '"Ah. Well. We have always done it this way."',
+    yesBy: { light: '"Blinds! Of course. Democracy need not squint."', sound: '"Quieter, everyone! Ahem. Quieter, please."' } },
 };
 
 // ---------- the prologue ----------
@@ -198,7 +212,7 @@ export const TALK = {
   gil: {
     shift1: [
       { if: 'flag.late1', go: 'late' },
-      { who: 'gil', t: 'You made it! Welcome, welcome. That desk by the plant is all yours.' }, { go: 'tour' },
+      { who: 'gil', t: 'You found it! Welcome, welcome. The desk by the plant is all yours.' }, { go: 'tour' },
       { label: 'late' }, { who: 'gil', t: 'Oh hey! No worries, no worries at all. Most folks are in by quarter to, but honestly, no worries.' }, { gut: 'Three no-worries. That is one worry.' },
       { label: 'tour' },
       { who: 'gil', t: 'Coffee is there, printer is there, the light by the window does a little dance. We love it.' },
@@ -217,11 +231,11 @@ export const TALK = {
       { who: 'gil', t: 'Love that. Love the energy.' }, { hint: 'advisement_gil' },
       { label: 'out' }, { who: 'gil', t: 'Great sync, everyone. Great sync.' }, { do: ['know.gil.under'] },
     ],
-    d1: [{ who: 'gil', t: 'Hey, it\'s the new person! Settling in? The tea here is better than ours, don\'t tell anyone.' }, { gut: 'He looks tired around the eyes.' },
+    d1: [{ who: 'gil', t: 'Hey, it\'s the new person! Settling in? Moss\'s tea is better than ours, by the way. Don\'t tell anyone.' }, { gut: 'He looks tired around the eyes.' },
       { if: 'blend & !flag.gil_pills', go: 'pills' }, { end: true },
       { label: 'pills' }, { who: 'gil', t: 'Oh, you got Blend? Me too. It reminds me to take my pills. Best thing on my phone. Also the worst thing on my phone.' }, { do: ['flag.gil_pills'] }],
     d2: [
-      { who: 'gil', t: 'Long day. Those panels give me a headache by three, honestly. Don\'t tell anyone. Management has to love the panels.' },
+      { who: 'gil', t: 'Long week, and it\'s only Tuesday. Those panels give me a headache by three, honestly. Don\'t tell anyone. Management has to love the panels.' },
       { do: ['flag.gil_head', 'know.gil.over'] },
       { ask: [{ t: 'They give me one too.', tag: 'plain', do: ['bond.gil+1'], go: 'same' }, { t: 'You could ask for different ones.', do: ['idea.dim'] }, { t: 'Say nothing.', tag: 'quiet' }, { t: 'The panels are great, though!', blend: true, if: 'blend', go: 'great', id: 'blend_gil' }] },
       { end: true }, { label: 'same' }, { who: 'gil', t: 'Really? Huh. I thought it was just me.' }, { do: ['idea.dim'] }, { end: true },
@@ -245,15 +259,15 @@ export const TALK = {
     d2: [
       { who: 'moss', t: 'Noon is when my regulars leave. The ones who come for the quiet. Then it\'s just me and the shouting.' },
       { do: ['idea.quiet', 'know.moss.over', 'know.moss.under'] },
-      { ask: [{ t: 'What if the market had a quiet hour?', go: 'q' }, { t: 'Can I see the headphones again?', go: 'shop' }, { t: 'That sounds lonely.', tag: 'warm', do: ['bond.moss+1'] }] },
-      { end: true }, { label: 'q' }, { who: 'moss', t: 'A quiet hour. Hah. I\'ve wished for one out loud for six years. Out loud is the wrong way to wish for quiet, I suppose.' }, { end: true },
+      { ask: [{ t: 'What if the market had a quiet corner?', go: 'q' }, { t: 'Can I see the headphones again?', go: 'shop' }, { t: 'That sounds lonely.', tag: 'warm', do: ['bond.moss+1'] }] },
+      { end: true }, { label: 'q' }, { who: 'moss', t: 'A quiet corner. Hah. I\'ve wished for one out loud for six years. Out loud is the wrong way to wish for quiet, I suppose.' }, { end: true },
       { label: 'shop' }, { call: 'shop' },
     ],
     d3: [{ who: 'moss', t: 'Festival tonight. I\'ll be the one with the tea and the slightly overwhelmed face.' }, { ask: [{ t: 'Can I see the headphones?', go: 'shop' }, { t: 'Save me a cup.', tag: 'warm', do: ['bond.moss+1'] }] }, { end: true }, { label: 'shop' }, { call: 'shop' }],
     again: [{ who: 'moss', t: 'Back again. Good.' }, { ask: [{ t: 'Can I see the headphones and shades?', go: 'shop' }, { t: 'Just saying hi.', tag: 'warm', go: 'hi' }] }, { end: true }, { label: 'shop' }, { call: 'shop' }, { end: true },
       { label: 'hi' }, { if: 'hint.moss_leave=right|hint.moss_leave=wrong|hint.moss_leave=asked', end: true }, { hint: 'moss_leave' }],
     back: {
-      quiet: [{ who: 'moss', t: 'A quiet hour. Put my name down. Put it down quietly.' }, { do: ['back.quiet', 'bond.moss+1', 'know.moss.helps'] }],
+      quiet: [{ who: 'moss', t: 'A quiet corner. Put my name down. Put it down quietly.' }, { do: ['back.quiet', 'bond.moss+1', 'know.moss.helps'] }],
       lanterns: [{ who: 'moss', t: 'Lights that say come in or not now? I\'d know when to bring tea and when to leave it on the step. Yes.' }, { do: ['back.lanterns'] }],
     },
   },
@@ -359,7 +373,7 @@ export const TALK = {
     d3: [{ who: 'bea', t: 'My daughter takes the 7:40 in for the festival. If the route changes again I\'ll be standing at that bench like a lamppost.' }, { if: 'fix.board=built|fix.board=approved', go: 'ok' }, { end: true }, { label: 'ok' }, { who: 'bea', t: 'Though I hear the board works now. Imagine that. Written down.' }, { face: 'happy', who: 'bea' }],
     again: [{ who: 'bea', t: 'Still here, dear. So am I. So is the bench.' }],
     back: {
-      quiet: [{ who: 'bea', t: 'A quiet hour? My hearing aid would write you a thank-you card.' }, { do: ['back.quiet', 'know.bea.helps'] }],
+      quiet: [{ who: 'bea', t: 'A quiet corner? My hearing aid would write you a thank-you card.' }, { do: ['back.quiet', 'know.bea.helps'] }],
       board: [{ who: 'bea', t: 'Written down. Where a person can read it. Oh, yes.' }, { do: ['back.board', 'bond.bea+1', 'know.bea.helps'] }],
       ramp: [{ who: 'bea', t: 'A ramp at the Works? Took me four years last time. Let\'s see if you\'re quicker.' }, { do: ['back.ramp', 'bond.bea+1'] }],
     },
@@ -403,7 +417,10 @@ export const TALK = {
   },
   clover: {
     d1: [
-      { who: 'clover', t: 'Ooh, a new face! Welcome to the Fix-It Shed. Mostly we fix gates. Sometimes we fix towns.' }, { who: 'clover', t: 'A shed with nothing to fix is the saddest place in Larkspur. So I go looking.' }, { do: ['know.clover.under'] },
+      { if: 'met.clover', go: 'again1' },
+      { who: 'clover', t: 'Ooh, a new face! Welcome to the Fix-It Shed. Mostly we fix gates. Sometimes we fix towns.' }, { go: 'intro1' },
+      { label: 'again1' }, { who: 'clover', t: 'You again! Welcome to the Fix-It Shed proper. Mostly we fix gates. Sometimes we fix towns.' },
+      { label: 'intro1' }, { who: 'clover', t: 'A shed with nothing to fix is the saddest place in Larkspur. So I go looking.' }, { do: ['know.clover.under'] },
       { who: 'clover', t: 'Here\'s how it works. Bring me whatever pinches. I sketch it. Then we find who else it pinches, because there\'s always someone, and we take it to whoever decides.' },
       { call: 'proposals' },
     ],
@@ -460,7 +477,8 @@ export const TALK = {
     back: {},
   },
   dot: {
-    d1: [{ who: 'dot', t: 'Hi. Dot. Next desk. Sorry in advance: I talk to the lights. They don\'t answer.' }, { who: 'dot', t: 'Is it very bright in here, or is it me? I ask every day, and every day it\'s both.' }],
+    d1: [{ who: 'dot', t: 'Hi. Dot. Next desk. Sorry in advance: I talk to the lights. They don\'t answer.' }, { if: 'flag.rowdim1', go: 'dim' }, { who: 'dot', t: 'Is it very bright in here, or is it me? I ask every day, and every day it\'s both.' }, { end: true },
+      { label: 'dim' }, { who: 'dot', t: 'Did you get them to switch off our row? I can see my own hands. Thank you.' }],
     d2: [{ who: 'dot', t: 'Permits today. Four years I\'ve checked these. I\'ve never once seen one match.' }],
     d3: [{ if: 'fix.dim=built', go: 'soft' }, { who: 'dot', t: 'Short day. Same lights. Same Dot.' }, { end: true }, { label: 'soft' }, { who: 'dot', t: 'Did they change the lights? My eyes have stopped arguing with me.' }],
     again: [{ who: 'dot', t: 'Sorry. Still bright. Not your fault.' }],
@@ -501,29 +519,29 @@ Object.assign(TALK.moss.back, {
 
 // the one person each fix costs, what they'd change, and what that costs you (every option costs someone something)
 export const STAKES = {
-  quiet: { who: 'pomeroy', loses: 'Pomeroy\'s noon trade: he sells apples by shouting.', lessLoss: 'Pomeroy, less: he keeps his side of the square loud.', variantName: 'on the bench side, away from the apple stall', cost: 'For you: the corner is a little less quiet at noon.',
+  quiet: { who: 'pomeroy', loses: 'Pomeroy\'s noon trade: he sells apples by shouting.', lessLoss: 'Pomeroy loses less: he keeps his side of the square loud.', variantName: 'on the bench side, away from the apple stall', cost: 'For you: the corner is a little less quiet at noon.',
     talk: [{ who: 'pomeroy', t: 'You\'re the one with the quiet corner. Pomeroy. Apples. I sell them by shouting at them.' }, { who: 'pomeroy', t: 'Noon\'s my whole day. A quiet corner by my stall, and I\'m a man whispering at fruit.' }, { who: 'pomeroy', t: 'Put it on the bench side, and I\'ll keep my side loud. Everybody gets a side.' }],
     change: 'On the bench side. Your side stays loud.', keep: 'It needs to be where it\'s drawn.',
     listened: { who: 'pomeroy', t: 'Fair\'s fair. I\'ll shout in the other direction.' }, overruled: { who: 'pomeroy', t: 'Right. Well. I\'ll whisper at them, then.' },
-    thanks: 'Saw Clover\'s drawing. Quiet on the bench side, loud on mine. You thought of my apples before I asked. Fair\'s fair.' },
-  board: { who: 'hollis', loses: 'some of the festival bunting budget.', lessLoss: 'the bunting budget, less: the board shares festival news.', variantName: 'shared with festival news', cost: 'For you: route changes share the board with festival news.',
+    thanks: 'Saw Clover\'s drawing. Quiet on the bench side, loud on mine. Fair\'s fair. I\'ll shout in the other direction.' },
+  board: { who: 'hollis', loses: 'some of the festival bunting budget.', lessLoss: 'The bunting budget loses less: the festival committee can call the board theirs too.', variantName: 'shared with festival news', cost: 'For you: route changes share the board with festival news.',
     talk: [{ who: 'hollis', t: 'The bus board! Splendid idea. Ruinous price.' }, { who: 'hollis', t: 'It comes out of the festival budget, you see. The bunting budget. People do love the bunting.' }, { who: 'hollis', t: 'Could the board share? Bus changes, and festival news. Then the bunting committee could call it theirs.' }],
     change: 'It can share. Bus changes first.', keep: 'Just the bus changes.',
     listened: { who: 'hollis', t: 'Bus changes first, bunting second. A compromise. I adore a compromise.' }, overruled: { who: 'hollis', t: 'Then a little less bunting. I shall tell the committee myself. Gently.' } },
-  lanterns: { who: 'bea', loses: 'dropping in with soup, unannounced, the way the row says hello.', lessLoss: 'Bea, less: amber still means soup on the step.', variantName: 'amber still means soup on the step', cost: 'For you: on an amber night, soup may still turn up on your step.',
+  lanterns: { who: 'bea', loses: 'dropping in with soup, unannounced, the way the row says hello.', lessLoss: 'Bea loses less: she can still leave soup on the step, without knocking.', variantName: 'amber still means soup on the step', cost: 'For you: on an amber night, soup may still turn up on your step.',
     talk: [{ who: 'bea', t: 'These porch lights. Teal for come in, amber for not now. Have I got that right, dear?' }, { who: 'bea', t: 'I\'ve dropped by with soup unannounced for fifty years. It\'s how this row says hello.' }, { who: 'bea', t: 'Could amber still mean soup on the step? I won\'t knock. I\'ll just leave it.' }],
     change: 'Amber can still mean soup on the step.', keep: 'Amber means not now. Even for soup.',
     listened: { who: 'bea', t: 'Soup on the step, then. No knock. I can do that.' }, overruled: { who: 'bea', t: 'Then I\'ll learn to text first. In capitals.' } },
-  ramp: { who: 'gil', loses: 'Gil\'s tomato planters by the steps.', lessLoss: 'Gil\'s tomatoes, less: they move along the rail.', variantName: 'along the rail, beside the tomatoes', cost: 'For you: the ramp is a little narrower. It still fits.',
+  ramp: { who: 'gil', loses: 'Gil\'s tomato planters by the steps.', lessLoss: 'Gil\'s tomatoes lose less: they stay by the steps, beside the ramp.', variantName: 'along the rail, beside the tomatoes', cost: 'For you: the ramp is a little narrower. It still fits.',
     talk: [{ who: 'gil', t: 'A ramp! Love it. Love the energy. One tiny thing.' }, { who: 'gil', t: 'The planters by the steps? My tomatoes. Nine years. They\'re the only thing in this building that\'s thriving.' }, { who: 'gil', t: 'Could the ramp run along the rail, with the tomatoes beside it? A bit narrower. Still fits a cart. I measured. Twice.' }],
     change: 'Along the rail, with the tomatoes.', keep: 'The ramp needs the room.',
     listened: { who: 'gil', t: 'Great. Great! Tomatoes love a rail.' }, overruled: { who: 'gil', t: 'Okay! They can come up to my desk. They don\'t like it in here. Neither do I.' } },
-  dim: { who: 'fen', loses: 'Fen\'s bright desk: Fen needs strong light to read.', lessLoss: 'Fen, less: she keeps a lamp at her desk, turned up.', variantName: 'with a lamp at Fen\'s desk, turned up', cost: 'For you: Fen\'s lamp spills a little onto your desk.',
+  dim: { who: 'fen', loses: 'Fen\'s bright desk: Fen needs strong light to read.', lessLoss: 'Fen loses less: her desk stays as bright as she needs.', variantName: 'with a lamp at Fen\'s desk, turned up', cost: 'For you: Fen\'s lamp spills a little onto your desk.',
     talk: [{ who: 'fen', t: 'Fen, two desks down. I heard about the lights.' }, { who: 'fen', t: 'I like it bright. My eyes are older than the building. The panels are the only thing that lets me read the small print.' }, { who: 'fen', t: 'Could I keep a lamp at my desk, turned all the way up? It\'ll spill onto yours a little. Sorry in advance.' }],
     change: 'A lamp at your desk, as bright as you like.', keep: 'Soft everywhere. That\'s the point.',
     listened: { who: 'fen', t: 'Thank you. I\'ll point it at the wall. Mostly.' }, overruled: { who: 'fen', t: 'Okay.' },
     thanks: 'Saw the sketch. Softer panels, and a lamp I can turn all the way up. You thought of my eyes before I asked. Thank you.' },
-  plain: { who: 'gil', loses: 'Gil\'s wiggle room: "let\'s think about it" is how he says no.', lessLoss: 'Gil, less: a note can say "not this quarter".', variantName: 'a note can say "not this quarter"', cost: 'For you: some notes say "not this quarter" instead of "no".',
+  plain: { who: 'gil', loses: 'Gil\'s wiggle room: "let\'s think about it" is how he says no.', lessLoss: 'Gil loses less: he keeps a polite way to say not yet.', variantName: 'a note can say "not this quarter"', cost: 'For you: some notes say "not this quarter" instead of "no".',
     talk: [{ who: 'gil', t: 'Plain notes. Who does what by when. Love it. I\'m also a little scared of it.' }, { who: 'gil', t: 'Sometimes "let\'s think about it" is how I say no without saying no. Corporate likes a maybe.' }, { who: 'gil', t: 'Could a note say "not this quarter" instead of "no"? Then I can still be nice about it.' }],
     change: '"Not this quarter" is plain enough.', keep: 'A no should say no.',
     listened: { who: 'gil', t: 'Not this quarter. That\'s... actually plain. Huh. Great.' }, overruled: { who: 'gil', t: 'Okay. No means no. Great. Great.' } },
@@ -531,27 +549,27 @@ export const STAKES = {
 
 // the people the return visits' fixes cost (Acts 2 and 3); same shape as above
 Object.assign(STAKES, {
-  crossing: { who: 'marta', loses: 'Marta\'s timetable: the van runs a little late at every long crossing.', lessLoss: 'Marta, less: the light only waits when someone holds the button.', variantName: 'with a button to hold for more time', cost: 'For you: you hold the button, or ask someone to.',
+  crossing: { who: 'marta', loses: 'Marta\'s timetable: the van runs a little late at every long crossing.', lessLoss: 'Marta loses less: the van waits only when someone needs the time.', variantName: 'with a button to hold for more time', cost: 'For you: you hold the button, or ask someone to.',
     talk: [{ who: 'marta', t: 'You\'re the one with Bea\'s petition? Marta. I drive the van.' }, { who: 'marta', t: 'Every time I wait at that light, the van runs late, and the app tells everyone it\'s my fault.' }, { who: 'marta', t: 'Could it wait only when someone holds a button? Then I\'m only late when somebody needs it.' }],
     change: 'A button to hold for more time.', keep: 'The light waits for whoever is crossing.',
     listened: { who: 'marta', t: 'A button. Fair. The app can blame the button.' }, overruled: { who: 'marta', t: 'Right. I\'ll tell the app it\'s the town. It won\'t listen either.' } },
-  counter: { who: 'sana', call: true, loses: 'Sana\'s team: a counter in Larkspur comes out of the operators\' contract for twelve towns.', lessLoss: 'Sana\'s team, less: volunteers staff the counter, and the operators keep the bell.', variantName: 'with volunteers at the counter and the operators on the bell', cost: 'For you: sometimes the volunteer has to ring the bell too.',
+  counter: { who: 'sana', call: true, loses: 'Sana\'s team: a counter in Larkspur comes out of the operators\' contract for twelve towns.', lessLoss: 'Sana\'s team loses less: the counter costs their contract nothing.', variantName: 'with volunteers at the counter and the operators on the bell', cost: 'For you: sometimes the volunteer has to ring the bell too.',
     talk: [{ who: 'sana', t: 'Hello, this is Sana, on the call bell. Someone put in a note about a counter in Larkspur.' }, { who: 'sana', t: 'Twelve towns, one headset. If Larkspur pays for a counter, it comes out of our contract, and the other eleven wait longer.' }, { who: 'sana', t: 'Could the counter be volunteers, with us on the bell for the hard ones? I\'ll put a note in either way.' }],
     change: 'Volunteers at the counter, the operators on the bell.', keep: 'A paid person at the counter.',
     listened: { who: 'sana', t: 'Volunteers and the bell. I can write that up. Thank you for calling it in.' }, overruled: { who: 'sana', t: 'Understood. I\'ll put a note in. It\'ll be a short note.' } },
-  bay: { who: 'pip', loses: 'Pip\'s flour: when the bots wait in the bay, her deliveries wait too.', lessLoss: 'Pip, less: the bots pull in only at shift changes.', variantName: 'with bots pulling in at shift changes only', cost: 'For you: between shift changes, a bot may still be on the ramp.',
+  bay: { who: 'pip', loses: 'Pip\'s flour: when the bots wait in the bay, her deliveries wait too.', lessLoss: 'Pip loses less: her flour only waits at shift changes.', variantName: 'with bots pulling in at shift changes only', cost: 'For you: between shift changes, a bot may still be on the ramp.',
     talk: [{ who: 'pip', t: 'A passing bay for the bots? Good. Mostly good.' }, { who: 'pip', t: 'My flour comes up that ramp on a bot. If it sits in a bay every time someone passes, my bread rises late.' }, { who: 'pip', t: 'Could they pull in only at shift changes? That\'s when the ramp\'s busy anyway.' }],
     change: 'Only at shift changes.', keep: 'Whenever someone needs the ramp.',
     listened: { who: 'pip', t: 'Shift changes. Perfect. My dough thanks you.' }, overruled: { who: 'pip', t: 'Fine! My dough will learn patience.' } },
-  rentcap: { who: 'bao', loses: 'Bao and Lin, fourteenth on the waiting list: capped stalls hardly ever come free.', lessLoss: 'Bao and Lin, less: half the stalls that come free go to the waiting list.', variantName: 'with half the free stalls for the waiting list', cost: 'For you: Moss is capped, but her neighbours may change.',
+  rentcap: { who: 'bao', loses: 'Bao and Lin, fourteenth on the waiting list: capped stalls hardly ever come free.', lessLoss: 'Bao and Lin lose less: the waiting list still moves.', variantName: 'with half the free stalls for the waiting list', cost: 'For you: Moss is capped, but her neighbours may change.',
     talk: [{ who: 'bao', t: 'Bao. And that\'s Lin, with the steamer. The dumpling cart. We\'re fourteenth on the waiting list.' }, { who: 'bao', t: 'If the old stalls are capped, nobody ever gives one up. We\'ll be fourteenth forever.' }, { who: 'bao', t: 'Could half the stalls that come free go to the list? We\'d bid like everyone else for the rest.' }],
     change: 'Half the free stalls to the waiting list.', keep: 'A cap for the old stalls, and that\'s all.',
     listened: { who: 'bao', t: 'Half. We can work with half. Have a dumpling.' }, overruled: { who: 'bao', t: 'Fourteenth it is. The dumplings are still good.' } },
-  farstalls: { who: 'wren', loses: 'Wren, and the Far End\'s quiet: stalls on the lane, and people all afternoon.', lessLoss: 'Wren, less: the stalls open in the afternoon only, and the lane is quiet by dusk.', variantName: 'open afternoons only', cost: 'For you: the stalls close at dusk, when people want them most.',
+  farstalls: { who: 'wren', loses: 'Wren, and the Far End\'s quiet: stalls on the lane, and people all afternoon.', lessLoss: 'Wren loses less: the lane is quiet again by dusk.', variantName: 'open afternoons only', cost: 'For you: the stalls close at dusk, when people want them most.',
     talk: [{ who: 'wren', t: 'Stalls on the lane outside my workshop. I am told this is good news.' }, { who: 'wren', t: 'The Far End is the one quiet place left. People come here to not be in the square.' }, { who: 'wren', t: 'Afternoons only. Closed by dusk. Then the lanterns are still the loudest thing here.' }],
     change: 'Afternoons only.', keep: 'All day, like the square.',
     listened: { who: 'wren', t: 'Afternoons. Thank you for saying it plainly.' }, overruled: { who: 'wren', t: 'Then I will put a new sign on my door. It will say knock once. It will mean it.' } },
-  quietrow: { who: 'juno', loses: 'Juno\'s lively shortcut: the music and the bikes stop at the corner now.', lessLoss: 'Juno, less: the quiet zone ends at the garden cut.', variantName: 'ending at the garden cut', cost: 'For you: the far end of Home Row stays lively.',
+  quietrow: { who: 'juno', loses: 'Juno\'s lively shortcut: the music and the bikes stop at the corner now.', lessLoss: 'Juno loses less: the shortcut past the garden cut stays lively.', variantName: 'ending at the garden cut', cost: 'For you: the far end of Home Row stays lively.',
     talk: [{ who: 'juno', t: 'The quiet zone on Home Row? That\'s my way to the square.' }, { who: 'juno', t: 'I cut through with my speaker on. It\'s the best two minutes of my day.' }, { who: 'juno', t: 'Could it stop at the garden cut? Your end quiet, my end loud.' }],
     change: 'Stop at the garden cut.', keep: 'The whole row.',
     listened: { who: 'juno', t: 'Your end quiet, my end loud. Deal.' }, overruled: { who: 'juno', t: 'Okay. I\'ll go the long way. With the speaker.' } },
@@ -559,8 +577,11 @@ Object.assign(STAKES, {
 
 // ---------- the town meeting ----------
 export const COUNCIL = {
-  open: [{ who: 'hollis', t: 'Order! Order. Item one: the Lantern Festival, which is tonight, which is fine. Item two: anything from the floor.' }],
-  none: [{ who: 'hollis', t: 'Nothing from the floor? Splendid. To the festival!' }],
+  // the first visit's meeting is the night before the festival; a later visit's is on festival day
+  open: [{ who: 'hollis', t: 'Order! Order. Item one: the Lantern Festival, which is tomorrow, which is fine. Item two: anything from the floor.' }],
+  openFest: [{ who: 'hollis', t: 'Order! Order. Item one: the Lantern Festival, which is tonight, which is fine. Item two: anything from the floor.' }],
+  none: [{ who: 'hollis', t: 'Nothing from the floor? Splendid. See you all at the festival tomorrow.' }],
+  noneFest: [{ who: 'hollis', t: 'Nothing from the floor? Splendid. To the festival!' }],
   present: { quiet: 'A quiet corner at the market, by the benches, softer at noon.', board: 'A bus board that shows route changes in writing, not just over the speaker.', lanterns: 'Porch lanterns on Home Row. Teal means come in. Amber means not now.', ramp: 'A ramp beside the Works steps.', dim: 'Softer, dimmable lights at the Works.', plain: 'Every meeting at the Works ends with one plain note: who does what, by when.',
     crossing: 'A crossing light that waits until everyone in the middle of the street is across.', counter: 'A person at the old counter on festival mornings, for anyone the kiosk can\'t hear.', bay: 'A passing bay on the Works ramp. The bots pull in, and people go first.', rentcap: 'A rent cap for stallholders who have been on the square ten years or more.', farstalls: 'Six stalls at the Far End, along Founders\' Row, at the old rent.' },
   frame: [{ t: 'It helps more people than you would think.', key: 'many' }, { t: 'I need this. So do they.', key: 'need' }, { t: 'Let the people it helps speak.', key: 'voices' }],
@@ -570,9 +591,9 @@ export const COUNCIL = {
   lean: { pip: 'Does it bring people through my door?', hollis: 'I\'d need more than a feeling.', clover: 'Who did you ask about who it costs?', rue: 'Who did you ask, and who did you count?' },
   votes: {
     rue: { yes: 'We asked the person it costs, and we changed it. Yes.', no: 'Nobody asked the person it costs. Not yet. No.', overruled: 'We asked, and then we didn\'t listen. Not yet. No.' },
-    pip: { yes: 'More people through my door. Yes.', no: 'I don\'t see what it does for the shop. No.', neighbour: 'Pomeroy\'s my neighbour. If he\'s against it, so am I. No.' },
+    pip: { yes: 'More people through my door. Yes.', no: 'I don\'t see what it does for the shop. No.', neighbour: 'Pomeroy\'s my neighbour. If he\'s against it, so am I. No.', heard: 'You asked what it would cost me, and you changed it. Yes.' },
     clover: { yes: 'We asked who it costs, and we changed it. Yes.', no: 'We didn\'t ask who it costs. Not yet. No.', overruled: 'We asked who it costs, and then we didn\'t listen. Not yet. No.' },
-    hollis: { yes: 'I have seen the ledger. Yes.', yesPlain: 'For Larkspur. Yes.', no: 'We have always done it this way. No.' },
+    hollis: { yes: 'I have seen the ledger. Yes.', yesPlain: 'For Larkspur. Yes.', no: 'We have always done it this way. No.', heard: 'You asked what it would cost me, and you changed it. A compromise. Yes.' },
   },
   passed: 'Carried. It goes up overnight.', passedTonight: 'Carried. It goes up tonight, in time for the festival.', passedRule: 'Carried. It takes effect tonight.', passedClover: 'Already loading the cart.', passedCloverRule: 'In the ledger tonight. In pen.', failed: 'Not carried. It goes on file for next season.',
   // the Founders' Fund's clause, read out when it applies (Act 3)
@@ -646,7 +667,7 @@ export const BLEND = {
 };
 
 export const NIGHT = {
-  1: (S) => [S.flags.bea_bus ? ['Bea, No. 4', 'The 5:40 went down Elm. Nobody told the bench. Goodnight, dear.'] : ['Bea, No. 4', 'Did you like the soup? The pot is still mine.'], S.flags.folded ? ['Wren', 'Lantern 74 done. You folded the line correctly.'] : S.met.wren ? ['Wren', 'Lantern 74 done. Sixty-one was this morning.'] : ['Clover', 'Fix-It Shed is open tomorrow 8 to 6. Bring me anything that pinches!']].concat(S.flags.rue_cracked ? [['Rue', 'Can I ask you something tomorrow? Not on the app. The pond, half four?']] : []),
+  1: (S) => [S.flags.bea_bus ? ['Bea, No. 4', 'The 5:40 went down Elm. Nobody told the bench. Goodnight, dear.'] : ['Bea, No. 4', 'Did you like the soup? The pot is still mine.'], S.flags.folded ? ['Wren', 'Lantern 74 done. You folded the line correctly.'] : S.met.wren ? ['Wren', 'Lantern 74 done. Thirty-eight to go.'] : ['Clover', 'Fix-It Shed is open tomorrow 8 to 6. Bring me anything that pinches!']].concat(S.flags.rue_cracked ? [['Rue', 'Can I ask you something tomorrow? Not on the app. The pond, half four?']] : []),
   2: (S) => [['Moss', 'Tea\'s on me tomorrow. Big day.'], S.flags.rue_pond ? ['Rue', 'Festival tomorrow. I might leave the phone at home. Might.'] : ['Blend', 'Your Smooth Score went up this week. You are doing great!']],
 };
 
@@ -654,19 +675,19 @@ export const NIGHT = {
 // slots: over (too much for them), under (too little), no (how they say no), helps (what helps). Three filled unlock a reveal.
 export const SLOT_LABEL = { over: 'Too much for them', under: 'Too little for them', no: 'How they say no', helps: 'What helps them' };
 export const PEOPLE = {
-  gil: { over: 'The ceiling panels. Headaches by three, which he only admits after five.', under: 'A quiet room. He fills every silence with "great."', no: '"Love it, let\'s think about it!" means no, for now.', helps: 'Light he can turn down himself. People saying plainly what they need.', love: 'Pip\'s scones. He will deny it.',
+  gil: { over: 'The ceiling panels. Headaches by three, which he tells almost nobody.', under: 'A quiet room. He fills every silence with "great."', no: '"Let\'s see how it goes" means no, for now. So does "let\'s think about it."', helps: 'Light he can turn down himself. People saying plainly what they need.', love: 'Pip\'s scones. He will deny it.',
     reveal: 'After everyone leaves, Gil switches off the ceiling panels and works by his desk lamp. He sighs every time, like taking off a tie.' },
   pip: { over: 'The ovens at noon, louder than the bus speaker.', under: 'An empty shop. Quiet makes her nervous.', no: '"You must be very busy!" means she is closing.', helps: 'A ramp for the bread cart. Bus changes in writing.', love: 'Feeding the whole town. Sprinkles on everything.',
     reveal: 'At noon, when the ovens roar, Pip wears foam earplugs under her bow. "Nobody needs to know," she says. "Everybody does it."' },
-  moss: { over: 'Noon at the market: two songs at once and a man shouting about apples.', under: 'A day with none of her regulars.', no: '"Wish I could, love" means it is not hers to change.', helps: 'A quiet hour. A stool behind the cart.', love: 'Regulars who come for the quiet. Very strong tea.',
+  moss: { over: 'Noon at the market: two songs at once and a man shouting about apples.', under: 'A day with none of her regulars.', no: '"Wish I could, love" means it is not hers to change.', helps: 'A quiet corner. A stool behind the cart.', love: 'Regulars who come for the quiet. Very strong tea.',
     reveal: 'Moss keeps a pair of headphones under the counter for herself. Not the good ones she sells. The cheap ones. "They\'re broken in."' },
   rue: { over: 'Not knowing what people want from her.', under: 'A day without a notification. She does not know what to do with her hands.', no: 'Rue does not say no. Blend suggests yes.', helps: 'Notes that say who does what by when.', love: 'Drawing. She drew every day, before the streak.',
     reveal: 'In the kiosk drawer there is a sketchbook. The last drawing is dated the day before her streak began. It is the pond, at dusk.' },
-  bea: { over: 'The market at noon. It makes her hearing aid sing.', under: 'Being told nothing. Changes announced to the road.', no: '"Whenever" means not never.', helps: 'Things written down. A quiet hour.', love: 'Soup. Her daughter. Casseroles as a form of protest.',
+  bea: { over: 'The market at noon. It makes her hearing aid sing.', under: 'Being told nothing. Changes announced to the road.', no: '"Whenever" means not never.', helps: 'Things written down. A quiet corner.', love: 'Soup. Her daughter. Casseroles as a form of protest.',
     reveal: 'At the market Bea turns her hearing aid down and reads lips instead. She has done it for twenty years. "I\'m very good at it. I shouldn\'t have to be."' },
   wren: { over: 'Guessing. People who knock and then wait for Wren to guess why.', under: 'Company, sometimes. They will not say so first.', no: 'Wren says no as "no." Wren says yes as "come in."', helps: 'Porch lanterns. Briefs with sizes in them. Being asked plainly.', love: 'The exact right shade of amber.',
     reveal: 'Wren made one lantern that is not for the festival. It is teal, and it hangs inside their own door. It says come in, to themself.' },
-  clover: { over: 'Meetings where nobody writes anything down.', under: 'A shed with nothing to fix. She goes looking.', no: '"Not yet" means not yet. It never means no.', helps: 'Two backers and a sketch. Someone who notices what pinches.', love: 'A good hinge. Graph paper. The founders\' ledger, which she reads like a thriller.',
+  clover: { over: 'Meetings where nobody writes anything down.', under: 'Things to fix. A shed with nothing to mend is the saddest place in Larkspur, so she goes looking.', no: '"Not yet" means not yet. It never means no.', helps: 'Two backers and a sketch. Someone who notices what pinches.', love: 'A good hinge. Graph paper. The founders\' ledger, which she reads like a thriller.',
     reveal: 'Clover hums loudly when she concentrates. At town meetings she hums into her sleeve so nobody hears.' },
   hollis: { over: 'Speaking in public. He practices for hours.', under: 'Plain answers. Nobody gives a mayor one.', no: '"I shall take it under advisement" means no.', helps: 'Being told plainly. Evidence in a ledger.', love: 'Larkspur. Sincerely, every brick of it, and the bunting on festival night.',
     reveal: 'At dawn Hollis practices his speeches to the statue. The podium was built to the Standard\'s height, so he has always stood on a box behind it. He has never once mentioned the box.' },
@@ -696,9 +717,9 @@ export const LANTERN_PREFS = {
 // once people know you, some of them adjust before you ask
 export const UNASKED = {
   market: { who: 'moss', over: 'Saw you coming. I turned the speaker down. There\'s a stool behind the cart.', under: 'Saw you coming. Slow day, so the radio\'s on. Pull up a stool and keep me company.' },
-  commons: { who: 'clover', over: 'Parasol\'s up. I put it where you like it.', under: 'Too quiet out here? I brought my radio. And a gate to fix, if you want to hold it.' },
-  farend: { who: 'wren', over: 'The teal one is on. It means you.', under: 'The teal one is on. It means you.' },
-  homerow: { who: 'bea', over: 'I texted before I came over. Did you see? I\'m learning.', under: 'I knocked twice. Thought you might like the company. There\'s soup.' },
+  commons: { who: 'clover', over: 'Awning\'s out. I put it where you like it.', under: 'Too quiet out here? I brought my radio. And a gate to fix, if you want to hold it.' },
+  farend: { who: 'wren', over: 'My porch light is teal today. Teal means come in. It means you.', under: 'My porch light is teal today. Teal means come in. It means you.' },
+  homerow: { who: 'bea', over: 'I texted before I came over. Did you see? I\'m learning.', under: 'I knocked twice. Thought you might like the company. There\'s soup.', under3: 'Soup again. I\'m nothing if not reliable. Knock any time you want company.' },
   works: { who: 'gil', over: 'I switched off the row of panels over your desk. You looked like you needed it. Don\'t tell corporate.', under: 'Radio\'s on, low. You looked like the quiet was getting to you.' },
 };
 

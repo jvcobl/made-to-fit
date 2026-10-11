@@ -11,7 +11,7 @@ import { CAST, ROUTINES, BLEND } from './content.js';
 import { Story } from './story.js';
 import { Guide } from './guide.js';
 import { updateLOD, warmLOD } from './lod.js';
-import { Feel } from './feel.js';
+import { Feel, FITS } from './feel.js';
 import { Look } from './look.js';
 import { Feed } from './games/feed.js';
 import { sampleCarry } from './returns.js';
@@ -69,6 +69,10 @@ class Game {
     const loop = (t) => { const dt = Math.max(0, Math.min(FAST ? 0.25 : 0.05, (t - this.last) / 1000)); this.last = Math.max(this.last, t); try { this.update(dt); } catch (e) { console.error(e); } requestAnimationFrame(loop); };
     if (!FIXED) requestAnimationFrame(loop);
     const ld = document.getElementById('loading'); if (ld) { ld.style.opacity = '0'; setTimeout(() => ld.remove(), 700); }
+    // leaving the page (closing the tab, switching apps on a phone) saves first, if play is calm
+    const leaving = () => { try { this.story.autosave(true); } catch (e) { /* never block leaving */ } };
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') leaving(); });
+    window.addEventListener('pagehide', leaving);
     this.story.start().catch((e) => console.error(e));
   }
   // ---------- settings ----------
@@ -85,8 +89,8 @@ class Game {
   actionOf(e) { return actionOf(this.settings.keys, e); }
   // the last save, kept in memory too, so the save code works even when storage is blocked
   lastSave() { if (this.lastSaveObj) return this.lastSaveObj; const r = SAVE.readSave(); return r.save || null; }
-  saveNote() { const m = this.lastSaveMeta; if (!m) return 'The game saves each morning, after work and after the town meeting.'; return m.ok ? 'Saved: ' + m.label + '. If you leave now, you come back to ' + m.label + '.' : 'This browser isn\'t keeping saves. Copy your save code to pick up later.'; }
-  openPause() { if (this.menus.open || this.mode === 'title' || this.mode === 'creator') return; this.menus.pause(); }
+  saveNote() { const m = this.lastSaveMeta; if (!m) return 'The game saves on this device as you play.'; return m.ok ? 'Saved on this device: ' + m.label + '. Close the game any time; Continue on the title screen picks up from there.' : 'This browser isn\'t keeping saves. Copy your save code to pick up later.'; }
+  openPause() { if (this.menus.open || this.mode === 'title' || this.mode === 'creator') return; this.story.autosave(true); this.menus.pause(); }
   togglePhone(fromButton) {
     if (this.mode === 'title' || this.mode === 'creator') return;
     if (!this.phoneOpen && (this.ui.waiter || !this.ui.panel.hidden || this.mgActive || this.mode === 'cine')) { if (fromButton) this.ui.toast('Your phone can wait until this is done.', '', 1800); return; }
@@ -320,11 +324,14 @@ class Game {
   }
   // "Show the way": walk toward the objective, and light the trail
   showWay() {
-    const obj = this.story.objective(); if (!obj || !obj.at || this.mode !== 'play') return;
+    const obj = this.story.objective(); if (!obj || this.mode !== 'play') return;
     if (this.busy || this.ui.waiter || this.phoneOpen) return;
+    // inside the place the objective names: walk to its spot (your desk, your bed, Gil), if it has one
+    if (this.loc !== 'town' && obj.inside === this.loc) { const s = this.guide.spotOf(obj.spot); if (!s) return; this.audio.sfx('select'); const p = this.player.root.position; const d = Math.hypot(s.x - p.x, s.z - p.z) || 1; const k = this.npcs[obj.spot] ? 0.9 / d : 0; this.walkTo(s.x - (s.x - p.x) * k, s.z - (s.z - p.z) * k); return; }
+    if (!obj.at) return;
     this.audio.sfx('select');
     this.guide.showTrail(true);
-    if (this.loc !== 'town') { if (obj.inside === this.loc) return; this.run(async () => { await this.exitRoom(); this.walkTo(obj.at[0], obj.at[1]); }); return; }
+    if (this.loc !== 'town') { this.run(async () => { await this.exitRoom(); this.walkTo(obj.at[0], obj.at[1]); }); return; }
     this.walkTo(obj.at[0], obj.at[1]);
   }
   advance(mins) {
@@ -368,9 +375,14 @@ class Game {
   placeCouncil() { for (const w of this.audience) w.root.visible = true; }
   applyFix(f) { this.town.setFix(f, true); if (f === 'dim') this.rooms.works.setDim(true); const R = this.story && this.story.ret; if (R && R.A.applyFix) R.A.applyFix(R, f); }
   focusPinch(on) { this.barrierFocus = on; }
+  // a minute in a place that pinches, counted for every pinch the strip names (so "where you felt it" matches what you saw)
   noteWhere() {
-    const p = this.pinchNow; if (!p || !p.top || p.topV < 0.08 || this.zone === 'home' || this.S.day < 1) return;
-    const o = p.dims[p.top]; const key = p.top + (o.over >= o.under ? 0 : 1); const W = this.S.where = this.S.where || {}; const m = W[key] = W[key] || {}; m[this.zone] = (m[this.zone] || 0) + 1;
+    const p = this.pinchNow; if (!p || this.zone === 'home' || this.S.day < 1) return;
+    if (p.total < FITS) return; // the strip says it fits
+    const shown = this.feel && this.feel.mine && this.feel.mine.length ? this.feel.mine.map((x) => x[0]) : [];
+    if (!shown.length) { if (!p.top || p.topV < 0.08) return; const o = p.dims[p.top]; shown.push(p.top + (o.over >= o.under ? 0 : 1)); }
+    const W = this.S.where = this.S.where || {};
+    for (const key of shown) { const m = W[key] = W[key] || {}; m[this.zone] = (m[this.zone] || 0) + 1; }
   }
   // the corner you are standing in, if any, when asking about the zone you are in
   subFor(zone) { return zone === this.zone ? this.sub || null : null; }
@@ -453,6 +465,9 @@ class Game {
       if (this.mgActive) return;
       if (act === 'phone' || (k === 'tab' && this.mode === 'play' && this.ui.panel.hidden && !this.settingsOpen)) { e.preventDefault(); this.togglePhone(); return; }
       if (this.ui.waiter || this.busy || this.mode !== 'play' || this.phoneOpen || this.settingsOpen) return;
+      // a key that just closed the last line of a conversation (the dialog handles it first) doesn't also start the
+      // conversation again
+      if (e.defaultPrevented) return;
       if (act === 'interact' || k === 'enter' || k === ' ') { e.preventDefault(); this.interact(); }
       if (act === 'way') this.showWay();
       if (act === 'headphones') this.toggleGear('headphones');
@@ -483,7 +498,9 @@ class Game {
   // what is in reach, and what pressing E would do
   findTarget() {
     const p = this.player.root.position; let best = null, bd = 1e9;
-    for (const n of Object.values(this.npcs)) { if (!n.c.root.visible || n.c.root.parent !== this.player.root.parent) continue; if (n.id === 'bea' && this.beaWay) continue; const d = Math.hypot(n.c.root.position.x - p.x, n.c.root.position.z - p.z); if (d < 2.1 && d < bd) { bd = d; best = { kind: 'npc', id: n.id, label: (this.S.met[n.id] ? 'Talk to ' : 'Say hi to ') + CAST[n.id].name, obj: n.c.root.position }; } }
+    // when two residents stand together, the one your objective names comes first
+    const ob = this.story.objective(); const want = ob && ob.label;
+    for (const n of Object.values(this.npcs)) { if (!n.c.root.visible || n.c.root.parent !== this.player.root.parent) continue; if (n.id === 'bea' && this.beaWay) continue; const raw = Math.hypot(n.c.root.position.x - p.x, n.c.root.position.z - p.z); const d = raw - (want && CAST[n.id].name === want ? 1 : 0); if (raw < 2.1 && d < bd) { bd = d; best = { kind: 'npc', id: n.id, label: (this.S.met[n.id] ? 'Talk to ' : 'Say hi to ') + CAST[n.id].name, obj: n.c.root.position }; } }
     const list = this.loc === 'town' ? this.town.inter : this.rooms[this.loc].inter;
     for (const it of list) { if (it.kind === 'set' || it.hidden) continue; const d = Math.hypot(it.x - p.x, it.z - p.z); const prio = it.id === 'statue' && this.S.flags.festival && !this.S.flags.released; if (d < it.r + (prio ? 0.6 : 0) && (d < bd - 0.4 || prio)) { bd = prio ? -1 : d; best = { kind: it.kind, id: it.id, label: this.labelFor(it), obj: new THREE.Vector3(it.x, 0, it.z) }; } }
     return best;
@@ -493,8 +510,8 @@ class Game {
     if (this.story.ret) { const l = this.story.ret.label(it); if (l) return l; }
     if (it.id === 'statue' && S.flags.festival) return 'Release your lantern';
     if (it.id === 'statue' && S.flags.statue_seen) return S.w && S.w.standard_solved ? 'Read the plaque' : 'Work out the Standard\'s room';
-    if (it.id === 'home' && S.min >= 1020 && S.day > 0 && !this.story.finalDay()) return 'Go home for the night';
-    if (it.id === 'bed') return S.min >= 1020 && !this.story.finalDay() ? 'Go to bed' : 'Rest a while';
+    if (it.id === 'home' && this.story.bedtime()) return 'Go home for the night';
+    if (it.id === 'bed') return this.story.bedtime() ? 'Go to bed' : 'Rest a while';
     if (it.id === 'mydesk' && this.story.shiftOpen()) return S.day === 1 ? 'Start your shift' : 'Join the weekly sync';
     return it.label;
   }
@@ -507,9 +524,15 @@ class Game {
     if (t.kind === 'npc') return st.talkTo(t.id);
     const id = t.id;
     if (st.ret && (await st.ret.handle(t))) return;
-    if (id === 'home') { if (S.min >= 1020 && S.day > 0 && !st.finalDay()) { await this.stage.fadeTo(1, 600); st.finishDay('sleep'); return; } return this.enterRoom('home'); }
+    if (id === 'home') { if (st.bedtime()) { await this.stage.fadeTo(1, 600); st.finishDay('sleep'); return; } return this.enterRoom('home'); }
     if (id === 'out') return this.exitRoom();
-    if (id === 'bed') { if (S.min >= 1020 && !st.finalDay()) { await this.stage.fadeTo(1, 600); st.finishDay('sleep'); return; } await st.note('You lie down for a while. The room is exactly as you set it.'); this.ui.hideDialog(); this.advance(45); S.energy = clamp(S.energy + 18, 0, S.maxE); S.self = clamp(S.self + 3, 0, 100); return; }
+    if (id === 'bed') {
+      if (st.bedtime()) { await this.stage.fadeTo(1, 600); st.finishDay('sleep'); return; }
+      // (on Tuesday a rest never runs past six: the meeting starts on time, and you wake for it)
+      const meet = (st.ret || S.day === 2) && !S.flags.councilDone && S.min < 1080; const mins = meet ? Math.max(1, Math.min(45, 1079 - Math.round(S.min))) : 45;
+      await st.note(meet && mins < 45 ? 'You lie down until it is nearly six. Time for the meeting.' : meet && S.min >= 960 ? 'You lie down for a while. The town meeting is at six. Hollis will text.' : 'You lie down for a while. The room is exactly as you set it.');
+      this.ui.hideDialog(); this.advance(mins); S.energy = clamp(S.energy + Math.round(18 * mins / 45), 0, S.maxE); S.self = clamp(S.self + 3, 0, 100); return;
+    }
     if (id === 'mirror') { await st.gut(this.drift() > 0.3 ? (st.ret ? 'Your reflection looks paler than it did this morning.' : 'Your reflection looks paler than it did on Sunday.') : 'There you are.'); this.ui.hideDialog(); return; }
     if (id === 'works' || id === 'dock') return st.enterWorks(id === 'dock' ? 'dock' : 'front');
     if (id === 'hall') { await this.enterRoom('hall'); await st.note(S.day === 2 && S.min >= 1020 && !S.flags.councilDone ? 'People are filing in for the meeting. It starts at six.' : 'The chamber is empty. The founders watch from their portrait.'); this.ui.hideDialog(); return; }
@@ -629,6 +652,11 @@ class Game {
     for (const w of this.workers) if (this.loc === 'works') { w.update(dt); }
     if (this.loc === 'hall') for (const a of this.audience) if (a.root.visible) a.update(dt);
     if (!paused) this.story.tick();
+    // saving as you play: a conversation, card or task that just ended asks for a save soon; the check runs twice a second
+    const engaged = this.busy > 0 || !!this.ui.waiter || this.mgActive;
+    if (this._engaged && !engaged) this.story.autoSoon();
+    this._engaged = engaged;
+    if ((this._as = (this._as || 0) - dt) <= 0) { this._as = 0.5; this.story.autosave(); }
     if (this.story.ret) this.story.ret.update(dt);
     this.computeFx(dt);
     this.feel.update(dt);

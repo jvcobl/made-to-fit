@@ -81,6 +81,8 @@ export class Return {
     await st.ending();
   }
   resume(phase) {
+    // an autosave during the day goes through the first visit's resume (where you stood, or outside the door)
+    if (phase === 'free') { this.st.resumeDay('free'); return; }
     const G = this.G; const at = (this.A.resumeAt || {})[phase] || [30, 34];
     G.setLoc('town'); G.place(at); G.player.heading = 0; G.stage.follow(G.player.root.position, G.followOpts({ snap: true }));
     G.audio.setScene('town'); this.st.ui.hud(true); this.st.ui.letterbox(false); G.stage.fadeTo(0, 600);
@@ -94,7 +96,7 @@ export class Return {
     // the push-through habit you brought from last time fires once, the first time you are back in that place
     if (S.carryHabit && S.carryHabit !== 'none' && !S.flags.habitCarried && G.zone === S.carryHabit && !S.flags.festival) { G.run(() => this.carriedHabit(S.carryHabit)); return true; }
     if (S.cloverAt != null && m >= S.cloverAt && !G.ui.waiter) { G.run(() => st.cloverAfter()); return true; }
-    if (m >= 1065 && !S.flags.remind) { S.flags.remind = 1; st.text('Hollis', 'Town meeting in 15 minutes! Town Hall.'); }
+    if (m >= 1065 && !S.flags.remind) { S.flags.remind = 1; if (G.loc !== 'hall') st.text('Hollis', 'Town meeting in 15 minutes! Town Hall.'); }
     if (m >= 1080 && !S.flags.council) { S.flags.council = 1; G.run(() => st.council()); return true; }
     if (m >= 1170 && !S.flags.decided) { S.flags.decided = 1; G.run(() => st.toFestival()); return true; }
     if (m >= 1200 && !S.flags.festival) { G.run(() => st.festival()); return true; }
@@ -121,12 +123,20 @@ export class Return {
   async exhausted() {
     const G = this.G, S = this.S, st = this.st;
     await st.gut('You hit a wall. Everything is too much and also too far away.'); st.ui.hideDialog();
+    // the meeting is less than an hour away: you rest at the back of the Town Hall instead, and the gavel wakes you
+    if (!S.flags.councilDone && S.min >= 1020 && S.min < 1080) {
+      if (G.loc !== 'hall') await G.enterRoom('hall');
+      S.min = Math.max(S.min, 1078); S.flags.remind = 1; S.energy = Math.max(S.energy, 40); S.self = clamp(S.self + 2, 0, 100);
+      await st.note('You find a chair at the back of the Town Hall and close your eyes. The gavel wakes you.'); st.ui.hideDialog();
+      return;
+    }
     await G.stage.fadeTo(1, 700);
     G.setLoc('home'); G.place(G.rooms.home.spots.bed); { const c = G.roomCam('home'); G.stage.shot(c.pos, c.look, c.fov, 3, true); }
-    const to = S.flags.councilDone ? 1125 : 1035; S.min = Math.max(S.min, to); S.energy = Math.max(S.energy, 45); S.self = clamp(S.self + 4, 0, 100);
+    const to = S.flags.councilDone ? 1125 : 1035; const slept = Math.max(S.min, to) - S.min;
+    S.min = Math.max(S.min, to); S.energy = Math.max(S.energy, 45); S.self = clamp(S.self + 4, 0, 100);
     st.log('missed', { z: 'home', v: 'afternoon', pay: ['you'] });
     await G.stage.fadeTo(0, 700);
-    await st.note(S.flags.councilDone ? 'You sleep through the afternoon. The festival is at eight.' : 'You sleep through the afternoon. The meeting is at six.'); st.ui.hideDialog();
+    await st.note((slept >= 150 ? 'You sleep through the afternoon.' : 'You sleep for a while.') + (S.flags.councilDone ? ' The festival is at eight.' : ' The meeting is at six.')); st.ui.hideDialog();
   }
   // where everyone is: the meeting's seating, the festival, the visit's own scenes, then the day's routine
   npcWant(id) {

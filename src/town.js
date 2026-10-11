@@ -86,6 +86,7 @@ export const ZONES = [
   { id: 'homerow', name: 'Home Row', rect: [0, 29.5, 28, 48] },
   { id: 'market', name: 'Market Square', rect: [15.5, 14, 44, 33] },
 ];
+const MARKET_ZONE = ZONES.find((zn) => zn.id === 'market');
 const PATHS = [
   [2, 24, 54.6, 24, 1.3], [30, 11.8, 30, 45.5, 1.2], [1.5, 38, 28.5, 38, 1.1], [28.5, 38, 30, 38, 1.1], [12, 12.4, 12, 24, 1.05], [30, 12.3, 33.5, 12.3, 1.2],
   [30, 14.5, 44, 14.5, 1.0], [44, 14.5, 52, 11.2, 0.95], [44, 14.5, 47, 15.2, 0.8], [30, 41.5, 44, 41.5, 1.0], [44, 41.5, 50, 40.9, 0.95], [50, 40.9, 53.5, 44.2, 0.75],
@@ -135,6 +136,8 @@ export class Town {
   // the quiet corner of the market square, by the benches (a sub-zone: the zone stays the market)
   subAt(x, z) { const r = QUIET_RECT; return x >= r[0] && x < r[2] && z >= r[1] && z < r[3] ? 'quietcorner' : null; }
   zoneAt(x, z) {
+    // the quiet corner belongs to the square, including the part that reaches past the square's edge toward Home Row
+    { const r = QUIET_RECT; if (x >= r[0] && x < r[2] && z >= r[1] && z < r[3]) return MARKET_ZONE; }
     for (const zn of ZONES) { const r = zn.rect; if (x >= r[0] && x < r[2] && z >= r[1] && z < r[3]) return zn; }
     return { id: 'street', name: 'Larkspur' };
   }
