@@ -16,7 +16,7 @@ with sync_playwright() as p:
             if pg.evaluate("!!(__wb.panel() && __wb.panel().includes('today'))"): pg.evaluate("document.querySelector('#tgo').click()")
             pg.wait_for_timeout(150)
         return False
-    pg.evaluate("document.querySelector('#begin').click()")
+    pg.evaluate("document.querySelector('#tNew').click()")
     until("__wb.panel() && __wb.panel().includes('creator')"); pg.evaluate("document.querySelector('#done').click()")
     for i in range(6):
         until("__wb.panel() && __wb.panel().includes('setup')"); pg.evaluate("document.querySelector('#next').click()")

@@ -24,7 +24,7 @@ with sync_playwright() as p:
             if pg.evaluate("!!(__wb.panel() && __wb.panel().includes('evening'))"): pg.evaluate("document.querySelector('#sleep').click()")
             pg.wait_for_timeout(150)
         print('TIMEOUT', js); return False
-    pg.evaluate("document.querySelector('#begin').click()")
+    pg.evaluate("document.querySelector('#tNew').click()")
     pg.wait_for_timeout(1500); pg.keyboard.press('Escape'); pg.wait_for_timeout(300); pg.keyboard.press('Escape')
     until("__wb.panel() && __wb.panel().includes('creator')"); pg.evaluate("document.querySelector('#done').click()")
     vals = {'sens': [0, 0, 4, 0, 2, 0], 'std': [2, 2, 2, 2, 2, 2], 'lively': [4, 4, 0, 4, 2, 4]}[prof]

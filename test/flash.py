@@ -104,7 +104,7 @@ with sync_playwright() as p:
         # a light-sensitive player who has not turned anything down: full screen effects, full motion, normal clock
         pg.evaluate("(() => { const G = __wb.G, s = G.settings; s.fx = 1; s.reduceMotion = false; s.flicker = true; G.applySettings(); G.timeScale = 2.5; })()")
     # a light-sensitive player: the dimmest lamp (so glare is maximal), quiet, few visitors, plain talk
-    pg.evaluate("document.querySelector('#begin').click()")
+    pg.evaluate("document.querySelector('#tNew').click()")
     until("!!(__wb.panel() && __wb.panel().includes('creator'))"); pg.evaluate("document.querySelector('#done').click()")
     for v in [0, 0, 4, 0, 2, 0]:
         until("!!(__wb.panel() && __wb.panel().includes('setup'))"); pg.evaluate("document.querySelectorAll('.scale button')[%d].click(); document.querySelector('#next').click()" % v)

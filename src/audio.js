@@ -74,10 +74,12 @@ export class Audio {
   // called every frame: glide everything toward its targets
   update() {
     if (!this.ready) return; const c = this.ctx, t = c.currentTime;
-    const P = this.pressure, Mu = this.muffle, Sm = this.smooth;
-    const ambVol = this.vol.amb * (1 + P * 0.9) * (1 - Sm * 0.6);
+    // a place sounds the same for everyone: no loudness or treble scaled to how it fits you. Headphones muffle
+    // (lower and duller) for whoever wears them, and Smooth Mode's hush is the story's sign of losing yourself.
+    const Mu = this.muffle, Sm = this.smooth;
+    const ambVol = this.vol.amb * (1 - Sm * 0.6) * (1 - Mu * 0.5);
     this.amb.gain.setTargetAtTime(ambVol, t, 0.4);
-    this.ambShelf.gain.setTargetAtTime(P * 9 - Sm * 6, t, 0.4);
+    this.ambShelf.gain.setTargetAtTime(-Sm * 6, t, 0.4);
     const lp = Mu > 0.01 ? lerp(18000, 650, Mu) : 18000;
     this.ambLP.frequency.setTargetAtTime(lp, t, 0.2); this.musicLP.frequency.setTargetAtTime(Mu > 0.01 ? lerp(18000, 2200, Mu) : 18000, t, 0.2);
     const L = this.layers, x = this.mix;
@@ -95,8 +97,7 @@ export class Audio {
     // ambience details: birds, babble, heartbeat
     const t = c.currentTime; const x = this.mix;
     if (x.birds > 0.05 && Math.random() < x.birds * 0.06) this.chirp(t + Math.random() * 0.3);
-    if (x.chatter > 0.05 && Math.random() < x.chatter * (0.25 + this.pressure * 0.3)) this.voice('hum', 0.7 + Math.random() * 0.8, 'mmmhm yeah oh really', { bus: this.amb, gain: 0.09 * (1 + this.pressure), count: 4 + Math.floor(Math.random() * 5), when: t + Math.random() * 0.2 });
-    if (this.pressure > 0.35) { this.hbT = (this.hbT || 0) - 0.09; if (this.hbT <= 0) { this.heart(t + 0.02); this.hbT = 60 / (66 + this.pressure * 50); } }
+    if (x.chatter > 0.05 && Math.random() < x.chatter * 0.25) this.voice('hum', 0.7 + Math.random() * 0.8, 'mmmhm yeah oh really', { bus: this.amb, gain: 0.09, count: 4 + Math.floor(Math.random() * 5), when: t + Math.random() * 0.2 });
   }
   playBeat(t) {
     const S = SCENES[this.scene] || SCENES.town; const c = this.ctx;
@@ -117,7 +118,7 @@ export class Audio {
   env(g, t, a, peak, dec, sustain = 0.0001) { g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(Math.max(peak, 0.0002), t + a); g.gain.exponentialRampToValueAtTime(Math.max(sustain, 0.0001), t + a + dec); }
   pad(f, t, dur, vol) {
     const c = this.ctx; const g = c.createGain(); const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 900 + this.self * 900; lp.connect(g); g.connect(this.music);
-    for (const d of [-6, 6]) { const o = c.createOscillator(); o.type = 'sawtooth'; o.frequency.value = f; o.detune.value = d + (this.pressure * (Math.random() - 0.5) * 30); o.connect(lp); o.start(t); o.stop(t + dur + 2.6); }
+    for (const d of [-6, 6]) { const o = c.createOscillator(); o.type = 'sawtooth'; o.frequency.value = f; o.detune.value = d; o.connect(lp); o.start(t); o.stop(t + dur + 2.6); }
     g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(vol * 0.5, t + 1.4); g.gain.setValueAtTime(vol * 0.5, t + dur); g.gain.exponentialRampToValueAtTime(0.0001, t + dur + 2.5);
   }
   bass(f, t, dur, vol) { const c = this.ctx; const o = c.createOscillator(); o.type = 'sine'; o.frequency.value = f; const g = c.createGain(); o.connect(g); g.connect(this.music); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(vol, t + 0.3); g.gain.setValueAtTime(vol, t + dur * 0.8); g.gain.exponentialRampToValueAtTime(0.0001, t + dur + 0.6); o.start(t); o.stop(t + dur + 0.7); }

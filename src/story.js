@@ -2,7 +2,8 @@
 import * as THREE from 'three';
 import * as SIM from './sim.js';
 import { CAST, TALK, HINTS, BARRIER, GUTS, NOTICE, ASK, PROLOGUE, SETUP, TEXTS, COUNCIL, FESTIVAL, ENDINGS, QUESTIONS, BLEND, NIGHT, PEOPLE, LIKED, UNASKED, FIELD_NOTES, SLOT_LABEL } from './content.js';
-import { clamp, pick, sleep, FAST, fmtTime, now, seedRng } from './util.js';
+import { clamp, pick, sleep, FAST, fmtTime, now, seedRng, params } from './util.js';
+import * as SAVE from './save.js';
 import { escortBea } from './guide.js';
 import { parseCond, parseEffect, compare } from './script.js';
 import { SortGame } from './games/sort.js';
@@ -22,6 +23,9 @@ const ONES = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'ei
 const TENS = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety'];
 const WORDS = (n) => (n < 20 ? ONES[n] : n < 100 ? TENS[Math.floor(n / 10)] + (n % 10 ? '-' + ONES[n % 10] : '') : ONES[Math.floor(n / 100)] + ' hundred' + (n % 100 ? ' and ' + WORDS(n % 100) : ''));
 const DIM_LABEL = { sound: 'Sound', light: 'Light', people: 'People', talk: 'Talk', time: 'Time', change: 'Change' };
+export const BUILD = '1.0-dev';
+const DAYS = ['', 'Monday', 'Tuesday', 'Wednesday'];
+const phaseLabel = (phase, day) => (phase === 'morning' ? DAYS[day] + ' morning' : phase === 'shift' ? DAYS[day] + ', after work' : phase === 'meeting' ? DAYS[day] + ', after the meeting' : 'the end of your visit');
 const sens = (S, d) => Math.abs(S.profile[d] - 0.5) >= 0.28;
 
 export class Story {
@@ -30,24 +34,86 @@ export class Story {
   get ui() { return this.G.ui; }
 
   async start() {
-    let first = 1;
-    if (this.G.resume) {
-      const R = this.G.resume; Object.assign(this.S, JSON.parse(JSON.stringify(R)));
-      this.G.player.setLook(this.S.look);
-      for (const k of Object.keys(this.S.fixes)) if (this.S.fixes[k] === 'built') this.G.applyFix(k);
-      await this.titleScreen(true);
-      first = this.S.day;
-    } else {
-      seedRng(this.S.seed);
-      await this.titleScreen();
-      await this.prologue();
+    const G = this.G;
+    const read = SAVE.readSave();
+    const pick = await this.titleScreen({ save: read.save || null });
+    if (pick.kind === 'code' && pick.carry) this.ui.toast('That visit code is for a return visit. Start here first; return visits open once a visit ends.', '', 6000);
+    const save = pick.kind === 'continue' ? pick.save : pick.kind === 'code' ? pick.save : null;
+    if (save) {
+      const at = await this.resumeFrom(save);
+      if (at) { if (at.phase === 'end') { await this.ending(); return; } await this.days(at.day, at.phase); return; }
     }
+    // a new visit: the comfort check first (tests skip it unless they ask for it)
+    if (!G.settings.comfortDone && (!G.test || params.get('comfort') === '1')) await G.menus.comfort();
+    seedRng(this.S.seed);
+    await this.prologue();
+    await this.days(1, 'morning');
+  }
+  // the visit's days; a save is written before each morning, so Continue replays that morning exactly
+  async days(first, phase) {
     for (let d = first; d <= 3; d++) {
-      await this.morning(d);
+      if (d === first && phase !== 'morning') this.resumeDay(phase);
+      else { this.saveNow('morning', d); await this.morning(d); }
       await new Promise((r) => { this.endDay = r; this.G.mode = 'play'; this.G.busy = 0; });
       if (d < 3) await this.night(d);
     }
+    this.saveNow('end', 3);
     await this.ending();
+  }
+  saveNow(phase, day) {
+    const G = this.G, S = this.S;
+    S.texts = G.texts.slice(-40);
+    const label = phaseLabel(phase, day);
+    const meta = { act: S.act || 1, day, phase, label, build: BUILD };
+    const r = SAVE.writeSave(meta, S);
+    const snap = SAVE.snapshot(S);
+    G.lastSaveObj = { v: SAVE.SAVE_V, build: BUILD, act: meta.act, day, phase, label, savedAt: new Date().toISOString(), S: snap.data };
+    G.lastSaveMeta = { ok: r.ok, label, error: r.error || null };
+    if (!r.ok && r.error !== 'invalid' && !this.warnedSave) { this.warnedSave = true; this.ui.toast('This browser isn\'t keeping saves. Your save code is in the Menu, if you want to pick up later.', '', 6000); }
+    if (!r.ok && r.error === 'invalid') console.warn('save refused', r.why);
+  }
+  // a save from storage or a code: rebuild the state, then everything in the world that the state implies
+  async resumeFrom(save) {
+    const G = this.G; let S;
+    try { S = SAVE.restoreState(save, SIM.newState); } catch (e) { console.error(e); this.ui.toast('That save could not be opened.'); return null; }
+    this.sanitize(S);
+    G.S = S;
+    if (!S.name || !('name' in save.S)) S.name = await G.menus.askName(S.name);
+    G.texts = (S.texts || []).filter((x) => Array.isArray(x) && x.length === 2).map((x) => [String(x[0]), String(x[1])]);
+    this.applyWorld();
+    return { day: save.day, phase: save.phase };
+  }
+  // ids from a code that the game doesn't know are dropped, so nothing downstream looks them up
+  sanitize(S) {
+    for (const k of Object.keys(S.fixes || {})) if (!SIM.FIXES[k]) delete S.fixes[k];
+    for (const k of Object.keys(S.support || {})) if (!SIM.FIXES[k]) delete S.support[k]; else S.support[k] = (S.support[k] || []).filter((id) => CAST[id]);
+    for (const k of Object.keys(S.lantern.entries || {})) if (!HINTS[k]) delete S.lantern.entries[k];
+    for (const k of Object.keys(S.lantern.learned || {})) if (!CAST[k]) delete S.lantern.learned[k];
+    for (const m of [S.bonds, S.gw, S.met, S.talked, S.know, S.revealed, S.owe, S.lg]) if (m && typeof m === 'object') for (const k of Object.keys(m)) if (!CAST[k]) delete m[k];
+    S.lanternsMade = (S.lanternsMade || []).filter((m) => m && CAST[m.id]);
+    S.hearsay = (S.hearsay || []).filter((id) => LIKED[id]);
+    S.jar = (S.jar || []).filter((j) => j && typeof j.t === 'string').slice(0, 12);
+  }
+  applyWorld() {
+    const G = this.G, S = this.S;
+    G.player.setLook(S.look); for (const k of ['headphones', 'shades']) G.player.setGear(k, !!(S.wearing && S.wearing[k]));
+    for (const k of Object.keys(S.fixes)) if (S.fixes[k] === 'built') G.applyFix(k);
+    const home = G.rooms.home, P = S.profile;
+    home.setLight(P.light); home.setSign(1 - P.people); home.setCalendar(P.change);
+    home.objs.clock.group.rotation.y = (P.time - 0.5) * 0.6; home.objs.note.group.rotation.y = 0.2 + P.talk * 0.6;
+    if (home.setJar) home.setJar(S.jar || []);
+    this.revealQ = Object.keys(S.revealed || {}).filter((k) => S.revealed[k] === 'pending');
+    if (S.look0) S.portrait0 = G.portraitOf(S.look0, {});
+    G.player.root.visible = true;
+  }
+  // picking up in the middle of a day: outside the building you left, in free play
+  resumeDay(phase) {
+    const G = this.G;
+    G.setLoc('town'); G.place(phase === 'shift' ? [12, 13.9] : [32, 14.4]); G.player.heading = 0;
+    G.stage.follow(G.player.root.position, G.followOpts({ snap: true }));
+    G.audio.setScene('town'); this.ui.hud(true); this.ui.letterbox(false);
+    G.stage.fadeTo(0, 600);
+    this.ui.toast('Welcome back. ' + (phase === 'shift' ? 'Your shift is done for today.' : 'The meeting is over.'), '', 3200);
   }
   finishDay(why) { if (this.endDay) { const r = this.endDay; this.endDay = null; this.G.mode = 'cine'; this.dayEndWhy = why; r(); } }
 
@@ -214,7 +280,7 @@ export class Story {
         const opts = n.ask.filter((o) => !o.if || this.cond(o.if, ctx)).map((o) => Object.assign({}, o, { blend: blendOn && o.blend }));
         const k = await this.choose(opts.map((o) => ({ t: o.t, sub: o.sub, tag: o.tag, blend: o.blend, id: o.id })));
         const o = opts[k];
-        if (o.blend) { this.S.blend.score += 5; this.S.blend.usedToday = true; this.S.self = clamp(this.S.self - 1.5, 0, 100); this.ui.toast('+5 Calm', 'blend', 1600); }
+        if (o.blend) { this.S.blend.score += 5; this.S.blend.usedToday = true; this.S.self = clamp(this.S.self - 1.5, 0, 100); this.ui.toast('+5 points', 'blend', 1600); }
         if (o.do) for (const e of o.do) await this.effect(e, ctx);
         if (o.go) { i = labels[o.go] ?? nodes.length; continue; }
       }
@@ -258,14 +324,15 @@ export class Story {
   }
 
   // ---------- the title and the prologue ----------
-  async titleScreen(resume) {
+  async titleScreen(o = {}) {
     const G = this.G; const keepMin = G.S.min;
     G.setLoc('town'); G.mode = 'title';
     G.stage.orbit(new THREE.Vector3(30, 2, 24), 36, 17, 0.03, true);
     G.S.min = 18.4 * 60; G.player.root.visible = false;
-    await new Promise((r) => { G.titleResolve = r; this.ui.title(resume).then(r); });
-    if (resume) { G.S.min = keepMin; G.player.root.visible = true; }
+    const pick = await this.ui.title({ save: o.save, storage: G.storage });
+    G.S.min = keepMin;
     G.audio.unlock(); G.audio.setScene('title');
+    return pick;
   }
   async prologue() {
     const G = this.G, S = this.S, ui = this.ui;
@@ -461,7 +528,7 @@ export class Story {
     if (S.energy < 30 && !S.flags['low1_' + d]) { S.flags['low1_' + d] = 1; this.ui.toast('<b>Running low.</b><br>Home, a bench somewhere that fits you, or tea with Moss will help.', '', 5600); }
     if (S.energy < 12 && !S.flags['low2_' + d]) { S.flags['low2_' + d] = 1; this.ui.toast('<b>Nearly empty.</b> Head home soon, or the day will end for you.', '', 5600); }
     // Blend keeps pinging while it is installed: a small noise layer of its own
-    if (S.blend.has && !S.blend.deleted && d >= 1 && G.settings.blendPings !== false) { const t = now(); if (!this.pingAt) this.pingAt = t + (FAST ? 4000 : 90000); if (t > this.pingAt) { this.pingAt = t + (FAST ? 8000 : 120000 + Math.random() * 60000); this.text('Blend', S.blend.smooth && S.blend.score < 15 ? 'You are out of Calm! The feed has plenty.' : pick(BLEND.pings)); } }
+    if (S.blend.has && !S.blend.deleted && d >= 1 && G.settings.blendPings !== false) { const t = now(); if (!this.pingAt) this.pingAt = t + (FAST ? 4000 : 90000); if (t > this.pingAt) { this.pingAt = t + (FAST ? 8000 : 120000 + Math.random() * 60000); this.text('Blend', S.blend.smooth && S.blend.score < 15 ? 'You are out of points! The feed has plenty.' : pick(BLEND.pings)); } }
     if (d < 3 && m >= 1170 && !S.flags['dusk' + d]) { S.flags['dusk' + d] = 1; this.ui.toast('The light is going gold. That is enough for today.', 'idea', 5200); }
     if ((this.revealQ || []).length) { G.run(() => this.flushReveals()); return; }
     const z = G.zone; if (z === 'home') return;
@@ -483,7 +550,7 @@ export class Story {
     const p = SIM.pinch(S, zone, S.min); if (p.total < 0.12 && !o.force) return 'none';
     const top = p.top || 'sound'; const dir = p.dims[top].over > 0 ? 'over' : 'under';
     const B = BARRIER[zone] || BARRIER.street; const text = (B[dir] && B[dir][top]) || (BARRIER.street[dir] && BARRIER.street[dir][top]) || 'This place is not quite right for you.';
-    if (S.blend.has && S.blend.smooth && !S.blend.deleted) { if (G.blendSmooth(zone)) return 'bend'; this.ui.toast('<b>Out of Calm.</b><br>Blend has a feed for that.', 'blend', 4200); this.fieldNote('dark'); }
+    if (S.blend.has && S.blend.smooth && !S.blend.deleted) { if (G.blendSmooth(zone)) return 'bend'; this.ui.toast('<b>Out of points.</b><br>Blend has a feed for that.', 'blend', 4200); this.fieldNote('dark'); }
     G.focusPinch(true); G.lastBarrier = now();
     const coach = !S.flags.coached ? 'Five ways to handle a place that does not fit. None of them is wrong, and each one costs something different.' : ''; S.flags.coached = 1;
     this.fieldNote('fit'); if (p.dims[p.top || 'sound'] && p.dims[p.top || 'sound'].under > 0) this.fieldNote('both');
@@ -577,6 +644,7 @@ export class Story {
     if (S.blend.has && S.blend.smooth && !S.blend.deleted && S.masking) this.ui.toast('Blend smoothed you through the whole shift. Nobody noticed a thing.', 'blend');
     S.masking = false;
     await G.exitRoom();
+    this.saveNow('shift', S.day);
   }
   async officeApproval() {
     const S = this.S;
@@ -786,6 +854,7 @@ export class Story {
     await G.stage.fadeTo(1, 600);
     await G.exitRoom(true);
     await G.stage.fadeTo(0, 600);
+    this.saveNow('meeting', S.day);
     this.ui.toast('The festival starts at 8 in Market Square.');
   }
   tableAll() { for (const f of Object.keys(this.S.fixes)) if (this.S.fixes[f] === 'ready') this.S.fixes[f] = 'tabled'; }

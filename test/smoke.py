@@ -11,7 +11,7 @@ with sync_playwright() as p:
     pg.goto(url); pg.wait_for_timeout(2500)
     pg.screenshot(path='/home/claude/wb4/test/s_title.png')
     print('mode', pg.evaluate('__wb.mode()'), 'panel', pg.evaluate('__wb.panel()'))
-    pg.click('#begin'); pg.wait_for_timeout(3000)
+    pg.click('#tNew'); pg.wait_for_timeout(3000)
     pg.screenshot(path='/home/claude/wb4/test/s_pro1.png')
     for i in range(40):
         pnl = pg.evaluate('__wb.panel()')

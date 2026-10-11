@@ -23,7 +23,7 @@ with sync_playwright() as p:
             if pg.evaluate("__wb.waiter() === 'barrier'") and 'barrier' not in js: pg.evaluate("__wb.choose(0)")
             pg.wait_for_timeout(150)
         return False
-    pg.evaluate("document.querySelector('#begin').click()")
+    pg.evaluate("document.querySelector('#tNew').click()")
     until("__wb.panel() && __wb.panel().includes('creator')"); shot('01-creator')
     pg.evaluate("document.querySelector('#done').click()")
     for i in range(6):

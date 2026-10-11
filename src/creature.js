@@ -194,6 +194,21 @@ function refreshLive(geo) {
 }
 const swap = (mesh, geo) => { const old = mesh.geometry; mesh.geometry = geo; if (old !== EMPTY && old !== geo) old.dispose(); };
 
+// How a place shows on a creature (reactions), and the creature's own comfort move. Reactions are animation only:
+// they never move the creature anyone is steering, change its speed or take its input. Episodic ones come and go:
+// [shortest gap, longest gap, seconds]. Hands to ears lasts about a second and never plays with a comfort move.
+const EPISODIC = { ears: [6, 9, 1.0], look: [7, 10, 2.0], droop: [9, 13, 2.0], tilt: [7, 10, 1.5], lean_back: [8, 12, 1.0], yawn: [25, 35, 1.3], glance: [8, 12, 0.8], sigh: [20, 28, 1.6] };
+export const COMFORT_MOVES = ['hum', 'tap', 'rock', 'spin', 'flap', 'pace', 'charm'];
+let noteTex = null;
+function noteTexture() {
+  if (noteTex) return noteTex;
+  const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d');
+  x.fillStyle = '#fffaf0'; x.strokeStyle = 'rgba(43,37,48,0.55)'; x.lineWidth = 3; x.font = '600 46px "Fredoka", system-ui, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle';
+  x.strokeText('\u266a', 32, 34); x.fillText('\u266a', 32, 34);
+  noteTex = new THREE.CanvasTexture(c); noteTex.colorSpace = THREE.SRGBColorSpace; return noteTex;
+}
+const easeIO = (t) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);
+
 let nextSeed = 101;
 export class Creature {
   // o: { seed, lod: 'low' (fewer segments, no pattern or cheeks), scale, form: 'near' | 'baked', shadow: false (casts none) }
@@ -206,6 +221,10 @@ export class Creature {
     this.drift = 0; this.tense = 0; this.speed = 0; this.heading = 0; this.phase = 0; this.time = Math.random() * 10;
     this.blinkT = 1 + Math.random() * 3; this.hopT = 0; this.expr = 'neutral'; this.wave = 0; this.stare = null;
     this.moving = false; this.waving = false; this.eyeY = 1;
+    // reactions to the place, and the comfort move (see setReaction, setComfort)
+    this.react = null; this.reactO = {}; this.reactOn = 0; this.reactNext = 1; this.reactDur = 1;
+    this.comfortKind = null; this.comfortLevel = 0; this.comfortFreq = 1; this.comfortOn = 0; this.comfortDur = 1.6; this.comfortNext = 3 + Math.random() * 4; this.comfortActive = 0;
+    this.pz = { rx: 0, rz: 0, ry: 0, px: 0, pzz: 0, sy: 1, tense: 0 }; this.eyeMul = 1; this.handK = 0; this.handMode = null; this.poseNow = null; this.fixedPose = null;
     // form: 'near' or 'baked' (setForm); blobLayer: src/lod.js draws this one's blob shadow; owned: geometries to dispose
     this.form = 'near'; this.blobLayer = false; this.owned = []; this.kit = null; this.nearDirty = true; this.bakeDirty = true;
     this.root = new THREE.Group(); this.root.userData.creature = this;
@@ -318,7 +337,8 @@ export class Creature {
       swap(this.cheeks, mergeKit(ck));
     }
     // hands
-    [-1, 1].forEach((sx, i) => { const h = this.hands[i]; h.position.copy(surf(sx, -0.3, 0.12, p, -0.06)); h.userData.base = h.position.clone(); });
+    [-1, 1].forEach((sx, i) => { const h = this.hands[i]; h.position.copy(surf(sx, -0.3, 0.12, p, -0.06)); h.userData.base = h.position.clone(); h.userData.ear = surf(sx * 0.95, 0.42, 0.18, p, 0.06); h.userData.flap = surf(sx * 1.05, 0.05, 0.1, p, 0.12); });
+    this.charmAt = surf(0.18, -0.18, 1, p, 0.1);
     // top and wear (one mesh), the Standard's ears, gear
     this.topKit(K.tw, look.top, p, paintOf(this.partMat, true));
     this.wearKit(K.tw, look.wear, p);
@@ -442,6 +462,8 @@ export class Creature {
     ch.visible = this.form === 'near';
     this.root.add(ch); this.chair = ch;
   }
+  ensureNote() { if (this.note) return; this.note = new THREE.Sprite(new THREE.SpriteMaterial({ map: noteTexture(), transparent: true, depthWrite: false })); this.note.scale.set(0.5, 0.5, 1); this.note.userData.noOcc = true; this.near.add(this.note); }
+  ensureCharm() { if (this.charm) return; this.charm = new THREE.Mesh(sph(0.09, 10, 8), new THREE.MeshStandardMaterial({ color: '#e2b34c', roughness: 0.35, metalness: 0.4 })); this.charm.position.set(0, 0.06, 0.12); this.charm.userData.noOcc = true; this.hands[1].add(this.charm); }
   setGear(name, on) { this.wearing[name] = on; if (on) this.ensureGear(); if (this.gearParts && this.gearParts[name]) this.gearParts[name].visible = on; }
   setExpression(e) {
     this.expr = e;
@@ -452,6 +474,65 @@ export class Creature {
     this.mouth.scale.set(e === 'happy' ? 1.35 : 1, e === 'tense' ? 0.25 : e === 'happy' ? 1.4 : 1, 1);
   }
   hop() { this.hopT = 0.45; }
+  // kind: 'squint' | 'lean' | 'tense' | 'ears' | 'look' | 'droop' | 'tilt' | 'lean_back' | 'yawn' | 'glance' | 'sigh' | null
+  // o.aid: reach for a hearing aid with one hand instead of covering both ears
+  setReaction(kind, o = {}) { if (kind !== this.react) { this.react = kind; this.reactOn = 0; this.reactNext = 0.4 + Math.random() * 1.2; } this.reactO = o; }
+  // level 0 (held in) to 1 (free); freq < 1 makes it come less often (after a lot of pushing through)
+  setComfort(kind, level, freq = 1) { this.comfortKind = kind || null; this.comfortLevel = level || 0; this.comfortFreq = freq; if (!level) this.comfortOn = 0; }
+  // a still pose for portraits: 'squint', 'ears', 'drift', 'straight', or a comfort move name
+  posePortrait(kind) { this.fixedPose = kind; this.handK = 1; }
+  posePlan(dt) {
+    const t = this.time; const P = { rx: 0, rz: 0, ry: 0, px: 0, pzz: 0, sy: 1, eye: 1, hands: null, mouthO: false, tense: 0, note: 0, tap: 0, spin: 0 };
+    if (this.fixedPose) {
+      const f = this.fixedPose;
+      if (f === 'squint') { P.eye = 0.4; P.rx = 0.06; } else if (f === 'ears') P.hands = 'ears'; else if (f === 'drift') { P.ry = 0.5; P.rx = 0.05; } else if (f === 'straight') P.tense = 0.15;
+      else if (f === 'flap' || f === 'charm') P.hands = f; else if (f === 'hum') P.note = 1; else if (f === 'rock') P.rx = 0.1; else if (f === 'tap') P.tap = 1;
+      return P;
+    }
+    const k = this.react, moving = this.moving;
+    if (k && EPISODIC[k]) {
+      if (this.reactOn > 0) this.reactOn -= dt;
+      else { this.reactNext -= dt; if (this.reactNext <= 0) { const E = EPISODIC[k]; this.reactOn = this.reactDur = E[2]; this.reactNext = E[0] + Math.random() * (E[1] - E[0]); } }
+    } else this.reactOn = 0;
+    const on = this.reactOn > 0 ? Math.sin(Math.PI * clamp(1 - this.reactOn / this.reactDur)) : 0;
+    switch (k) {
+      case 'squint': P.eye = 0.45; P.rx = 0.06; break;
+      case 'lean': P.rx = 0.1; P.eye = 1.12; break;
+      case 'tense': P.tense = 0.4; break;
+      case 'ears': if (on > 0.05 && !moving) P.hands = this.reactO.aid ? 'ear1' : 'ears'; break;
+      case 'look': P.ry = Math.sin(t * 2.2) * 0.4 * on; break;
+      case 'droop': P.rx = 0.06; P.sy = 0.97; P.ry = Math.sin(t * 2.2) * 0.3 * on; break;
+      case 'tilt': P.rz = 0.14 * on; break;
+      case 'lean_back': P.rx = -0.08 * on; if (on > 0.6) P.eye = 0.12; break;
+      case 'yawn': P.mouthO = on > 0.2; P.sy = 1 + 0.06 * on; break;
+      case 'glance': P.ry = 0.6 * on; break;
+      case 'sigh': P.sy = 1 - 0.05 * on; P.rx = 0.03 * on; break;
+      default: break;
+    }
+    // the comfort move: only when standing still, never during hands-to-ears
+    const lvl = this.comfortLevel;
+    if (lvl > 0 && this.comfortKind && !moving) {
+      if (this.comfortOn > 0) this.comfortOn -= dt;
+      else { this.comfortNext -= dt * (lvl >= 1 ? 1 : 0.6); if (this.comfortNext <= 0 && !P.hands) { this.comfortOn = this.comfortDur = 1.2 + Math.random() * 0.8; this.comfortNext = (5 + Math.random() * 4) / Math.max(0.3, this.comfortFreq); } }
+    } else this.comfortOn = 0;
+    const tt = this.comfortDur - this.comfortOn;
+    const c = this.comfortOn > 0 && !P.hands ? clamp(Math.min(1, tt * 4, this.comfortOn * 4)) * Math.min(1, lvl) : 0;
+    if (c > 0) {
+      const wheels = this.look.wheels;
+      switch (this.comfortKind) {
+        case 'hum': P.rz += Math.sin(t * Math.PI * 3.2) * 0.05 * c; P.note = c; break;
+        case 'tap': P.tap = c; break;
+        case 'rock': P.rx += Math.sin(t * Math.PI * 1.6) * 0.1 * c; break;
+        case 'spin': P.spin = Math.PI * 2 * easeIO(clamp(tt / Math.min(1.2, this.comfortDur))); break;
+        case 'flap': P.hands = 'flap'; break;
+        case 'pace': if (wheels) P.pzz += Math.sin(tt * Math.PI * 1.2) * 0.2 * c; else P.px += Math.sin(tt * Math.PI * 1.2) * 0.2 * c; break;
+        case 'charm': P.hands = 'charm'; break;
+        default: break;
+      }
+    }
+    this.comfortActive = c;
+    return P;
+  }
   faceToward(x, z) { this.heading = Math.atan2(x - this.root.position.x, z - this.root.position.z); }
   update(dt) {
     this.time += dt;
@@ -462,12 +543,15 @@ export class Creature {
     if (this.hopT > 0) { this.hopT -= dt; bob += Math.sin((1 - this.hopT / 0.45) * Math.PI) * 0.22; }
     const breathe = Math.sin(t * 2.1 + this.seed) * 0.014;
     const sq = moving && !this.look.wheels ? Math.sin(this.phase * 2) * 0.04 : breathe;
-    const tq = this.tense * 0.07;
+    const P = this.poseNow = this.posePlan(dt); const z = this.pz;
+    for (const key of ['rx', 'rz', 'ry', 'px', 'pzz', 'sy', 'tense']) z[key] = this.fixedPose ? P[key] : damp(z[key], P[key], 7, dt);
+    const tq = Math.max(this.tense, z.tense) * 0.07;
     this.rig.position.y = this.baseY + bob - tq * this.S;
     const s = this.S;
-    this.rig.scale.set(s * (1 - sq * 0.5 + tq * 0.4), s * (1 + sq - tq), s * (1 - sq * 0.5 + tq * 0.4));
-    this.rig.position.x = this.tense > 0.05 ? Math.sin(t * 47) * 0.012 * this.tense : 0;
-    this.rig.rotation.x = moving ? 0.07 * Math.min(1, this.speed) : 0;
+    this.rig.scale.set(s * (1 - sq * 0.5 + tq * 0.4), s * (1 + sq - tq) * z.sy, s * (1 - sq * 0.5 + tq * 0.4));
+    this.rig.position.x = z.px; this.rig.position.z = z.pzz;
+    this.rig.rotation.x = (moving ? 0.07 * Math.min(1, this.speed) : 0) + z.rx;
+    this.rig.rotation.z = z.rz; this.rig.rotation.y = z.ry + P.spin;
     this.root.rotation.y = angDamp(this.root.rotation.y, this.heading, 10, dt);
     // timers run in both forms; the parts that show them only in the near form
     this.waving = this.wave > 0; if (this.waving) this.wave -= dt;
@@ -477,23 +561,45 @@ export class Creature {
     this.eyeY = eyeY;
     if (this.form === 'near') {
       if (this.wheels) for (const w of this.wheels) w.rotation.x -= this.speed * dt * 6;
-      this.poseParts();
+      this.poseParts(dt);
     }
   }
   // feet stepping, hands swinging (and waving), eyes blinking: the near rig's pose for the current moment
-  poseParts() {
+  poseParts(dt = 1 / 60) {
     const S = this.S, moving = this.moving;
     if (this.footL) {
       const a = moving ? Math.sin(this.phase) : 0;
       this.footL.position.z = S * (0.08 + a * 0.28); this.footR.position.z = S * (0.08 - a * 0.28);
       this.footL.position.y = S * (0.1 + Math.max(0, a) * 0.14); this.footR.position.y = S * (0.1 + Math.max(0, -a) * 0.14);
     }
-    const h = this.hands, a = moving ? Math.sin(this.phase) * 0.18 : 0;
+    const h = this.hands, a = moving ? Math.sin(this.phase) * 0.18 : 0; const P = this.poseNow || {};
     h[0].position.z = h[0].userData.base.z - a; h[1].position.z = h[1].userData.base.z + a;
+    h[0].position.x = h[0].userData.base.x; h[0].position.y = h[0].userData.base.y; h[1].position.x = h[1].userData.base.x;
     h[1].position.y = this.waving ? h[1].userData.base.y + 0.35 + Math.sin(this.time * 16) * 0.12 : h[1].userData.base.y;
+    // hands to ears, flapping, holding a charm: blend from the resting hands
+    if (P.hands) this.handMode = P.hands;
+    this.handK = this.fixedPose ? (P.hands ? 1 : 0) : damp(this.handK, P.hands ? 1 : 0, 12, dt);
+    if (this.handK > 0.01 && this.handMode) {
+      const m = this.handMode, k = this.handK;
+      for (let i = 0; i < 2; i++) {
+        const H = h[i], u = H.userData; let tgt = null;
+        if (m === 'ears' || (m === 'ear1' && i === 1)) tgt = u.ear;
+        else if (m === 'flap') { tgt = _t.copy(u.flap); tgt.y += Math.sin(this.time * 31) * 0.07; }
+        else if (m === 'charm' && i === 1) tgt = this.charmAt;
+        if (tgt) H.position.lerp(tgt, k);
+      }
+    }
+    if (this.charm) this.charm.visible = this.handMode === 'charm' && this.handK > 0.3;
+    if (this.handMode === 'charm' && this.handK > 0.3) this.ensureCharm();
+    // a foot taps (on wheels, fingers drum on the rim)
+    if (P.tap) { const b = Math.abs(Math.sin(this.time * Math.PI * 6)) * P.tap; if (this.footR) this.footR.position.y += b * S * 0.16; else h[1].position.y += b * 0.08; }
+    // humming: a note drifts up
+    if (P.note > 0.02) { this.ensureNote(); const n = this.note; n.visible = true; const ph = (this.time * 0.6) % 1; n.position.set(0.55, 1.15 + ph * 0.6, 0.2); n.material.opacity = P.note * 0.9 * Math.sin(Math.PI * ph); } else if (this.note) this.note.visible = false;
+    if (P.mouthO !== undefined && this.expr === 'neutral') { this.mouthO.visible = !!P.mouthO; this.mouth.visible = !P.mouthO; }
+    this.eyeMul = this.fixedPose ? (P.eye || 1) : damp(this.eyeMul, P.eye || 1, 10, dt);
     // Both eyes squash about the point between them. On a lopsided (blobby) face one eye sits a little higher than the
     // other, so a slight turn keeps each eye at its own height, as if each squashed about its own centre.
-    const s = this.eyeY, dx = this.eyeOff.x, dy = this.eyeOff.y;
+    const s = clamp(this.eyeY * this.eyeMul, 0.08, 1.2), dx = this.eyeOff.x, dy = this.eyeOff.y;
     const rz = s === 1 || !dy ? 0 : Math.asin(clamp(dy / Math.hypot(dx, s * dy), -1, 1)) - Math.atan2(s * dy, dx);
     for (const e of this.eyes) { e.scale.y = s; e.rotation.z = rz; }
   }

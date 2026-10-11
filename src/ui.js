@@ -34,23 +34,25 @@ export class UI {
       <div id="bubbles"></div>
       <div id="hud" hidden>
         <div class="clock"><div class="dial"></div><div class="cl"><div class="when"></div><div class="obj"></div><button class="way" id="wayBtn" hidden>${ICON.way}<span>Show the way</span></button></div></div>
-        <div class="hudbtns"><button class="btn hb" id="phoneBtn" aria-label="Phone">${ICON.phone}<span class="lbl">Phone</span>${this.touch ? '' : '<kbd>P</kbd>'}</button><button class="btn hb" id="setBtn" aria-label="Settings">${ICON.cog}<span class="lbl">Settings</span></button></div>
+        <div class="hudbtns"><button class="btn hb" id="phoneBtn" aria-label="Phone">${ICON.phone}<span class="lbl">Phone</span>${this.touch ? '' : '<kbd class="kphone"></kbd>'}</button><button class="btn hb" id="setBtn" aria-label="Menu: pause and settings">${ICON.cog}<span class="lbl">Menu</span></button></div>
         <div class="dock"><div class="energy" title="Energy for today"><svg viewBox="0 0 36 36"><circle class="track" cx="18" cy="18" r="14" fill="none" stroke-width="5"/><circle class="bar" cx="18" cy="18" r="14" fill="none" stroke-width="5" stroke-linecap="round" stroke-dasharray="88" stroke-dashoffset="0"/></svg><span class="elabel">Energy</span></div><div class="gearbtns"></div></div>
       </div>
       <div id="edge" hidden><div class="arr">${ICON.way}</div><span></span></div>
       <div id="prompt" hidden></div>
       <button id="actbtn" hidden></button>
-      <div id="dialog" hidden aria-live="polite"><div class="plate"></div><div class="tagline"></div><div class="text"></div><div class="extra"></div><div class="more">▼</div><div class="choices"></div></div>
+      <div id="dialog" hidden><div class="plate"></div><div class="tagline"></div><div class="text"></div><div class="extra"></div><div class="more">▼</div><div class="choices"></div></div>
       <div id="barrier" hidden></div>
       <div id="toasts"></div>
       <div id="phone" hidden></div>
       <div id="mg" hidden></div>
-      <div id="panel" hidden></div>`;
+      <div id="panel" hidden></div>
+      <div id="cc" aria-hidden="true"></div>
+      <div id="sr" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>`;
     this.el = (id) => this.root.querySelector(id);
     this.dialog = this.el('#dialog'); this.barrierEl = this.el('#barrier'); this.panel = this.el('#panel'); this.phoneEl = this.el('#phone');
     this.waiter = null; this.phoneTab = 'today'; this.bubblesMap = {}; this.gearKey = '';
     this.el('#phoneBtn').onclick = () => this.G.togglePhone(true);
-    this.el('#setBtn').onclick = () => this.G.openSettings();
+    this.el('#setBtn').onclick = () => this.G.openPause();
     this.el('#prompt').onclick = () => this.G.interact();
     this.el('#actbtn').onclick = () => this.G.interact();
     this.el('#wayBtn').onclick = () => this.G.showWay();
@@ -63,7 +65,19 @@ export class UI {
     if (this.touch) document.body.classList.add('touch');
   }
   get set() { return this.G.settings; }
+  // the screen-reader announcer: each line, choice list and notice is read once, in full (never the typewriter)
+  announce(text) {
+    const el = this.el('#sr'); if (!el || !text) return;
+    const t = String(text).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim(); if (!t) return;
+    clearTimeout(this._srT); el.textContent = ''; this._srT = setTimeout(() => { el.textContent = t; }, 40);
+  }
+  // captions for sounds that carry information (the bus speaker, the noon bell, knocks)
+  cc(text, ms = 3200) {
+    if (this.set.captions === false || !text) return; const el = this.el('#cc'); el.textContent = text; el.classList.add('on');
+    clearTimeout(this._ccT); this._ccT = setTimeout(() => el.classList.remove('on'), FAST ? 300 : ms); this.announce(text);
+  }
   key(e) {
+    if (this.G.menus && this.G.menus.open) return;
     const k = keyName(e); // digits and letters by position, so the number row works on AZERTY
     if (this.capSkip && (k === ' ' || k === 'Enter')) { e.preventDefault(); this.skipCaption(); return; }
     const w = this.waiter;
@@ -105,6 +119,7 @@ export class UI {
     const extra = d.querySelector('.extra'); extra.innerHTML = o.extra || '';
     const txt = d.querySelector('.text'); const full = o.text;
     if (o.voice) o.voice(full);
+    { const S = this.G.S; const c = o.who ? CAST[o.who] : null; const who = o.kind === 'gut' ? 'Your gut' : o.kind === 'notice' ? (o.label || '') + ', you notice' : o.who === 'you' ? (S.name || 'You') : c ? c.name : ''; this.announce((who ? who + ': ' : '') + full + (o.extra ? ' ' + o.extra : '')); }
     const cps = FAST ? 1e9 : { slow: 28, normal: 52, fast: 95, instant: 1e9 }[this.set.textSpeed] || 52;
     return new Promise((resolve) => {
       let shown = 0; const wrap = (s) => (o.kind === 'hint' ? '<span class="hintword">' + esc(s) + '</span>' : esc(s));
@@ -129,6 +144,7 @@ export class UI {
         box.appendChild(b); return b;
       });
       this.waiter = { type: 'choice', buttons };
+      this.announce((o.text ? o.text + ' ' : '') + 'Choices: ' + opts.map((op, i) => (i + 1) + '. ' + op.t + (op.disabled ? ' (not available)' : '')).join('. '));
     });
   }
   // a control that cannot be used right now says why, instead of doing nothing
@@ -157,6 +173,7 @@ export class UI {
         box.appendChild(btn); return btn;
       });
       this.waiter = { type: 'barrier', buttons };
+      this.announce(b.title + '. ' + b.text + ' Who adjusts? ' + b.options.map((o, i) => (i + 1) + '. ' + o.who + ': ' + o.label + (o.disabled ? ', not available: ' + o.reason : ', ' + o.sub)).join('. '));
     });
   }
   // Push through: hold it, or tap once and it fills by itself (tap again to stop). Holding is never required.
@@ -184,7 +201,7 @@ export class UI {
   hideBarrier() { this.barrierEl.hidden = true; }
   // ---------- small things ----------
   toast(html, kind = '', ms = 3600) {
-    const t = $(`<div class="toast ${kind}">${html}</div>`); this.el('#toasts').appendChild(t);
+    const t = $(`<div class="toast ${kind}">${html}</div>`); this.el('#toasts').appendChild(t); this.announce(html);
     const all = this.el('#toasts').children; if (all.length > 4) all[0].remove();
     setTimeout(() => { t.classList.add('out'); setTimeout(() => t.remove(), 450); }, FAST ? 300 : ms);
   }
@@ -212,17 +229,18 @@ export class UI {
     h.querySelector('.energy').classList.toggle('low', e < 0.3);
     // gear you own becomes a button you can press (on phones there are no H and J keys)
     const smoothOk = S.blend.has && !S.blend.deleted;
-    const gk = [S.gear.headphones, S.wearing.headphones, S.gear.shades, S.wearing.shades, smoothOk, S.blend.smooth].join();
+    const gk = [S.gear.headphones, S.wearing.headphones, S.gear.shades, S.wearing.shades, smoothOk, S.blend.smooth, JSON.stringify(this.set.keys)].join();
     if (gk !== this.gearKey) {
       this.gearKey = gk;
-      const b = (g, on, label, ic, key) => `<button class="gb ${on ? 'on' : ''} ${g === 'smooth' ? 'sm' : ''}" data-g="${g}" aria-pressed="${on}" title="${label}${this.touch ? '' : ' (' + key + ')'}">${ic}<span>${label}</span></button>`;
-      h.querySelector('.gearbtns').innerHTML = (S.gear.headphones ? b('headphones', S.wearing.headphones, 'Headphones', ICON.gear, 'H') : '') + (S.gear.shades ? b('shades', S.wearing.shades, 'Shades', ICON.shades, 'J') : '') + (smoothOk ? b('smooth', S.blend.smooth, 'Smooth Mode', ICON.smooth, 'B') : '');
+      const b = (g, on, label, ic) => `<button class="gb ${on ? 'on' : ''} ${g === 'smooth' ? 'sm' : ''}" data-g="${g}" aria-pressed="${on}" title="${label}${this.touch ? '' : ' (' + this.G.keyOf(g) + ')'}">${ic}<span>${label}</span></button>`;
+      h.querySelector('.gearbtns').innerHTML = (S.gear.headphones ? b('headphones', S.wearing.headphones, 'Headphones', ICON.gear) : '') + (S.gear.shades ? b('shades', S.wearing.shades, 'Shades', ICON.shades) : '') + (smoothOk ? b('smooth', S.blend.smooth, 'Smooth Mode', ICON.smooth) : '');
+      const kp = h.querySelector('.kphone'); if (kp) kp.textContent = this.G.keyOf('phone');
     }
   }
   ping(on) { this.el('#phoneBtn').classList.toggle('ping', on); }
   prompt(label, x, y) {
     const p = this.el('#prompt'); if (!label) { p.hidden = true; this._pl = null; return; }
-    p.hidden = false; if (this._pl !== label) { this._pl = label; p.innerHTML = (this.touch ? '' : '<kbd>E</kbd>') + esc(label); }
+    p.hidden = false; if (this._pl !== label) { this._pl = label; p.innerHTML = (this.touch ? '' : '<kbd>' + esc(this.G.keyOf('interact')) + '</kbd>') + esc(label); }
     p.style.left = x + 'px'; p.style.top = y + 'px';
   }
   // the big contextual button for touch screens
@@ -252,10 +270,26 @@ export class UI {
   // ---------- panels ----------
   openPanel(cls, html) { const p = this.panel; p.style.cssText = ''; p.className = 'panel ' + cls; p.innerHTML = html; p.hidden = false; return p; }
   closePanel() { this.panel.hidden = true; this.panel.innerHTML = ''; }
-  title(resume) {
-    const p = this.openPanel('title', `<h1>Who Bends</h1><div class="sub">${resume ? 'The game was updated. Your season picks up at the start of the day.' : 'a town built for someone else'}</div><div class="row"><button class="btn accent" id="begin">${resume ? 'Continue' : 'Begin'}</button><button class="btn" id="tset">Settings</button></div><div class="fine">About 30 minutes. Best with sound. You can't see everything in one visit, and that's fine. Nothing flashes fast, and screen effects can be turned down or off in Settings. No account, no tracking, nothing to buy.</div>`);
-    p.querySelector('#tset').onclick = () => this.G.openSettings(true);
-    return new Promise((r) => { p.querySelector('#begin').onclick = () => { this.closePanel(); r(); }; setTimeout(() => { const b = p.querySelector('#begin'); if (b && !this.touch) b.focus(); }, 50); });
+  // the title screen: resolves with { kind: 'new' } or { kind: 'continue', save } or { kind: 'code', save | carry }
+  title(o = {}) {
+    const save = o.save;
+    const main = save
+      ? `<button class="btn accent" id="tCont">Continue<small>${esc(save.label || '')}</small></button><button class="btn" id="tNew">New game</button>`
+      : '<button class="btn accent" id="tNew">Begin</button>';
+    const banner = o.storage && o.storage !== 'ok' ? '<div class="tbanner" role="status">This browser isn\'t keeping saves here (a private window, or storage is blocked). You can still copy a save code from the Menu at any point, and paste it here next time.</div>' : '';
+    const p = this.openPanel('title', `<h1>Made to Fit</h1><div class="sub">a town built for someone else</div>${banner}<div class="row">${main}<button class="btn" id="tSet">Settings</button></div>
+      <div class="fine">About 40 minutes, then two short return visits if you like. Best with sound. No account, no tracking, nothing to buy. Nothing flashes more than three times a second.<div class="links"><button class="linkbtn" id="tIng">What keeps you playing</button><button class="linkbtn" id="tIn">What's in this game</button><button class="linkbtn" id="tPb">Played before?</button></div></div>`);
+    const M = this.G.menus;
+    p.querySelector('#tSet').onclick = () => M.settings();
+    p.querySelector('#tIng').onclick = () => M.ingredients();
+    p.querySelector('#tIn').onclick = () => M.contentNotes();
+    return new Promise((resolve) => {
+      const done = (v) => { this.closePanel(); resolve(v); };
+      p.querySelector('#tNew').onclick = async () => { if (save && !(await M.confirm('Start a new game?', 'This replaces your saved visit. Finished visits stay.', 'Start over', 'Keep my save'))) return; done({ kind: 'new' }); };
+      const c = p.querySelector('#tCont'); if (c) c.onclick = () => done({ kind: 'continue', save });
+      p.querySelector('#tPb').onclick = async () => { const r = await M.playedBefore(); if (r) done(Object.assign({ kind: 'code' }, r)); };
+      setTimeout(() => { const b = p.querySelector('#tCont') || p.querySelector('#tNew'); if (b && !this.touch) b.focus(); }, 50);
+    });
   }
   creator(look, onChange) {
     const S = this.G.S; const L = Object.assign({}, look);
@@ -443,37 +477,13 @@ export class UI {
   tab_texts(S) { return '<h3>Texts</h3>' + (this.G.texts.slice().reverse().map(([w, t]) => `<div class="msg"><b>${esc(w)}</b>${esc(t)}</div>`).join('') || '<p>No messages.</p>'); }
   tab_blend(S) {
     const B = S.blend; const board = BLEND.board.map(([n, v]) => [n, v]).concat([[S.name + ' (you)', B.score]]).sort((a, b) => b[1] - a[1]);
-    return `<div class="blendapp"><div style="display:flex;justify-content:space-between;align-items:baseline"><b style="font-family:var(--display);color:#d0457f">blend</b><span class="streak">🔥 ${B.streak} day streak</span></div><div class="score">${B.score}</div><div style="color:#b06090;font-size:13.5px">Calm score · top ${Math.max(3, 60 - Math.round(B.score / 6))}% of Larkspur</div>
+    return `<div class="blendapp"><div style="display:flex;justify-content:space-between;align-items:baseline"><b style="font-family:var(--display);color:#d0457f">blend</b><span class="streak">🔥 ${B.streak} day streak</span></div><div class="score">${B.score}</div><div style="color:#b06090;font-size:13.5px">Smooth Score · calmer than ${Math.min(97, 40 + Math.round(B.score / 6))} in 100 people in Larkspur</div>
       <div class="feedmount"></div>
-      <div class="toggle"><div><b style="font-family:var(--display)">Smooth Mode</b><div style="font-size:12.5px;color:#9a6a86">We handle the awkward parts for you. 15 Calm each time.</div></div><button class="switch ${B.smooth ? 'on' : ''}" id="smooth" aria-label="Smooth Mode"></button></div>
-      ${this.G.dropReady() ? '<button class="btn" id="drop" style="width:100%;background:linear-gradient(120deg,#ff4f9a,#ff9a5c);color:#fff">Open your daily prize drop!</button>' : ''}
+      <div class="toggle"><div><b style="font-family:var(--display)">Smooth Mode</b><div style="font-size:12.5px;color:#9a6a86">We handle the awkward parts for you. 15 points each time.</div></div><button class="switch ${B.smooth ? 'on' : ''}" id="smooth" aria-label="Smooth Mode"></button></div>
+      ${this.G.dropReady() ? '<button class="btn" id="drop" style="width:100%">Daily drop: 25 points. The same every day.</button>' : ''}
       <div class="bl-h">BADGES</div>${B.badges.map((b) => `<span class="badge">${esc(b)}</span>`).join('') || '<span style="font-size:13px;color:#9a6a86">None yet! Smooth something to earn one.</span>'}
       <div class="bl-h">LEADERBOARD</div>${board.map(([n, v]) => `<div class="lb-row ${n.includes('(you)') ? 'me' : ''}"><span>${esc(n)}</span><span>${v}</span></div>`).join('')}
       <div style="margin-top:18px;text-align:center"><button class="btn" id="del" style="font-size:13px">Delete Blend</button><p id="delwarn" hidden style="font-size:13px;color:#9a6a86">${esc(BLEND.delete)}</p></div></div>`;
-  }
-  // ---------- settings ----------
-  settings(fromTitle) {
-    const s = this.set; const sel = (k, opts) => `<div class="chips" data-k="${k}">${opts.map(([v, n]) => `<button class="chip ${String(s[k]) === String(v) ? 'on' : ''}" data-v="${v}">${n}</button>`).join('')}</div>`;
-    const p = this.openPanel('center settings', `<h2>Settings</h2><p class="lede">The game is paused while this is open.</p>
-      <h4>Pace of tasks</h4>${sel('pace', [['steady', 'Steady'], ['calm', 'Calm: no timer']])}
-      <h4>Guidance</h4>${sel('guide', [['full', 'Full'], ['light', 'Just the marker'], ['off', 'Off']])}
-      <h4>Screen effects</h4><div class="rowset"><span>How strongly places press on the screen</span><input type="range" min="0" max="100" value="${Math.round(s.fx * 100)}" id="fx"></div>
-      <h4>Motion</h4>${sel('reduceMotion', [[false, 'Full'], [true, 'Reduced']])}
-      <h4>Flicker</h4>${sel('flicker', [[true, 'On'], [false, 'Off']])}<p class="small">One faulty light at the Works dips now and then. Off keeps it steady.</p>
-      <h4>Text speed</h4>${sel('textSpeed', [['slow', 'Slow'], ['normal', 'Normal'], ['fast', 'Fast'], ['instant', 'Instant']])}
-      <h4>Text size</h4>${sel('textSize', [['s', 'Small'], ['m', 'Medium'], ['l', 'Large'], ['xl', 'Extra large']])}
-      <h4>Pushing through</h4>${sel('holdToBend', [[true, 'Hold or tap'], [false, 'Instant']])}
-      <h4>Blend's nudges</h4>${sel('blendPings', [[true, 'On'], [false, 'Off']])}<p class="small">Blend is an app inside the story. Its nudges never leave the game.</p>
-      <h4>Sound</h4><div class="rowset"><span>Everything</span><input type="range" min="0" max="100" id="vmaster" value="${Math.round(this.G.audio.vol.master * 100)}"><span>Music</span><input type="range" min="0" max="100" id="vmusic" value="${Math.round(this.G.audio.vol.music * 100)}"><span>Places</span><input type="range" min="0" max="100" id="vamb" value="${Math.round(this.G.audio.vol.amb * 100)}"><span>Effects and voices</span><input type="range" min="0" max="100" id="vsfx" value="${Math.round(this.G.audio.vol.sfx * 100)}"></div>
-      <h4>Graphics</h4>${sel('quality', [['', 'Automatic'], ['high', 'Detailed'], ['low', 'Light']])}<p class="small">Graphics changes apply after reloading.</p>
-      <div class="pfoot sticky"><button class="btn primary" id="sdone">Done</button></div>`);
-    p.addEventListener('click', (e) => { const b = e.target.closest('[data-v]'); if (!b) return; const k = b.parentElement.dataset.k; let v = b.dataset.v; if (v === 'true') v = true; if (v === 'false') v = false; s[k] = v; b.parentElement.querySelectorAll('[data-v]').forEach((x) => x.classList.toggle('on', x === b)); this.G.audio.sfx('select'); this.G.applySettings(); });
-    p.querySelector('#fx').oninput = (e) => { s.fx = e.target.value / 100; this.G.applySettings(); };
-    for (const k of ['master', 'music', 'amb', 'sfx']) p.querySelector('#v' + k).oninput = (e) => { this.G.audio.vol[k] = e.target.value / 100; this.G.audio.applyVolumes(); };
-    return new Promise((r) => {
-      const close = () => { this.settingsClose = null; this.closePanel(); this.G.saveSettings(); r(); if (fromTitle) this.title().then(this.G.titleResolve); };
-      this.settingsClose = close; p.querySelector('#sdone').onclick = close;
-    });
   }
   // ---------- the morning card ----------
   today(d) {

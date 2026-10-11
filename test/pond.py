@@ -19,7 +19,7 @@ with sync_playwright() as p:
     def tap(x, y):
         if mobile: pg.touchscreen.tap(x, y)
         else: pg.mouse.click(x, y)
-    pg.evaluate("document.querySelector('#begin').click()")
+    pg.evaluate("document.querySelector('#tNew').click()")
     until("__wb.panel() && __wb.panel().includes('creator')"); pg.evaluate("document.querySelector('#done').click()")
     for i in range(6):
         until("__wb.panel() && __wb.panel().includes('setup')"); pg.evaluate("document.querySelectorAll('.scale button')[%d].click(); document.querySelector('#next').click()" % [4,4,0,4,2,4][i])

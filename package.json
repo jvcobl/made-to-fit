@@ -1,7 +1,7 @@
 {
-  "name": "who-bends",
-  "version": "0.4.0",
-  "description": "Who Bends, prototype 4: a 30-minute 3D browser game about person-environment fit.",
+  "name": "made-to-fit",
+  "version": "1.0.0-dev",
+  "description": "Made to Fit: a 3D browser game about who adjusts when a place does not fit you.",
   "scripts": {
     "build": "node build.mjs",
     "build:artifact": "node build.mjs artifact"

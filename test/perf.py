@@ -72,7 +72,7 @@ def run(q):
             while time.time() - t0 < timeout:
                 if ev(js): return True
                 panel = ev('__wb.panel()') or ''
-                if 'title' in panel: ev("document.querySelector('#begin').click()")
+                if 'title' in panel: ev("document.querySelector('#tNew').click()")
                 elif 'creator' in panel: ev("document.querySelector('#done').click()")
                 elif 'setup' in panel: ev("document.querySelector('#next').click()")
                 elif 'today' in panel: ev("document.querySelector('#tgo').click()")

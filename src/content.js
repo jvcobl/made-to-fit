@@ -329,7 +329,7 @@ export const COUNCIL = {
   none: [{ who: 'hollis', t: 'Nothing from the floor? Splendid. To the festival!' }],
   present: { quiet: 'A quiet hour at the market, noon to one, and a quiet corner all day.', board: 'A bus board that shows route changes in writing, not just over the speaker.', lanterns: 'Porch lanterns on Home Row. Teal means come in. Amber means not now.', ramp: 'A ramp beside the Works steps.', dim: 'Softer, dimmable lights at the Works.', plain: 'Every meeting at the Works ends with one plain note: who does what, by when.' },
   frame: [{ t: 'It helps more people than you would think.', key: 'many' }, { t: 'I need this. So do they.', key: 'need' }, { t: 'Let the people it helps speak.', key: 'voices' }],
-  blendArg: { who: 'hollis', t: 'But the Calm Scores say people are coping beautifully! Larkspur is in the county top ten.' },
+  blendArg: { who: 'hollis', t: 'But the Smooth Scores say people are coping beautifully! Larkspur is in the county top ten.' },
   rueRebut: { who: 'rue', t: 'I was coping beautifully. Four hundred and fourteen days in a row. Some mornings I couldn\'t get out of bed.' },
   votes: {
     pip: { yes: 'More people through my door. Yes.', no: 'I don\'t see what it does for the shop. No.' },
@@ -377,18 +377,18 @@ export const QUESTIONS = ['Who bent this season?', 'Who decided they should?'];
 // ---------- Blend's voice ----------
 export const BLEND = {
   smoothToast: ['Smoothed it over for you!', 'Handled! You fit right in.', 'Smooth! Nobody noticed a thing.', 'There. Nobody will know.'],
-  drop: ['Your daily prize drop is ready!', 'Ding! Free Calm inside!', 'Your streak is counting on you!'],
+  drop: ['Your daily drop is ready. It is always 25 points.', 'Daily drop: 25 points, same as yesterday.', 'Your streak is counting on you!'],
   badges: { first: 'Smooth Operator', crowd: 'Crowd Pleaser', early: 'Early Riser', streak: 'Unbreakable', top: 'Larkspur Top 10' },
   board: [['Rue', 4410], ['Hollis', 2330], ['Pip', 1940], ['Gil', 1210], ['Moss', 15]],
   lose: 'Your streak ended. Blend is sad. Start a new one?',
-  delete: 'Delete Blend? You will lose your streak, your badges and your Calm. Your badges will miss you.',
+  delete: 'Delete Blend? You will lose your streak, your badges and your points. Your badges will miss you.',
   suggest: 'Blend suggests',
-  pings: ['Your Calm is slipping! Tap to restore.', 'Rue just passed you on the leaderboard!', 'A mystery box is waiting for you. It expires soon!', 'You have not smoothed anything in a while. Everything okay?', 'Three people near you are calmer than you right now.', 'Your streak misses you.'],
+  pings: ['Your Smooth Score is slipping! Tap to restore.', 'Rue just passed you on the leaderboard!', 'A mystery box is waiting. It is always 10 points. It expires at midnight.', 'You have not smoothed anything in a while. Everything okay?', 'Three people near you are calmer than you right now.', 'Your streak misses you.'],
 };
 
 export const NIGHT = {
   1: (S) => [S.flags.bea_bus ? ['Bea, No. 4', 'The 5:40 went down Elm. Nobody told the bench. Goodnight, dear.'] : ['Bea, No. 4', 'Did you like the soup? The pot is still mine.'], S.flags.folded ? ['Wren', 'Lantern 74 done. You folded the line correctly.'] : S.met.wren ? ['Wren', 'Lantern 74 done. Sixty-one was this morning.'] : ['Clover', 'Fix-It Shed is open tomorrow 8 to 6. Bring me anything that pinches!']],
-  2: (S) => [['Moss', 'Tea\'s on me tomorrow. Big day.'], S.flags.rue_cracked ? ['Rue', 'Can I ask you something tomorrow? Not on the app.'] : ['Blend', 'Your Calm is up 12% this week. You are doing great!']],
+  2: (S) => [['Moss', 'Tea\'s on me tomorrow. Big day.'], S.flags.rue_cracked ? ['Rue', 'Can I ask you something tomorrow? Not on the app.'] : ['Blend', 'Your Smooth Score went up this week. You are doing great!']],
 };
 
 // ---------- people: a guide you fill by asking and listening ----------

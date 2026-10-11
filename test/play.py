@@ -31,7 +31,7 @@ def run(policy, seed, prof, wheels=False, shots=None, mobile=False, budget=280):
                 errors.append('eval ' + str(e)[:200]); continue
             panel = st['panel'] or ''
             if 'title' in panel:
-                snap('00-title'); pg.evaluate("document.querySelector('#begin').click()"); continue
+                snap('00-title'); pg.evaluate("document.querySelector('#tNew').click()"); continue
             if 'creator' in panel:
                 pg.wait_for_timeout(300); snap('01-creator')
                 if prof == 'sens': pg.evaluate("""['[data-k=shape] [data-v=spiky]','[data-k=color] [data-v=\"#f6cf5b\"]','[data-k=wear] [data-v=flower]','[data-k=top] [data-v=none]'].forEach(q => document.querySelector(q).click())""")

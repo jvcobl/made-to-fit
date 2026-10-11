@@ -5,7 +5,7 @@ with sync_playwright() as p:
     b = p.chromium.launch(args=ARGS); pg = b.new_page(viewport={'width': 1000, 'height': 640})
     errs = []; pg.on('pageerror', lambda e: errs.append(str(e)[:300])); pg.on('console', lambda m: errs.append(m.text[:300]) if m.type == 'error' else None)
     pg.goto('file:///home/claude/wb4/dist/who-bends.html?test=1&fast=1&mute=1&seed=5'); pg.wait_for_timeout(1200)
-    pg.evaluate("document.querySelector('#begin').click()")
+    pg.evaluate("document.querySelector('#tNew').click()")
     def pump(n, label):
         for i in range(n):
             st = pg.evaluate("(() => { const s = __wb.state(); return [__wb.mode(), __wb.busy(), __wb.waiter(), __wb.panel(), s.day, Math.round(s.min), __wb.loc(), Math.round(__wb.G.stage.fade*100)/100, __wb.G.stage.fadeT] })()")

@@ -17,7 +17,7 @@ with sync_playwright() as p:
             if pg.evaluate("!!(__wb.panel() && __wb.panel().includes('today'))"): pg.evaluate("document.querySelector('#tgo').click()")
             pg.wait_for_timeout(200)
         return False
-    pg.evaluate("document.querySelector('#begin').click()"); pg.wait_for_timeout(1500); pg.keyboard.press('Escape'); pg.wait_for_timeout(300); pg.keyboard.press('Escape')
+    pg.evaluate("document.querySelector('#tNew').click()"); pg.wait_for_timeout(1500); pg.keyboard.press('Escape'); pg.wait_for_timeout(300); pg.keyboard.press('Escape')
     until("__wb.panel() && __wb.panel().includes('creator')"); pg.evaluate("document.querySelector('#done').click()")
     for i in range(6):
         until("__wb.panel() && __wb.panel().includes('setup')"); pg.evaluate("document.querySelector('#next').click()")

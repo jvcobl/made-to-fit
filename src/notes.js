@@ -265,10 +265,10 @@ export const SUPPORT = {
     { where: 'US', text: 'National Problem Gambling Helpline: call or text 1-800-MY-RESET (1-800-697-3738), or chat online.' },
     { where: 'Korea', text: '109: suicide prevention, 24 hours.' },
     { where: 'Korea', text: '1336: help with gambling, by phone 9 a.m. to 10 p.m. every day, or text #1336.' },
-    { where: 'Korea', text: '1388: free counselling for young people aged 9 to 24 and their parents or guardians, 24 hours. Call 1388 (on a mobile, add your area code first, like 02-1388), text 1388, or chat on KakaoTalk (청소년상담1388) or online.' },
+    { where: 'Korea', text: '1388: free counseling for young people aged 9 to 24 and their parents or guardians, 24 hours. Call 1388 (on a mobile, add your area code first, like 02-1388), text 1388, or chat on KakaoTalk (청소년상담1388) or online.' },
     { where: 'Elsewhere', text: 'findahelpline.com lists free, confidential helplines in many countries.' },
   ],
-  footer: "If any of this is close to home, talking to someone can help. If you're under 18, a parent, teacher or school counsellor can help too.",
+  footer: "If any of this is close to home, talking to someone can help. If you're under 18, a parent, teacher or school counselor can help too.",
 };
 
 // "What's in this game": Settings, pause menu and the comfort check.
@@ -280,7 +280,7 @@ export const CONTENT_NOTES = {
     { label: 'Everyday ableism: being refused, stared at or talked down to', detail: 'Your creature or a resident may be told no, stared at, or spoken to like a small child.' },
     { label: 'Gambling-style mechanics, never for money', detail: 'Random prizes in a made-up app, and random card packs bought with game coins. Settings can summarize both.' },
     { label: 'An AI companion app', detail: "Blend, a made-up app with an AI coach that always agrees and doesn't like you leaving." },
-    { label: 'Ageing and losing independence (later visits)', detail: 'Ten and twenty years on, residents are older, and some find the town harder to get around.' },
+    { label: 'Aging and losing independence (later visits)', detail: 'Ten and twenty years on, residents are older, and some find the town harder to get around.' },
     { label: 'Fewer children (later visits)', detail: 'The school has fewer pupils. Nobody is blamed, and no choice you make changes it.' },
   ],
   notIn: 'Not in this game: suicide, self-harm, violence, sexual content, or anything bought with real money.',
@@ -289,4 +289,4 @@ export const CONTENT_NOTES = {
 export const CREDIT = "The word 'misfit' in this sense comes from disability studies (Rosemarie Garland-Thomson, 2011).";
 
 // Title-screen ingredients label.
-export const INGREDIENTS = "About 40 minutes, then two short return visits if you like. What keeps you playing: questions that close by dusk, a jar that fills, days that end on their best moment, things left to find, neighbours who drop by, and the pull of 'ten years later'. What you can try yourself: a shelf of random card packs bought with game coins (never real money), next to a binder where you can pick any card. What it doesn't use: real-world streaks, timers, notifications, purchases, ads or tracking. Nothing flashes more than three times a second, and every scene is tested for it.";
+export const INGREDIENTS = "About 40 minutes, then two short return visits if you like. What keeps you playing: questions that close by dusk, a jar that fills, days that end on their best moment, things left to find, neighbors who drop by, and the pull of 'ten years later'. What you can try yourself: a shelf of random card packs bought with game coins (never real money), next to a binder where you can pick any card. What it doesn't use: real-world streaks or countdowns, notifications, purchases, ads or tracking. Nothing flashes more than three times a second, and every scene is tested for it.";

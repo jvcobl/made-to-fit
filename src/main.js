@@ -1,4 +1,4 @@
-// Who Bends: the game loop, the world, movement, residents, crowds, and the sensory mapping.
+// Made to Fit: the game loop, the world, movement, residents, crowds, and how a place shows on your creature.
 import * as THREE from 'three';
 import { Stage } from './render.js';
 import { Town, ZONES } from './town.js';
@@ -12,6 +12,8 @@ import { Story } from './story.js';
 import { Guide } from './guide.js';
 import { updateLOD } from './lod.js';
 import { Feed } from './games/feed.js';
+import * as SAVE from './save.js';
+import { Menus, actionOf, DEFAULT_KEYS, keyLabel } from './menus.js';
 import { params, FAST, FIXED, STEP, clock, keyName, clamp, lerp, damp, makeRng, pick, sleep } from './util.js';
 
 const LEAVE_TO = { market: [30, 36.5], transit: [46, 24], commons: [38, 14.5], farend: [36, 41.5], homerow: [30, 30], street: [30, 30], festival: [30, 38] };
@@ -26,8 +28,11 @@ const PORTRAIT_CAM = {
 
 class Game {
   constructor(data = {}) {
-    this.resume = data && data.S && data.S.day >= 1 ? data.S : null;
-    this.settings = Object.assign({ fx: 1, reduceMotion: window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches, textSpeed: 'normal', textSize: 'm', holdToBend: true, quality: '', pace: 'steady', guide: 'full', blendPings: true, flicker: true }, this.loadSettings());
+    this.storage = SAVE.storageStatus();
+    const defaults = { fx: 1, reduceMotion: !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches), textSpeed: 'normal', textSize: 'm', holdToBend: true, quality: '', pace: 'steady', interrupts: 'usual', guide: 'full', blendPings: true, flicker: true,
+      moodTint: 'gentle', pinchStrip: true, captions: true, lanternVoice: true, comfortSound: true, packs: 'show', feedContent: 'show', rueScenes: 'show', keys: Object.assign({}, DEFAULT_KEYS), vol: null, comfortDone: false };
+    this.settings = SAVE.deepMerge(defaults, this.loadSettings()); this.settings.fx = 1;
+    this.settings.keys = Object.assign({}, DEFAULT_KEYS, this.settings.keys);
     const mobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) || Math.min(innerWidth, innerHeight) < 560;
     const quality = params.get('q') || this.settings.quality || (mobile ? 'low' : 'high');
     this.test = params.get('test') === '1';
@@ -35,17 +40,19 @@ class Game {
     this.town = new Town(quality);
     this.rooms = { home: new Home(), works: new Office(), hall: new Chamber() };
     this.audio = new Audio();
+    if (this.settings.vol) for (const k of ['master', 'music', 'amb', 'sfx']) if (typeof this.settings.vol[k] === 'number') this.audio.vol[k] = clamp(this.settings.vol[k], 0, 1);
     if (params.get('mute') === '1') this.audio.setMuted(true);
     this.S = SIM.newState(+(params.get('seed') || Date.now() % 100000));
     this.S.look = { shape: 'round', color: '#93c2ee', pattern: 'belly', top: 'longears', wear: 'scarf', voice: 'chime', wheels: false };
     this.player = new Creature(this.S.look, { seed: 7 });
     this.texts = []; this.mode = 'title'; this.busy = 0; this.loc = 'town'; this.zone = 'street'; this.path = []; this.keys = {}; this.minAcc = 0; this.stepT = 0;
-    this.timeScale = FAST ? 22 : 2.5; this.pinchNow = null; this.pinchT = 0; this.talking = null; this.target = null; this.phoneOpen = false; this.settingsOpen = false; this.holdK = 0;
+    this.timeScale = FAST ? 22 : 2.5; this.pinchNow = null; this.pinchT = 0; this.talking = null; this.target = null; this.phoneOpen = false; this.holdK = 0;
     this.tall = innerHeight > innerWidth * 1.1;
     window.addEventListener('resize', () => { const was = this.tall; this.tall = innerHeight > innerWidth * 1.1; if (was !== this.tall && this.loc !== 'town' && this.mode === 'play' && !this.talking) { const c = this.roomCam(this.loc); this.stage.shot(c.pos, c.look, c.fov, 3); } });
     this.buildNPCs(); this.buildCrowd();
     this.story = new Story(this);
     this.ui = new UI(this);
+    this.menus = new Menus(this, this.ui);
     this.guide = new Guide(this);
     this.feed = new Feed(this);
     this.applySettings();
@@ -60,14 +67,19 @@ class Game {
     this.story.start().catch((e) => console.error(e));
   }
   // ---------- settings ----------
-  loadSettings() { try { return JSON.parse(localStorage.getItem('whobends.settings') || '{}'); } catch (e) { return {}; } }
-  saveSettings() { try { localStorage.setItem('whobends.settings', JSON.stringify(this.settings)); } catch (e) { /* storage may be blocked */ } }
+  loadSettings() { return SAVE.loadSettings(); }
+  saveSettings() { this.settings.vol = Object.assign({}, this.audio.vol); SAVE.saveSettings(this.settings); }
+  get settingsOpen() { return !!(this.menus && this.menus.open); }
   applySettings() {
     const s = this.settings; this.stage.fxScale = s.fx; this.stage.reduceMotion = !!s.reduceMotion;
     document.body.classList.remove('text-s', 'text-l', 'text-xl'); if (s.textSize !== 'm') document.body.classList.add('text-' + s.textSize);
     document.body.classList.toggle('reduce', !!s.reduceMotion);
   }
-  async openSettings(fromTitle) { if (this.settingsOpen) return; this.settingsOpen = true; await this.ui.settings(fromTitle); this.settingsOpen = false; }
+  openSettings() { if (this.menus.open) return; this.menus.settings(); }
+  // the last save, kept in memory too, so the save code works even when storage is blocked
+  lastSave() { if (this.lastSaveObj) return this.lastSaveObj; const r = SAVE.readSave(); return r.save || null; }
+  saveNote() { const m = this.lastSaveMeta; if (!m) return 'The game saves each morning, after work and after the town meeting.'; return m.ok ? 'Saved: ' + m.label + '. If you leave now, you come back to ' + m.label + '.' : 'This browser isn\'t keeping saves. Copy your save code to pick up later.'; }
+  openPause() { if (this.menus.open || this.mode === 'title' || this.mode === 'creator') return; this.menus.pause(); }
   togglePhone(fromButton) {
     if (this.mode === 'title' || this.mode === 'creator') return;
     if (!this.phoneOpen && (this.ui.waiter || !this.ui.panel.hidden || this.mgActive || this.mode === 'cine')) { if (fromButton) this.ui.toast('Your phone can wait until this is done.', '', 1800); return; }
@@ -342,21 +354,22 @@ class Game {
     return url;
   }
   // ---------- Blend ----------
-  installBlend() { const B = this.S.blend; B.has = true; B.deleted = false; B.usedToday = true; B.score += 30; this.audio.sfx('blend'); this.ui.toast('<b>Blend installed</b><br>Smooth Mode is in your phone. Welcome gift: +30 Calm', 'blend'); this.story.fieldNote('limbic'); }
+  installBlend() { const B = this.S.blend; B.has = true; B.deleted = false; B.usedToday = true; B.score += 30; this.ui.toast('<b>Blend installed</b><br>Smooth Mode is in your phone. Welcome gift: 30 points.', 'blend'); this.story.fieldNote('limbic'); }
   dropReady() { const B = this.S.blend; return B.has && !B.deleted && B.dropDay !== this.S.day && this.S.day > 0; }
-  blendDrop() { const B = this.S.blend; B.dropDay = this.S.day; B.score += 25; B.usedToday = true; B.drops++; this.audio.sfx('badge'); this.ui.toast('🎉 +25 Calm! You are in the top ' + Math.max(3, 40 - B.drops * 9) + '% of Larkspur!', 'blend'); if (this.S.min < 600) this.badge('early'); }
-  badge(k) { const B = this.S.blend; const name = BLEND.badges[k]; if (!B.badges.includes(name)) { B.badges.push(name); this.audio.sfx('badge'); this.ui.toast('🏅 New badge: ' + name, 'blend'); } }
-  setSmooth(on) { const B = this.S.blend; if (!B.has || B.deleted) return; B.smooth = on; if (on) { B.usedToday = true; this.badge('first'); this.audio.sfx('blend'); this.ui.toast('Smooth Mode on. We have got you.<br><span class="tsub">15 Calm per smoothing. You have ' + B.score + '.</span>', 'blend'); } else this.ui.toast('Smooth Mode off.'); }
-  // Smooth Mode spends Calm, and the feed is where Calm comes from. That loop is the whole business model.
+  blendDrop() { const B = this.S.blend; B.dropDay = this.S.day; B.score += 25; B.usedToday = true; B.drops++; B.dep = clamp((B.dep || 0) + 1, 0, 9); this.ui.toast('Daily drop: +25 points. The same as every day.', 'blend'); if (this.S.min < 600) this.badge('early'); }
+  badge(k) { const B = this.S.blend; const name = BLEND.badges[k]; if (!B.badges.includes(name)) { B.badges.push(name); this.ui.toast('Blend gave your creature a badge: ' + name, 'blend'); } }
+  setSmooth(on) { const B = this.S.blend; if (!B.has || B.deleted) return; B.smooth = on; if (on) { B.usedToday = true; this.badge('first'); this.ui.toast('Smooth Mode on. We have got you.<br><span class="tsub">15 points per smoothing. You have ' + B.score + '.</span>', 'blend'); } else this.ui.toast('Smooth Mode off.'); }
+  // Smooth Mode spends points, and the feed is where points come from. That loop is the whole business model.
   blendSmooth(zone) {
     const S = this.S, B = S.blend; if (B.score < 15) return false;
-    SIM.bendCost(S, true); S.masking = true; S.maskZone = zone; B.score -= 15; B.usedToday = true; S.stats.smooth++;
-    this.ui.toast('✨ ' + pick(BLEND.smoothToast) + '<br><span class="tsub">−15 Calm · ' + B.score + ' left</span>', 'blend', 2600); this.audio.sfx('blend');
+    SIM.bendCost(S, true); S.masking = true; S.maskZone = zone; B.score -= 15; B.usedToday = true; S.stats.smooth++; B.dep = clamp((B.dep || 0) + 1, 0, 9);
+    this.ui.toast(pick(BLEND.smoothToast) + '<br><span class="tsub">−15 points · ' + B.score + ' left</span>', 'blend', 2600);
     if (zone === 'market') this.badge('crowd');
     return true;
   }
   deleteBlend() { const B = this.S.blend; B.deleted = true; B.smooth = false; this.S.self = clamp(this.S.self + 3, 0, 100); this.ui.toast('Blend deleted. It is very quiet. Then, slowly, there are birds.'); this.audio.sfx('back'); this.story.keep('blend_gone'); this.story.fieldNote('birdsong'); this.story.fieldNote('satiety'); }
-  onGear(name) { this.ui.toast(`<b>${name === 'headphones' ? 'Headphones' : 'Shades'}</b> are yours. ${this.ui.touch ? 'Tap the button by your energy to put them on or take them off.' : 'Press ' + (name === 'headphones' ? 'H' : 'J') + ', or click the button by your energy, to put them on or take them off.'}`, 'good', 5200); }
+  keyOf(action) { return keyLabel((this.settings.keys || {})[action] || DEFAULT_KEYS[action]); }
+  onGear(name) { this.ui.toast(`<b>${name === 'headphones' ? 'Headphones' : 'Shades'}</b> are yours. ${this.ui.touch ? 'Tap the button by your energy to put them on or take them off.' : 'Press ' + this.keyOf(name) + ', or click the button by your energy, to put them on or take them off.'}`, 'good', 5200); }
   toggleGear(name) { const S = this.S; if (!S.gear[name]) { this.ui.toast(name === 'headphones' ? 'You do not have headphones yet. Moss sells them at the tea cart.' : 'You do not have shades yet. Moss sells them at the tea cart.', '', 2600); return; } S.wearing[name] = !S.wearing[name]; this.player.setGear(name, S.wearing[name]); this.audio.sfx('select'); }
   onHold(on, done) { this.holding = on; if (!on) this.holdK = 0; }
   onHoldProgress(k) { this.holdK = k; }
@@ -366,20 +379,22 @@ class Game {
       const tg = e.target && e.target.tagName; if (tg === 'INPUT' || tg === 'TEXTAREA') return;
       // letters and digits by position (e.code), so WASD works on AZERTY and in Hangul mode
       const k = keyName(e).toLowerCase(); this.keys[k] = true;
+      const act = actionOf(this.settings.keys, e);
       if (k === 'escape') {
-        if (this.ui.settingsClose) { this.ui.settingsClose(); return; }
         if (this.phoneOpen) { this.togglePhone(); return; }
         if (this.mgActive && this.mg && this.mg.escape) { this.mg.escape(); return; }
-        if (this.mode === 'cine' && this.story.inPrologue) { this.story.skipIntro = true; this.ui.skipCaption(); return; }
+        if (this.mode === 'cine') { if (this.story.inPrologue) this.story.skipIntro = true; this.ui.skipCaption(); return; }
+        if (this.mode === 'play') { e.preventDefault(); this.openPause(); return; }
       }
       if (this.mgActive) return;
-      if (k === 'p' || (k === 'tab' && this.mode === 'play' && this.ui.panel.hidden && !this.settingsOpen)) { e.preventDefault(); this.togglePhone(); return; }
+      if (act === 'phone' || (k === 'tab' && this.mode === 'play' && this.ui.panel.hidden && !this.settingsOpen)) { e.preventDefault(); this.togglePhone(); return; }
       if (this.ui.waiter || this.busy || this.mode !== 'play' || this.phoneOpen || this.settingsOpen) return;
-      if (k === 'e' || k === 'enter' || k === ' ') { e.preventDefault(); this.interact(); }
-      if (k === 'g') this.showWay();
-      if (k === 'h') this.toggleGear('headphones');
-      if (k === 'j') this.toggleGear('shades');
-      if (k === 'b') { if (this.S.blend.has && !this.S.blend.deleted) this.setSmooth(!this.S.blend.smooth); }
+      if (act === 'interact' || k === 'enter' || k === ' ') { e.preventDefault(); this.interact(); }
+      if (act === 'way') this.showWay();
+      if (act === 'headphones') this.toggleGear('headphones');
+      if (act === 'shades') this.toggleGear('shades');
+      if (act === 'look' && this.look) this.look.toggle();
+      if (act === 'smooth') { if (this.S.blend.has && !this.S.blend.deleted) this.setSmooth(!this.S.blend.smooth); }
     });
     window.addEventListener('keyup', (e) => { this.keys[keyName(e).toLowerCase()] = false; });
     window.addEventListener('blur', () => { this.keys = {}; });
@@ -584,9 +599,7 @@ class Game {
 }
 
 let G;
-const boot = (data) => { G = new Game(data || {}); window.__wb.G = G; };
-const hot = window.claude && window.claude.hot;
-if (hot && hot.snapshot) hot.snapshot(() => ({ S: G && G.S && G.S.day >= 1 ? JSON.parse(JSON.stringify(G.S)) : null }));
+const boot = () => { G = new Game(); window.__wb.G = G; };
 // hooks for automated playtests
 const offOf = (b) => b.getAttribute('aria-disabled') === 'true' || b.disabled;
 window.__wb = {
@@ -604,4 +617,4 @@ window.__wb = {
   step: (n = 1, drawAll = true) => G.stepFrames(Math.max(0, Math.floor(n)), drawAll !== false), fixed: FIXED, frame: () => clock.frame,
   G: null,
 };
-if (hot && hot.ready) hot.ready(boot); else boot(hot && hot.data ? hot.data : {});
+boot();
