@@ -23,6 +23,12 @@ export const FITS = 0.12; // below this total, the strip says "Fits you"
 const COMFORT_FITS = 0.15; // below this total, the comfort move plays freely
 const WELCOMING = 0.35; // in a welcoming spot it plays freely up to this
 const NEAR_NPC = 14; // residents react only this close to you (and only those drawn with the near rig)
+// the only two people who ever mention your comfort move, once each, kindly; nobody else comments on it, ever
+const WELCOME = {
+  wren: { hum: 'You hum when you think. Good. So does the kettle.', tap: 'You tap when you think. Good. So does the rain.', rock: 'You rock when you think. Good. So does the porch swing.', spin: 'You turn about when you think. Good. So does the weathervane.', flap: 'You flap when you think. Good. So do the moths.', pace: 'You pace when you think. Good. So does the pendulum.', charm: 'You turn that charm over when you think. Good. I twist string.' },
+  moss: { hum: 'Hum away, love. You\'re better than the speakers.', tap: 'Tap away, love. Keeps better time than the band.', rock: 'Rock away, love. The stool\'s sturdy.', spin: 'Spin away, love. Mind the teapot.', flap: 'Flap away, love. Plenty of room behind the cart.', pace: 'Pace away, love. I\'ll keep your tea warm.', charm: 'Fiddle away, love. Pretty charm, that.' },
+};
+const WELCOME_WHEELS = { wren: { pace: 'You roll back and forth when you think. Good. So does the pendulum.' }, moss: { rock: 'Rock away, love. Plenty of room by the cart.', pace: 'Roll away, love. I\'ll keep your tea warm.' } };
 
 // The top one or two pinches, as [key, dim, dir (0 over, 1 under), score]. A pinch already showing stays until it
 // drops below OFF, and keeps a small lead over newcomers, so two close pinches don't swap places every evaluation.
@@ -47,10 +53,24 @@ export class Feel {
   update(dt) {
     this.clock += dt; this.strip.since += dt; this.t -= dt;
     const c = this.G.player;
-    if (c && c.comfortStarted) { const k = c.comfortStarted; c.comfortStarted = null; if (this.G.settings.comfortSound !== false) this.G.audio.sfx('comfort', { kind: k, voice: this.S.look && this.S.look.voice }); }
+    if (c && c.comfortStarted) { const k = c.comfortStarted; c.comfortStarted = null; if (this.G.settings.comfortSound !== false) this.G.audio.sfx('comfort', { kind: k, voice: this.S.look && this.S.look.voice }); this.welcome(k); }
     if (this.t > 0) { this.announce(); return; }
     this.t = 0.3;
     this.player(); this.residents(); this.stripUpdate(); this.announce();
+  }
+  // Wren at the workshop or Moss at the cart, close by, the first time your move plays near them
+  welcome(kind) {
+    const G = this.G, S = this.S; if (G.mode !== 'play' || G.busy || G.ui.waiter || G.loc !== 'town' || S.day < 1) return;
+    const me = G.player.root.position;
+    for (const id of ['wren', 'moss']) {
+      if (S.flags['welcome_' + id] || !S.met[id]) continue;
+      const n = G.npcs[id]; if (!n || n.place !== 'town' || n.visit) continue;
+      const q = n.c.root.position; if (Math.hypot(q.x - me.x, q.z - me.z) > 4.5) continue;
+      const line = (S.wheels && (WELCOME_WHEELS[id] || {})[kind]) || WELCOME[id][kind] || WELCOME[id].hum;
+      S.flags['welcome_' + id] = 1;
+      G.ui.bubble(id, line, { tint: CAST[id].tint, ms: 5200 }); G.audio.voice(CAST[id].voice[0], CAST[id].voice[1], line); G.ui.announce(CAST[id].name + ': ' + line);
+      return;
+    }
   }
   masked() { const S = this.S; return !!(S.masking && S.maskZone === this.G.zone); }
   smooth() { const B = this.S.blend; return !!(B.has && B.smooth && !B.deleted); }

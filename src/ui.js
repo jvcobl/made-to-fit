@@ -9,6 +9,7 @@ const SETUP_NAMES = { lamp: 'Lamp', radio: 'Radio', sign: 'Door sign', note: 'Ho
 import { FIXES, pinch, townFit, fixState, supporters, approvedCount, SEASON_CAP } from './sim.js';
 import { ZONES } from './town.js';
 import { FISH } from './games/pond.js';
+import { PACK_PRICE, SINGLE_PRICE, MORE_MAX, cardName, cardTile, drawPack, addCards, packLine, packSentence, moreSentence } from './packs.js';
 
 export const ICON = {
   bend: '<svg viewBox="0 0 24 24"><ellipse cx="12" cy="14" rx="9" ry="5.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M5 4l2.5 3M19 4l-2.5 3M12 3v3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
@@ -75,7 +76,9 @@ export class UI {
   announce(text) {
     const el = this.el('#sr'); if (!el || !text) return;
     const t = String(text).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim(); if (!t) return;
-    clearTimeout(this._srT); el.textContent = ''; this._srT = setTimeout(() => { el.textContent = t; }, 40);
+    // several things said in the same moment are read together, in order, rather than the last one winning
+    this._srQ = this._srPending ? this._srQ + ' ' + t : t; this._srPending = true;
+    clearTimeout(this._srT); el.textContent = ''; this._srT = setTimeout(() => { this._srPending = false; el.textContent = this._srQ; }, 40);
   }
   // captions for sounds that carry information (the bus speaker, the noon bell, knocks)
   cc(text, ms = 3200) {
@@ -346,15 +349,52 @@ export class UI {
       const bk = p.querySelector('#back'); if (bk) bk.onclick = () => { this.G.audio.sfx('back'); finish({ back: true }); };
     });
   }
+  // Moss's cart: gear under the counter, and pond cards on the shelf (sealed packs, and a binder of singles)
   shop(S) {
-    const items = [['headphones', 'Headphones', 18, 'Muffles a loud room, or fills a quiet one with your music.'], ['shades', 'Shades', 12, 'Takes the edge off glare.']];
-    const render = () => `<h2>Under Moss's counter</h2><p class="lede">You have ${S.coins} coins.</p><div class="list">${items.map(([k, n, c, d]) => `<div class="card"><b>${n}</b> ${S.gear[k] ? '<span class="pill built">yours</span>' : `<span class="pill">${c} coins</span>`}<div class="meta">${d}</div>${S.gear[k] ? '' : `<div style="margin-top:8px"><button class="btn" data-buy="${k}" ${S.coins < c ? 'aria-disabled="true"' : ''}>${S.coins < c ? 'Not enough coins yet' : 'Buy'}</button></div>`}</div>`).join('')}</div><div class="pfoot"><button class="btn primary" id="done">Done</button></div>`;
+    const G = this.G; const items = [['headphones', 'Headphones', 18, 'Muffles a loud room, or fills a quiet one with your music.'], ['shades', 'Shades', 12, 'Takes the edge off glare.']];
+    const summary = this.set.packs === 'summary';
+    let view = 'shop', result = '', resAt = '', more = 2;
+    const res = (at) => (result && resAt === at ? `<div class="packres" role="status">${result}</div>` : '');
+    const coinsBtn = (attr, price, label) => `<button class="btn" ${attr} ${S.coins < price ? 'aria-disabled="true"' : ''}>${S.coins < price ? 'Not enough coins yet' : label}</button>`;
+    const tile = (f) => cardTile(f);
+    const shopHtml = () => `<h2>Moss's cart</h2><p class="lede">You have ${S.coins} coins.</p>
+      <h4 class="sh4">Under the counter</h4><div class="list">${items.map(([k, n, c, d]) => `<div class="card"><b>${n}</b> ${S.gear[k] ? '<span class="pill built">yours</span>' : `<span class="pill">${c} coins</span>`}<div class="meta">${d}</div>${S.gear[k] ? '' : `<div style="margin-top:8px">${coinsBtn(`data-buy="${k}"`, c, 'Buy')}</div>`}</div>`).join('')}</div>
+      <h4 class="sh4">On the shelf: pond cards</h4><div class="list">
+        <div class="card"><b>Sealed pack</b> <span class="pill">${PACK_PRICE} coins</span><div class="meta">Three cards at random. Every fish is equally likely.</div><div style="margin-top:8px">${coinsBtn('data-pack="1"', PACK_PRICE, 'Buy a pack')}</div>${res('pack')}</div>
+        ${S.flags.packOpened ? `<div class="card"><b>Buy more packs</b><div class="meta">Open several at once. You'll get a summary.</div><div class="stepper" role="group" aria-label="How many packs"><button class="mini-btn" data-more="-1" aria-label="One fewer">−</button><span aria-live="polite">${more}</span><button class="mini-btn" data-more="1" aria-label="One more">+</button><span class="small">${more * PACK_PRICE} coins</span></div><div style="margin-top:8px">${coinsBtn('data-packs="1"', more * PACK_PRICE, 'Buy ' + more)}</div>${res('more')}</div>` : ''}
+        <div class="card"><b>Singles binder</b> <span class="pill">${SINGLE_PRICE} coins a card</span><div class="meta">Pick any card. Every fish is in here, the golden one too.</div><div style="margin-top:8px"><button class="btn" data-binder="1">Open the binder</button></div></div>
+      </div><p class="small">Cards count toward nothing. They are just cards.</p>
+      <div class="pfoot"><button class="btn primary" id="done">Done</button></div>`;
+    const binderHtml = () => `<h2>The singles binder</h2><p class="lede">${SINGLE_PRICE} coins a card. You have ${S.coins} coins.</p>${res('binder')}<div class="binder">${FISH.map((f) => `<div class="bslot">${cardTile(f)}${(S.cards || {})[f.id] ? '<span class="pill built">yours</span>' : coinsBtn(`data-single="${f.id}"`, SINGLE_PRICE, 'Buy')}</div>`).join('')}</div><div class="pfoot"><button class="btn" id="bback">Back to the cart</button></div>`;
+    const render = () => (view === 'binder' ? binderHtml() : shopHtml());
     const p = this.openPanel('center', render());
+    const redraw = (focus) => { p.innerHTML = render(); const f = focus && p.querySelector(focus); if (f) f.focus({ preventScroll: true }); const r = p.querySelector('.packres'); if (r && r.scrollIntoView) r.scrollIntoView({ block: 'nearest' }); };
+    const firstCards = () => { if (!S.flags.packOpened) { S.flags.packOpened = 1; } G.story.fieldNote('packs'); };
     return new Promise((r) => {
       p.addEventListener('click', (e) => {
-        const b = e.target.closest('[data-buy]');
-        if (b) { const it = items.find((x) => x[0] === b.dataset.buy); if (S.coins >= it[2]) { S.coins -= it[2]; S.gear[it[0]] = true; this.G.audio.sfx('coin'); this.G.onGear(it[0]); p.innerHTML = render(); } else this.nudge(b, 'A shift at the Works pays 30 coins.'); }
-        if (e.target.id === 'done') { this.closePanel(); r(); }
+        const b = e.target.closest('button'); if (!b) return;
+        if (b.id === 'done') { this.closePanel(); r(); return; }
+        if (b.id === 'bback') { view = 'shop'; result = ''; redraw('[data-binder]'); return; }
+        if (b.dataset.binder) { view = 'binder'; result = ''; G.audio.sfx('page'); redraw('.bslot button'); return; }
+        if (b.dataset.more) { more = clamp(more + +b.dataset.more, 1, MORE_MAX); G.audio.sfx('select'); redraw('[data-more="' + b.dataset.more + '"]'); return; }
+        if (b.dataset.buy) { const it = items.find((x) => x[0] === b.dataset.buy); if (S.coins >= it[2]) { S.coins -= it[2]; S.gear[it[0]] = true; G.audio.sfx('coin'); G.onGear(it[0]); redraw(); } else this.nudge(b, 'A shift at the Works pays 30 coins.'); return; }
+        if (b.dataset.pack) {
+          if (S.coins < PACK_PRICE) { this.nudge(b, 'A shift at the Works pays 30 coins.'); return; }
+          S.coins -= PACK_PRICE; const cards = drawPack(); const had = addCards(S, cards); firstCards(); G.audio.sfx('select');
+          resAt = 'pack'; result = summary ? esc(packSentence(cards, had)) : `<div class="pack3">${cards.map(tile).join('')}</div><p>${esc(packLine(had))}</p>`;
+          this.announce(packSentence(cards, had)); redraw('[data-pack]'); return;
+        }
+        if (b.dataset.packs) {
+          const cost = more * PACK_PRICE; if (S.coins < cost) { this.nudge(b, 'Not enough coins for ' + more + '.'); return; }
+          S.coins -= cost; const cards = []; for (let i = 0; i < more; i++) cards.push(...drawPack()); const had = addCards(S, cards); firstCards(); G.audio.sfx('select');
+          resAt = 'more'; result = esc(moreSentence(more, cards, had)); this.announce(result); redraw('[data-packs]'); return;
+        }
+        if (b.dataset.single) {
+          const f = FISH.find((x) => x.id === b.dataset.single); if (!f) return;
+          if (S.coins < SINGLE_PRICE) { this.nudge(b, 'A shift at the Works pays 30 coins.'); return; }
+          S.coins -= SINGLE_PRICE; addCards(S, [f]); firstCards(); G.audio.sfx('select');
+          resAt = 'binder'; result = esc('The ' + cardName(f).toLowerCase() + ' card is yours. ' + SINGLE_PRICE + ' coins, and you knew what you were getting.'); this.announce(result); redraw('#bback'); return;
+        }
       });
     });
   }
@@ -406,6 +446,7 @@ export class UI {
     const on = (id, fn) => { const el = this.phoneEl.querySelector(id); if (el) el.onclick = fn; };
     on('#smooth', () => { G.setSmooth(!S.blend.smooth); this.renderPhone(); });
     on('#drop', () => { G.blendDrop(); this.renderPhone(); });
+    on('#blook', () => { const t = this.phoneEl.querySelector('#blookt'); const b = this.phoneEl.querySelector('#blook'); if (t) { t.hidden = false; this.announce('Look again. ' + t.textContent); } if (b) b.hidden = true; G.audio.sfx('lantern'); });
     const del = this.phoneEl.querySelector('#del'); if (del) del.onclick = () => { if (del.dataset.sure) { G.deleteBlend(); this.renderPhone(); } else { del.dataset.sure = '1'; del.textContent = 'Yes, delete it'; this.phoneEl.querySelector('#delwarn').hidden = false; } };
     on('#maptoggle', () => { this.mapAll = !this.mapAll; this.renderPhone(); });
     this.phoneEl.querySelectorAll('[data-sub]').forEach((b) => { b.onclick = () => { this.lanSub = b.dataset.sub; this.personOpen = null; this.G.audio.sfx('select'); this.renderPhone(); }; });
@@ -501,7 +542,7 @@ export class UI {
   }
   pondHtml(S) {
     const pond = S.pond || {}; const cards = S.cards || {};
-    return `<div class="pondguide"><b>Pond guide · ${Object.keys(pond).length} of ${FISH.length}</b><div>${FISH.map((f) => `<span class="${pond[f.id] ? 'on' : ''}" style="--c:${f.col}">${pond[f.id] ? esc(f.name) : '??? <i>' + esc(f.hint || '') + '</i>'}</span>`).join('')}</div></div>${Object.keys(cards).length ? `<div class="pondguide"><b>Pond cards</b><div>${FISH.filter((f) => cards[f.id]).map((f) => `<span class="on card" style="--c:${f.col}">${esc(f.name)}${cards[f.id] > 1 ? ' × ' + cards[f.id] : ''}</span>`).join('')}</div><p class="small">Cards count toward nothing. They are just cards.</p></div>` : ''}`;
+    return `<div class="pondguide"><b>Pond guide · ${Object.keys(pond).length} of ${FISH.length}</b><div>${FISH.map((f) => `<span class="${pond[f.id] ? 'on' : ''}" style="--c:${f.col}">${pond[f.id] ? esc(f.name) : '??? <i>' + esc(f.hint || '') + '</i>'}</span>`).join('')}</div></div>${Object.keys(cards).length ? `<div class="pondguide"><b>Pond cards</b><div>${FISH.filter((f) => cards[f.id]).map((f) => `<span class="on card" style="--c:${f.col}">${esc(cardName(f))}</span>`).join('')}</div><p class="small">Cards count toward nothing. They are just cards.</p></div>` : ''}`;
   }
   // a reveal: how someone you got to know bends too
   postcard(d) {
@@ -514,6 +555,7 @@ export class UI {
   tab_blend(S) {
     const B = S.blend; const board = BLEND.board.map(([n, v]) => [n, v]).concat([[S.name + ' (you)', B.score]]).sort((a, b) => b[1] - a[1]);
     return `<div class="blendapp"><div style="display:flex;justify-content:space-between;align-items:baseline"><b style="font-family:var(--display);color:#d0457f">blend</b><span class="streak">🔥 ${B.streak} day streak</span></div><div class="score">${B.score}</div><div style="color:#b06090;font-size:13.5px">Smooth Score · calmer than ${Math.min(97, 40 + Math.round(B.score / 6))} in 100 people in Larkspur</div>
+      ${S.flags.lantern ? `<button class="mini-btn blook" id="blook"><span class="ico" aria-hidden="true">${ICON.lantern}</span>Look again at the feed</button><p class="blookt" id="blookt" hidden>A hungrier copy of you, made to fit the feed.</p>` : ''}
       <div class="feedmount"></div>
       <div class="toggle"><div><b style="font-family:var(--display)">Smooth Mode</b><div style="font-size:12.5px;color:#9a6a86">We handle the awkward parts for you. 15 points each time.</div></div><button class="switch ${B.smooth ? 'on' : ''}" id="smooth" aria-label="Smooth Mode"></button></div>
       ${this.G.dropReady() ? '<button class="btn" id="drop" style="width:100%">Daily drop: 25 points. The same every day.</button>' : ''}

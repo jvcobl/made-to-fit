@@ -64,6 +64,7 @@ export function remember(S, rueState) {
     else if (st === 'approved') out.push('The ' + F.short + ' goes up on Thursday' + (l ? ', ' + T.variantName : '') + '. ' + cap(l ? T.lessLoss : T.loses));
     else if (['proposal', 'ready', 'onfile', 'tabled'].includes(st)) out.push('Your idea for the ' + F.short + ' is on file for next season.');
   }
+  if ((S.w || {}).wren_paid) out.push('Wren was paid for the porch lanterns, at the price on the sign.');
   const close = Object.keys(CAST).filter((id) => !CAST[id].minor && (S.bonds[id] || 0) >= 2).sort((a, b) => (S.bonds[b] || 0) - (S.bonds[a] || 0)).slice(0, 4).map((id) => CAST[id].name);
   if (close.length) out.push(list(close) + (close.length > 1 ? ' know you now.' : ' knows you now.'));
   const rue = rueState;

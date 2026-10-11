@@ -12,7 +12,8 @@ import { parseCond, parseEffect, compare } from './script.js';
 import { SortGame } from './games/sort.js';
 import { StampGame } from './games/stamp.js';
 import { Blueprint, PlainNote, BLUEPRINTS } from './games/blueprint.js';
-import { PondGame } from './games/pond.js';
+import { PondGame, FISH } from './games/pond.js';
+import { cardTile } from './packs.js';
 import { PaintGame } from './games/paint.js';
 
 // where objectives point: a spot just in front of each door
@@ -298,13 +299,23 @@ export class Story {
         const opts = n.ask.filter((o) => !o.if || this.cond(o.if, ctx)).map((o) => Object.assign({}, o, { blend: blendOn && o.blend }));
         const k = await this.choose(opts.map((o) => ({ t: o.t, sub: o.sub, tag: o.tag, blend: o.blend, id: o.id })));
         const o = opts[k];
-        if (o.blend) { this.S.blend.score += 5; this.S.blend.usedToday = true; this.S.self = clamp(this.S.self - 1.5, 0, 100); this.ui.toast('+5 points', 'blend', 1600); }
+        if (o.blend) this.saidBlend(o);
         if (o.do) for (const e of o.do) await this.effect(e, ctx);
         if (o.go) { i = labels[o.go] ?? nodes.length; continue; }
       }
       else if (n.do) for (const e of n.do) await this.effect(e, ctx);
       i++;
     }
+  }
+  // Blend's own line, in Blend's voice: a few points, a little of your colour, and every second one makes the app
+  // a little more of a habit. It goes in the log with Blend as the one who decided what you said.
+  saidBlend(o) {
+    const S = this.S, B = S.blend;
+    B.score += 5; B.usedToday = true; B.said = (B.said || 0) + 1; if (B.said % 2 === 0) B.dep = clamp((B.dep || 0) + 1, 0, 9);
+    S.self = clamp(S.self - 1.5, 0, 100);
+    this.ui.toast('+5 points', 'blend', 1600);
+    this.log('default', { v: 'said', by: 'blend', pay: ['you'], line: o.t });
+    this.fieldNote('nudges');
   }
   async call(name, ctx) {
     if (name === 'shop') { this.ui.hideDialog(); await this.ui.shop(this.S); }
@@ -587,6 +598,7 @@ export class Story {
     if ((this.revealQ || []).length) { G.run(() => this.flushReveals()); return; }
     { const fv = this.dueFavour(); if (fv && !G.ui.waiter && G.ui.panel.hidden && !G.phoneOpen) { G.run(() => this.favour(fv)); return; } }
     { const sf = !G.ui.waiter && G.ui.panel.hidden && !G.phoneOpen ? this.stakeVisit() : null; if (sf) { G.run(() => this.stakeTalk(sf)); return; } }
+    if (!G.ui.waiter && G.ui.panel.hidden && !G.phoneOpen) this.gilPacks();
     const z = G.zone; if (z === 'home') return;
     if (S.carryDefault === 'headphones_market' && z === 'market' && S.gear.headphones && !S.wearing.headphones && !S.flags['hpm' + d]) { S.flags['hpm' + d] = 1; S.wearing.headphones = true; G.player.setGear('headphones', true); S.spot = clamp(S.spot + 0.15, 0, 1); this.ui.toast('You put your headphones on as you reached the market, like you decided last time. People notice.', '', 4200); this.log('default', { z, v: 'headphones', by: 'you', pay: ['you'] }); }
     if (this.unasked(z)) return;
@@ -614,6 +626,8 @@ export class Story {
       this.ui.toast('<b>Out of points.</b><br>Blend has a feed for that.', 'blend', 4200); this.fieldNote('dark');
     }
     G.focusPinch(true); G.lastBarrier = now();
+    // a habit: the same answer here, on different days, and now it happens before you notice (you can still stop it)
+    if (!o.noAsk && !o.noHabit) { const h = await this.habitCard(zone, top, dir); if (h) return h; }
     const coach = !S.flags.coached ? 'Five ways to handle a place that does not fit. None of them is wrong, and each one costs something different.' : ''; S.flags.coached = 1;
     this.fieldNote('fit');
     const fixId = (SIM.FIX_FOR[zone] || {})[top];
@@ -664,8 +678,74 @@ export class Story {
         }
       }
       else if (choice === 'leave') { S.stats.leave++; S.self = clamp(S.self + 1, 0, 100); S.restUntil = S.min + 20; this.log('barrier', Object.assign({ v: 'leave', pay: ['you'] }, row)); await G.leaveZone(zone); }
+      this.noteHabit(zone, top, dir, choice);
       return choice;
     }
+  }
+  // ---------- Gil's packs, across the cart (after work, 17:30 to 19:10) ----------
+  // Ambient: two bubbles on two visits, each with its label (in Lantern's voice if it's on, a plain caption if not).
+  // The scene never plays without its label. Settings can summarize it to one sentence.
+  gilPacks() {
+    const G = this.G, S = this.S; if (G.loc !== 'town' || S.min < 1050 || S.min >= 1150 || S.flags.festival) return;
+    const n = G.npcs.gil; if (!n || n.place !== 'town' || n.visit) return;
+    const me = G.player.root.position, q = n.c.root.position; if (Math.hypot(q.x - me.x, q.z - me.z) > 9) return;
+    const lan = G.settings.lanternVoice !== false ? 'Lantern: ' : '';
+    if (G.settings.packs === 'summary') {
+      if (S.flags.gilPack1) return; S.flags.gilPack1 = S.flags.gilPack2 = 1;
+      this.ui.toast('Across the cart, Gil opens card packs, chasing the golden one: a near-miss, then a shiny worth less than the pack. He doesn\'t get it.', '', 7000);
+      this.fieldNote('nearmiss'); this.fieldNote('ldw'); return;
+    }
+    let line, card, label;
+    if (!S.flags.gilPack1) {
+      S.flags.gilPack1 = 1; S.gilPack1At = S.day * 1440 + S.min;
+      line = 'So close! Gold fin. Wrong fish. Next pack for sure.';
+      card = cardTile(FISH.find((f) => f.id === 'minnow'), { goldfin: true });
+      label = '<b>Gil\'s card:</b> Reed minnow, gold-fin print. Not the golden one.<br>' + lan + 'A near-miss. A loss made to look almost like a win.';
+      this.fieldNote('nearmiss');
+    } else if (!S.flags.gilPack2 && S.day * 1440 + S.min >= (S.gilPack1At || 0) + 40) {
+      S.flags.gilPack2 = 1;
+      line = 'A shiny! Worth one coin. Packs are five. Still. A shiny!';
+      card = cardTile(FISH.find((f) => f.id === 'perch'), { shiny: true });
+      label = '<b>Gil\'s card:</b> a shiny sun perch, worth one coin. The pack cost five.<br>' + lan + 'A loss dressed as a win: less than it cost, celebrated anyway.';
+      this.fieldNote('ldw'); this.fieldNote('packs');
+    } else return;
+    this.ui.bubble('gil', line, { tint: CAST.gil.tint, ms: 6500 }); G.audio.voice(CAST.gil.voice[0], CAST.gil.voice[1], line);
+    this.ui.toast('<div class="pkrow">' + card + '<div>' + label + '</div></div>', lan ? 'lantern' : '', 9000);
+    this.ui.announce('Gil, opening a card pack at the cart: ' + line + ' ' + label);
+  }
+  // ---------- habits ----------
+  // The key is the place, what pinches most and which way, and the gear you own. The same answer (push through, gear,
+  // leave) at the same key on different days becomes a habit: works, market and the hall after two days, elsewhere three.
+  // At most four a visit. In return visits only the habit you brought with you fires (one day isn't enough to form one).
+  habitKey(zone, top, dir) { const S = this.S; const g = (S.gear.headphones ? 'h' : '') + (S.gear.shades ? 's' : ''); return zone + '|' + top + '|' + dir + '|' + (g || '-'); }
+  noteHabit(zone, top, dir, verb) {
+    const S = this.S; if ((S.act || 1) > 1) return;
+    S.habits = S.habits || {}; const k = this.habitKey(zone, top, dir); const H = S.habits[k];
+    if (!H || H.verb !== verb) { S.habits[k] = { verb, days: [S.day] }; return; }
+    if (!H.days.includes(S.day)) H.days.push(S.day);
+    const need = { works: 2, market: 2, hall: 2, transit: 3 }[zone] || 3;
+    const formed = Object.values(S.habits).filter((h) => h.formed).length;
+    if (!H.formed && ['bend', 'gear', 'leave'].includes(verb) && H.days.length >= need && formed < 4) {
+      H.formed = S.day;
+      if (verb === 'bend' && (!S.pushHabit || S.pushHabit === 'none' || zone === 'works')) S.pushHabit = zone;
+    }
+  }
+  async habitCard(zone, top, dir) {
+    const G = this.G, S = this.S; const k = this.habitKey(zone, top, dir); const H = (S.habits || {})[k];
+    if (!H || !H.formed || H.formed === S.day) return null;
+    const gearKey = top === 'sound' ? 'headphones' : top === 'light' && dir === 'over' ? 'shades' : null;
+    if (H.verb === 'gear' && !(gearKey && S.gear[gearKey] && !S.wearing[gearKey])) return null;
+    const line = H.verb === 'bend' ? 'You straightened up before you noticed.' : H.verb === 'gear' ? 'You put your ' + gearKey + ' on before you noticed.' : zone === 'works' || zone === 'hall' ? 'You were out the door before you noticed.' : 'You were on your way out before you noticed.';
+    const pick = await this.choose([{ t: 'OK', sub: 'it is what you do here', id: 'habit_ok' }, { t: 'Not today', sub: 'see all five ways', id: 'habit_no' }], { text: line, kind: 'gut' });
+    this.ui.hideDialog();
+    if (pick !== 0) { delete S.habits[k]; return null; }
+    const row = { z: zone, dim: top, dir, by: 'habit', pay: ['you'] };
+    if (H.verb === 'bend') { S.masking = true; S.maskZone = zone; SIM.bendCost(S, false); S.stats.bend++; G.player.setExpression('neutral'); }
+    else if (H.verb === 'gear') { S.wearing[gearKey] = true; G.player.setGear(gearKey, true); S.spot = clamp(S.spot + 0.15, 0, 1); S.stats.gear++; G.audio.sfx('select'); }
+    G.focusPinch(false);
+    this.log('habit', Object.assign({ v: H.verb }, row)); this.fieldNote('habits');
+    if (H.verb === 'leave') { S.stats.leave++; S.self = clamp(S.self + 1, 0, 100); S.restUntil = S.min + 20; await G.leaveZone(zone); }
+    return H.verb;
   }
   gwOf(id) { return (this.S.gw || {})[id] || 0; }
   dots(n) { return '●'.repeat(clamp(n, 0, 3)) + '○'.repeat(3 - clamp(n, 0, 3)); }
@@ -684,6 +764,7 @@ export class Story {
     const gear = S.gear.headphones || S.gear.shades ? (S.wearing.headphones || S.wearing.shades ? 'wear' : 'own') : 'none';
     const row = { d: S.day, m: Math.round(S.min), k, z: o.z || G.zone, v: o.v || '', by: o.by || 'you', pay: o.pay || [] };
     if (o.dim) { row.dim = o.dim; row.dir = o.dir; }
+    if (o.line) row.line = String(o.line).slice(0, 80);
     row.f = Object.assign({ e: Math.round(S.energy), gear, burn: S.burnout ? 1 : 0 }, o.f || {});
     S.log.push(row);
   }
@@ -803,7 +884,7 @@ export class Story {
     if (S.flags.festival) { await this.festivalLine(id); }
     else {
       let script;
-      if (id === 'rue' && S.day === 2 && S.flags.rue_invite && !S.flags.rue_pond && G.npcs.rue.place === 'town' && G.zone === 'farend') script = G.settings.rueScenes === 'summarize' ? T.pondSummary : T.pond;
+      if (id === 'rue' && S.day === 2 && S.flags.rue_invite && !S.flags.rue_pond && G.npcs.rue.place === 'town' && G.zone === 'farend') script = G.settings.rueScenes === 'summary' ? T.pondSummary : T.pond;
       else if (id === 'rue' && !S.flags.rue_pitched) { S.flags.rue_pitched = 1; script = T.pitch; }
       else if (id === 'bea' && S.flags.bea_bus && !S.flags.bea_bus_told && S.day === 1) { S.flags.bea_bus_told = 1; script = T.bus1; }
       else if (S.talked[id]) script = T.again;
@@ -888,7 +969,7 @@ export class Story {
   async stakeTalk(f) {
     const G = this.G, S = this.S, T = STAKES[f], who = T.who, n = G.npcs[who];
     G.talkFrame(who); this.ui.letterbox(true);
-    if (S.stakes[f] === 'listened' && T.thanks) { await this.say(who, T.thanks); }
+    if (S.stakes[f] === 'listened' && T.thanks) { await this.say(who, T.thanks); this.log('stake', { z: SIM.FIXES[f].zone, v: 'listened', by: 'you', pay: ['you'] }); }
     else {
       await this.run(T.talk, { npc: who });
       const k = await this.choose([{ t: 'Change the design', sub: T.change, id: 'stake_change' }, { t: 'Keep it as it is', sub: T.keep, id: 'stake_keep' }]);
@@ -904,10 +985,13 @@ export class Story {
     G.audio.announce('attention route twelve diverted via elm street this evening');
     await this.ui.caption('A crackle from the speaker, aimed at the road. Something about the route.', 2600);
     G.busSkip = true;
+    // the one thing Blend does that plainly helps: it listens to the speaker and writes it down for you
+    const heard = S.blend.has && !S.blend.deleted;
+    if (heard) { const t = 'Heard the speaker for you: "Route twelve is going via Elm Street this evening."'; this.text('Blend', t, true); this.ui.toast('<b>Blend</b><br>' + t, 'blend', 5600); S.flags.blend_heard = 1; }
     await sleep(2500);
     S.flags.bea_bus = 1;
     if (G.npcNear('bea', 'transit')) await this.talkTo('bea');
-    else { await this.note('The 5:40 sails past without stopping. Nobody at the bench is sure why.'); this.ui.hideDialog(); S.flags.told_board = 1; }
+    else { await this.note(heard ? 'The 5:40 sails past without stopping. Your phone told you why. Nobody else at the bench is sure.' : 'The 5:40 sails past without stopping. Nobody at the bench is sure why.'); this.ui.hideDialog(); S.flags.told_board = 1; }
     if (sens(S, 'change') || sens(S, 'sound')) { await this.ui.line({ kind: 'notice', label: DIM_LABEL.change, text: NOTICE.transit.change }); this.ui.hideDialog(); S.flags.told_board = 1; }
   }
   async exhausted() {
@@ -943,8 +1027,9 @@ export class Story {
     S.unaskedDone[key] = 1; S.mods[zone] = S.mods[zone] || {};
     for (const d of ['sound', 'light', 'people']) if (p.dims[d].over > 0) S.mods[zone][d] = (S.mods[zone][d] || 0) - 0.35; else if (p.dims[d].under > 0) S.mods[zone][d] = (S.mods[zone][d] || 0) + 0.3;
     S.handled[S.day + ':' + zone] = 1;
-    G.ui.bubble(who, line, { tint: CAST[who].tint, ms: 6000 }); G.audio.voice(CAST[who].voice[0], CAST[who].voice[1], line);
+    G.ui.bubble(who, line, { tint: CAST[who].tint, ms: 6000 }); G.audio.voice(CAST[who].voice[0], CAST[who].voice[1], line); G.ui.announce(CAST[who].name + ': ' + line);
     this.keep('unasked_' + who, CAST[who].name + ' adjusted before you asked', CAST[who].look.color); this.fieldNote('responsive');
+    this.log('barrier', { z: zone, v: 'ask', by: who, pay: [who], dim: top, dir: p.dims[top] && p.dims[top].under > 0 ? 'under' : 'over', f: { unasked: 1 } });
     return true;
   }
   // a bench: rest works when the place fits you, and only a little when it does not
@@ -1103,11 +1188,15 @@ export class Story {
     } else { await this.say('hollis', COUNCIL.failed); S.fixes[f] = 'onfile'; this.log('vote', { z: F.zone, v: 'failed', by: 'meeting', pay: ['you'] }); }
     return yes >= 2;
   }
-  approve(f, via, mine) { const S = this.S; S.fixes[f] = 'approved'; S.fixAct = S.fixAct || {}; S.fixAct[f] = S.act || 1; S.fixVia = S.fixVia || {}; S.fixVia[f] = via; if (mine) { S.fixMine = S.fixMine || {}; S.fixMine[f] = 1; } }
+  approve(f, via, mine) {
+    const S = this.S; S.fixes[f] = 'approved'; S.fixAct = S.fixAct || {}; S.fixAct[f] = S.act || 1; S.fixVia = S.fixVia || {}; S.fixVia[f] = via; if (mine) { S.fixMine = S.fixMine || {}; S.fixMine[f] = 1; }
+    // Wren makes the porch lanterns, at the price on the sign
+    if (f === 'lanterns') { S.w = S.w || {}; S.w.wren_paid = 1; }
+  }
   // Rue speaks at the meeting only if she is easing, and only because she wants to
   async rueTestimony() {
     const S = this.S; S.flags.rueSpoke = 1;
-    if (this.G.settings.rueScenes === 'summarize') { await this.note('Rue tells the hall that the streak was hiding some very hard mornings.'); return; }
+    if (this.G.settings.rueScenes === 'summary') { await this.note('Rue tells the hall that the streak was hiding some very hard mornings.'); return; }
     for (const t of COUNCIL.rueSpeaks) await this.say('rue', t);
   }
   // you stepped out: someone who knows you presents for you, or it waits; Clover finds you after

@@ -35,8 +35,9 @@ export class Feed {
     c.t = c.t.replace('{p}', String(55 + Math.floor(Math.random() * 40))).replace('{time}', fmtTime(past)).replace('{rueN}', String(411 + (S.day || 1)));
     return c;
   }
-  swipe() {
-    const G = this.G, S = this.S, B = S.blend; if (!B.has || B.deleted || this.ended) return;
+  // one card's worth: the points printed on it, a little of your colour, two minutes, and the pull on your creature
+  step() {
+    const G = this.G, S = this.S, B = S.blend; if (!B.has || B.deleted || this.ended) return false;
     if (!this.card) this.card = this.next();
     const c = this.card;
     B.score += POINTS_PER_CARD; B.usedToday = true; B.swipes = (B.swipes || 0) + 1; this.session++;
@@ -44,25 +45,42 @@ export class Feed {
     G.advance(2); // time slips while it scrolls
     // wanting climbs, and jumps on a prize; enjoying drifts down
     this.want = clamp(this.want + (c.prize ? 0.2 : 0.08)); this.like = clamp(this.like - 0.07, 0.08, 1);
-    if (c.prize) { G.player.hop && G.player.hop(); G.story.fieldNote('variable'); }
+    if (c.prize) { this.prizes = (this.prizes || 0) + 1; G.player.hop && G.player.hop(); G.story.fieldNote('variable'); }
     if (this.session >= 5 && !this.counted) { this.counted = true; B.dep = clamp((B.dep || 0) + 1, 0, 9); }
     if (this.session >= 8) G.story.fieldNote('wanting');
     if (B.swipes >= 25) G.badge && G.badge('streak');
     if (B.score >= 150) G.badge && G.badge('top');
-    if (this.session >= SESSION_CARDS) { this.ended = true; this.render(false); return; }
+    if (this.session >= SESSION_CARDS) { this.ended = true; return false; }
     this.card = this.next();
-    this.render(true);
+    return true;
+  }
+  swipe() { if (this.ended) return; const more = this.step(); this.render(more); }
+  // Settings can summarize the feed: one choice, the whole session's effects, and a sentence instead of the cards
+  scrollAll() {
+    if (this.ended) return; this.prizes = 0;
+    while (this.step()) { /* card after card */ }
+    const p = this.prizes || 0;
+    this.sumText = `You scrolled through ${SESSION_CARDS} cards: ${POINTS_PER_CARD * SESSION_CARDS} points, and ${p === 0 ? 'no prizes this time' : p === 1 ? 'one prize, which went to your creature' : p + ' prizes, which went to your creature'}. Wanting went up the whole way. Enjoying went down. Your phone is at 1%.`;
+    this.render(false); this.G.ui.announce(this.sumText);
   }
   putDown(auto) {
     const G = this.G;
-    const was = this.session; this.session = 0; this.counted = false; this.ended = false; this.want = Math.max(0.2, this.want - 0.4); this.like = Math.min(0.75, this.like + 0.3);
+    const was = this.session; this.session = 0; this.counted = false; this.ended = false; this.sumText = ''; this.prizes = 0; this.want = Math.max(0.2, this.want - 0.4); this.like = Math.min(0.75, this.like + 0.3);
     if (G.phoneOpen) G.togglePhone();
     G.ui.toast(auto ? 'Your phone is at 1%. You put it down. Everything is still here.' : 'Everything is still here. So are the birds.', 'good', 4200);
     if (was >= 3) G.story.keep('putdown', 'You put the phone down', '#9edcd6');
   }
   mount(el) { this.el = el; if (!el) return; if (!this.card) this.card = this.next(); this.render(false); }
+  renderSummary() {
+    const el = this.el;
+    el.innerHTML = `<div class="feed sum">${this.sumText ? `<p class="fsum">${esc(this.sumText)}</p>` : `<p class="fsum">Blend's feed is summarized in Settings. Scrolling plays out in one sentence.</p><button class="btn" id="fscroll">Scroll for a while<span class="sub">+${POINTS_PER_CARD * SESSION_CARDS} points · about ${2 * SESSION_CARDS} minutes</span></button>`}<button class="btn putdown">Put it down</button></div>`;
+    const sc = el.querySelector('#fscroll'); if (sc) sc.onclick = () => this.scrollAll();
+    el.querySelector('.putdown').onclick = () => this.putDown(this.ended);
+    const ph = this.G.ui.phoneEl; const scr = ph.querySelector('.blendapp .score'); if (scr) scr.textContent = this.S.blend.score;
+  }
   render(anim) {
     const el = this.el; if (!el || !el.isConnected) return; const S = this.S; const c = this.card;
+    if (this.G.settings.feedContent === 'summary') { this.renderSummary(); return; }
     const lanOn = this.G.settings.lanternVoice !== false;
     const lan = lanOn ? LANTERN[Math.min(LANTERN.length - 1, this.session)] : '';
     const card = this.ended

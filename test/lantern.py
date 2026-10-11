@@ -51,7 +51,8 @@ with sync_playwright() as p:
     pg.keyboard.press('Escape'); pg.wait_for_timeout(200); pg.keyboard.press('Escape'); pg.wait_for_timeout(300)
     check('lowered', not pg.evaluate("__wb.G.look.raised"))
     # the Standard's room
-    pg.evaluate("(() => { const S = __wb.state(); S.flags.statue_seen = 1; __wb.tp([30, 26.6]); })()"); pg.wait_for_timeout(500)
+    pg.evaluate("(() => { const S = __wb.state(); S.flags.statue_seen = 1; __wb.tp([30, 26.6]); })()")
+    pg.wait_for_function("__wb.target() === 'statue' && !__wb.busy() && !__wb.waiter()", timeout=15000)
     pg.evaluate('__wb.act()'); pg.wait_for_function("__wb.panel() && __wb.panel().includes('standard')", timeout=10000)
     def pick(vals):
         for k, v in vals.items(): pg.evaluate("document.querySelector('[data-k=%s] [data-v=\"%d\"]').click()" % (k, v))

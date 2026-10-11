@@ -19,6 +19,8 @@ export const CAUSES = {
   festival: ['The festival has always been held in the square, at full volume.'],
   home: ['Your room is set the way you set it.'],
 };
+// what was also true when you said Blend's line
+const BLEND_ALSO = ['Blend suggests the line most people would say.', 'It pays the same points whoever you are talking to.'];
 // a fixed shot of each place (exterior), for the moment's card
 const SHOTS = {
   market: [[30, 14, 44], [30, 1, 26]], transit: [[62, 9, 34], [53, 1, 24]], commons: [[52, 12, 27], [50, 1, 10]], farend: [[52, 10, 54], [50, 1, 42]],
@@ -41,16 +43,17 @@ function verbLine(r) {
   if (r.k === 'favour') return r.v === 'yes' ? 'You said yes to a favour.' : r.v === 'no' ? 'You said no to a favour.' : 'A favour never came due.';
   if (r.k === 'vote') return r.v === 'passed' || r.v === 'approved' ? 'A fix went through.' : 'A fix didn\'t pass.';
   if (r.k === 'stake') return r.v === 'listened' ? 'You changed a design for the person it cost.' : 'You kept a design as it was.';
-  if (r.k === 'habit') return 'You did what you always do there, before you noticed.';
+  if (r.k === 'habit') return r.v === 'gear' ? 'You put your gear on before you noticed. It has become what you do there.' : r.v === 'leave' ? 'You were out the door before you noticed. It has become what you do there.' : 'You straightened up before you noticed. It has become what you do there.';
+  if (r.k === 'default' && r.by === 'blend') return 'You said what Blend suggested' + (r.line ? ': "' + r.line + '"' : '.');
   return '';
 }
 // the moments worth looking at again
 export function pickMoments(S, n) {
-  const rows = (S.log || []).filter((r) => ['barrier', 'refused', 'missed', 'favour', 'vote', 'stake', 'habit'].includes(r.k) && r.v !== 'lapsed');
+  const rows = (S.log || []).filter((r) => (['barrier', 'refused', 'missed', 'favour', 'vote', 'stake', 'habit'].includes(r.k) || (r.k === 'default' && r.by === 'blend')) && r.v !== 'lapsed');
   const score = (r) => {
     let s = 0; const others = (r.pay || []).filter((p) => p !== 'you');
     if (others.length) s += 2;
-    if ((r.pay || []).includes('you') && (r.v === 'bend' || r.k === 'missed' || r.k === 'refused')) s += 1;
+    if ((r.pay || []).includes('you') && (r.v === 'bend' || r.v === 'said' || r.k === 'missed' || r.k === 'refused')) s += 1;
     if ((r.f || {}).off >= 2) s += 1;
     if (r.by === 'habit' || r.by === 'blend' || r.k === 'habit') s += 1;
     return s;
@@ -60,7 +63,9 @@ export function pickMoments(S, n) {
   while (picked.length < n && cands.length) {
     for (const c of cands) { c.adj = c.s - picked.filter((p) => p.r.z === c.r.z).length - (picked.some((p) => p.r.d === c.r.d) && new Set(rows.map((x) => x.d)).size > 1 ? 0.5 : 0); }
     cands.sort((a, b) => b.adj - a.adj || a.i - b.i);
-    picked.push(cands.shift());
+    const c = cands.shift(); picked.push(c);
+    // one of Blend's lines is enough to make the point
+    if (c.r.k === 'default') for (let j = cands.length - 1; j >= 0; j--) if (cands[j].r.k === 'default') cands.splice(j, 1);
   }
   return picked.sort((a, b) => a.i - b.i).map((c) => c.r);
 }
@@ -111,7 +116,7 @@ export async function whoDecided(story) {
     else { if (G.loc !== 'town') G.setLoc('town'); const sp = STAND[r.z] || STAND.street; G.place(sp); const sh = SHOTS[r.z] || SHOTS.street; G.stage.shot(new THREE.Vector3(...sh[0]), new THREE.Vector3(...sh[1]), 36, 3, true); }
     await G.stage.fadeTo(0, 500);
     const pay = (r.pay || []).map((id) => ({ id, name: id === 'you' ? 'You' : CAST[id] ? CAST[id].name : id, img: id === 'you' ? G.portraitOf(S.look, { bg: '#efe6d6', w: 120, h: 120 }) : CAST[id] ? G.portraitOf(CAST[id].look, { bg: '#efe6d6', w: 120, h: 120 }) : '' }));
-    const k = await ui.decidedCard({ n: i + 1, of: moments.length, faced: faced(S, r), also: CAUSES[r.z] || CAUSES.street, verb: verbLine(r), pay, first: i === 0 });
+    const k = await ui.decidedCard({ n: i + 1, of: moments.length, faced: faced(S, r), also: r.k === 'default' ? BLEND_ALSO : CAUSES[r.z] || CAUSES.street, verb: verbLine(r), pay, first: i === 0 });
     if (k === 'skip') skip = true;
     await G.stage.fadeTo(1, 400);
   }

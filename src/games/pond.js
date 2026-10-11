@@ -5,14 +5,14 @@ import { clamp, lerp, esc, FAST as FAST0, params } from '../util.js';
 const FAST = FAST0 && params.get('mgslow') !== '1';
 
 export const FISH = [
-  { id: 'minnow', name: 'Reed minnow', zone: 'reeds', when: 'any', col: '#9cae55', len: 0.55, hint: 'in the reeds', line: 'Lives in the reeds, where the water is warm and the hiding is good. Out in the open it panics. Not a worse fish. A reed fish.' },
-  { id: 'perch', name: 'Sun perch', zone: 'shallows', when: 'day', col: '#e2b34c', len: 0.7, hint: 'sunny shallows, by day', line: 'Basks in the bright shallows all afternoon. Put it in the shade and it sulks.' },
-  { id: 'carp', name: 'Shade carp', zone: 'shade', when: 'any', col: '#7a8f9e', len: 0.9, hint: 'under the willow', line: 'Likes it dim. Comes out when the sun slips behind the willow, and not a minute before.' },
-  { id: 'gudgeon', name: 'Deep gudgeon', zone: 'deep', when: 'any', col: '#5b6b8a', len: 0.65, hint: 'the deep middle', line: 'Stays down where the water is cold and still. The shallows would cook it. Nobody calls it shy.' },
-  { id: 'dace', name: 'Chatter dace', zone: 'shallows', when: 'day', col: '#c8b6a8', len: 0.5, school: true, hint: 'shallows, in a crowd', line: 'Never alone. Lives in a crowd and loves it. Alone in a quiet corner it would be miserable.' },
-  { id: 'tench', name: 'Hermit tench', zone: 'deep', when: 'any', col: '#4e6b3a', len: 0.85, patient: true, hint: 'deep water, for the patient', line: 'Bites only if you wait quietly and do not tug the line. It has no opinion of you. It would just rather you were calm.' },
-  { id: 'loach', name: 'Lantern loach', zone: 'mid', when: 'dusk', col: '#ffcf7a', len: 0.6, glow: true, hint: 'open water, at dusk', line: 'Only rises at dusk, faintly glowing. Larkspur\'s lanterns were named after it, probably.' },
-  { id: 'gold', name: 'A standard goldfish', zone: 'any', when: 'any', col: '#f2a24a', len: 0.6, rare: true, hint: 'anywhere, once you know four others', line: 'Its great-great-grandparents were let go here in 1891. Too warm here, too cold there, so it never stops swimming. A pond could make a corner for it.' },
+  { id: 'minnow', name: 'Reed minnow', pl: 'reed minnows', zone: 'reeds', when: 'any', col: '#9cae55', len: 0.55, hint: 'in the reeds', line: 'Lives in the reeds, where the water is warm and the hiding is good. Out in the open it panics.' },
+  { id: 'perch', name: 'Sun perch', pl: 'sun perch', zone: 'shallows', when: 'day', col: '#e2b34c', len: 0.7, hint: 'sunny shallows, by day', line: 'Basks in the bright shallows all afternoon. Put it in the shade and it sulks.' },
+  { id: 'carp', name: 'Shade carp', pl: 'shade carp', zone: 'shade', when: 'any', col: '#7a8f9e', len: 0.9, hint: 'under the willow', line: 'Likes it dim. Comes out when the sun slips behind the willow, and not a minute before.' },
+  { id: 'gudgeon', name: 'Deep gudgeon', pl: 'deep gudgeons', zone: 'deep', when: 'any', col: '#5b6b8a', len: 0.65, hint: 'the deep middle', line: 'Stays down where the water is cold and still. The shallows would cook it.' },
+  { id: 'dace', name: 'Chatter dace', pl: 'chatter dace', zone: 'shallows', when: 'day', col: '#c8b6a8', len: 0.5, school: true, hint: 'shallows, in a crowd', line: 'Never alone. Lives in a crowd and loves it. Alone in a quiet corner it would be miserable.' },
+  { id: 'tench', name: 'Hermit tench', pl: 'hermit tench', zone: 'deep', when: 'any', col: '#4e6b3a', len: 0.85, patient: true, hint: 'deep water, for the patient', line: 'Bites only if you wait quietly and do not tug the line. It has no opinion of you. It would just rather you were calm.' },
+  { id: 'loach', name: 'Dusk loach', pl: 'dusk loaches', zone: 'mid', when: 'dusk', col: '#ffcf7a', len: 0.6, glow: true, hint: 'open water, at dusk', line: 'Only rises at dusk, faintly glowing. The festival lanterns copy it, probably.' },
+  { id: 'gold', name: 'A standard goldfish', card: 'Standard goldfish', pl: 'standard goldfish', zone: 'any', when: 'any', col: '#f2a24a', len: 0.6, rare: true, hint: 'anywhere, once you know four others', line: 'Its great-great-grandparents were let go here in 1891. Too warm here, too cold there, so it never stops swimming.' },
 ];
 const ZN = { reeds: 'the reeds', shallows: 'the sunny shallows', shade: 'the shade of the willow', deep: 'the deep middle', mid: 'open water', any: 'nowhere in particular' };
 
