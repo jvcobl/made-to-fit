@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fit card samples</title>
+<link rel="icon" href="data:,">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root { --paper: #fbf6ee; --paper2: #f3eadb; --ink: #2b2530; --soft: #6b6170; --line: rgba(43, 37, 48, 0.14); }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--paper2); color: var(--ink); font-family: "Atkinson Hyperlegible", system-ui, sans-serif; }
+  header { padding: 20px 16px 4px; max-width: 1180px; margin: 0 auto; }
+  h1 { font-family: "Fredoka", ui-rounded, system-ui, sans-serif; font-weight: 600; margin: 0 0 4px; font-size: 26px; }
+  header p { margin: 0; color: var(--soft); font-size: 15px; }
+  main { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 1fr)); gap: 28px 20px; padding: 18px 16px 40px; max-width: 1180px; margin: 0 auto; }
+  figure { margin: 0; }
+  figure > b { display: block; font-family: "Fredoka", ui-rounded, system-ui, sans-serif; font-weight: 600; font-size: 15px; margin-bottom: 8px; }
+  canvas, .saved img { display: block; width: 100%; max-width: 360px; height: auto; border-radius: 14px; box-shadow: 0 10px 30px rgba(20, 14, 30, 0.18); background: var(--paper); }
+  figcaption { font-size: 13.5px; color: var(--soft); line-height: 1.45; margin-top: 10px; max-width: 360px; }
+  button { margin-top: 10px; border: 0; border-radius: 999px; padding: 10px 18px; min-height: 44px; font: 600 15px "Fredoka", ui-rounded, system-ui, sans-serif; background: var(--ink); color: var(--paper); cursor: pointer; }
+  button:focus-visible { outline: 3px solid #4fb3a9; outline-offset: 2px; }
+  .status { font-size: 14px; color: var(--soft); margin-left: 8px; }
+  .saved { margin-top: 10px; } .saved p { font-size: 14px; margin: 6px 0 0; }
+</style>
+</head>
+<body>
+<header><h1>Fit card samples</h1><p>Four cards from <code>src/fitcard.js</code>, shown at phone width (360 px). The text under each card is its alt text.</p></header>
+<main id="cards"></main>
+<script type="module">
+import { drawFitCard, cardBlob, saveFitCard, cardAltText } from '../src/fitcard.js';
+
+// a stand-in creature, used when the test harness does not pass real portraits rendered by the game
+function creature(o) {
+  const c = document.createElement('canvas'); c.width = c.height = 600; const x = c.getContext('2d');
+  x.fillStyle = o.bg; x.fillRect(0, 0, 600, 600);
+  const g = x.createRadialGradient(250, 260, 30, 300, 330, 220); g.addColorStop(0, o.light); g.addColorStop(1, o.body);
+  x.fillStyle = 'rgba(0,0,0,0.12)'; x.beginPath(); x.ellipse(300, 480, 150, 22, 0, 0, Math.PI * 2); x.fill();
+  x.fillStyle = o.body; for (const ex of [220, 380]) { x.beginPath(); x.ellipse(ex, 160, 26, 70, ex < 300 ? -0.3 : 0.3, 0, Math.PI * 2); x.fill(); }
+  x.fillStyle = g; x.beginPath(); x.ellipse(300, 330, 175, 160, 0, 0, Math.PI * 2); x.fill();
+  x.fillStyle = '#1c1820'; for (const ex of [245, 355]) { x.beginPath(); x.arc(ex, 320, 19, 0, Math.PI * 2); x.fill(); }
+  x.fillStyle = '#fff'; for (const ex of [251, 361]) { x.beginPath(); x.arc(ex, 313, 6, 0, Math.PI * 2); x.fill(); }
+  x.fillStyle = 'rgba(243,140,160,0.75)'; for (const ex of [205, 395]) { x.beginPath(); x.ellipse(ex, 352, 20, 13, 0, 0, Math.PI * 2); x.fill(); }
+  x.strokeStyle = '#1c1820'; x.lineWidth = 6; x.lineCap = 'round'; x.beginPath(); x.arc(300, 345, 16, 0.2 * Math.PI, 0.8 * Math.PI); x.stroke();
+  return c.toDataURL('image/png');
+}
+const given = Array.isArray(window.__fitcardPortraits) ? window.__fitcardPortraits : [];
+const portrait = (i, o) => given[i] || creature(o);
+
+const SAMPLES = [
+  { label: '1. One visit, name hidden, two places',
+    d: { portrait: portrait(0, { bg: '#efe6d6', body: '#93c2ee', light: '#cfe4f8' }), name: 'Sam', showName: false,
+      places: ['The Far End at dusk', 'Market Square in the morning'], tally: { you: 4, gear: 1, them: 2, place: 0, nobody: 1 },
+      turned: null, nextTime: 'Put my headphones on before the square gets loud, not after.', visits: 1 } },
+  { label: '2. Two visits, name shown, long strings',
+    d: { portrait: portrait(1, { bg: '#2a2433', body: '#f6cf5b', light: '#fde9a8' }), name: 'Bartholomew Featherstonehaugh-Smythe the Second', showName: true,
+      places: ['The quiet corner of the library annex, just after the lunch rush', 'Market Square in the early morning before the stalls open', 'Home Row'],
+      tally: { you: 12, gear: 7, them: 4, place: 2, nobody: 23 }, turned: null,
+      nextTime: 'Ask for the window seat before the meeting starts instead of waiting for someone to notice that the light is too bright for me.',
+      kept: 'Pip waited for me at the corner even though the bus was already pulling in and everyone else had gone ahead.', visits: 2 } },
+  { label: '3. All three visits: turned, next time and kept',
+    d: { portrait: portrait(2, { bg: '#f3e6cf', body: '#bfa9f0', light: '#e6dcfb' }), name: 'Mo', showName: true,
+      places: ['The Far End at dusk', 'Market Square in the morning', 'Home Row'], tally: { you: 6, gear: 4, them: 5, place: 3, nobody: 1 },
+      turned: 'Dot asked me to keep the music low. I turned it down and we met in the middle.', nextTime: 'Say "in a sec?" sooner.',
+      kept: 'Bea saved me the seat by the window.', visits: 3 } },
+  { label: '4. Nothing yet: no places, empty tally, no portrait',
+    d: { portrait: null, name: '', showName: true, places: [], tally: { you: 0, gear: 0, them: 0, place: 0, nobody: 0 }, turned: null, nextTime: null, visits: 1 } },
+];
+
+async function fontsFirst() { // this page loads the fonts; give them a moment (the card itself waits at most 1.5 s)
+  if (!document.fonts) return false;
+  const want = ['600 40px "Fredoka"', '500 40px "Fredoka"', '400 40px "Atkinson Hyperlegible"', '700 40px "Atkinson Hyperlegible"'];
+  try { await Promise.race([Promise.all(want.map((f) => document.fonts.load(f))), new Promise((r) => setTimeout(r, 8000))]); } catch (e) { /* offline is fine */ }
+  return want.every((f) => document.fonts.check(f));
+}
+
+const out = { cards: [], alts: [], done: false, error: null, fonts: false, api: { drawFitCard, cardBlob, saveFitCard, cardAltText }, samples: SAMPLES };
+window.__fitcard = out;
+try {
+  out.fonts = await fontsFirst();
+  const main = document.getElementById('cards');
+  for (const s of SAMPLES) {
+    const cv = await drawFitCard(s.d); const alt = cardAltText(s.d);
+    out.cards.push(cv); out.alts.push(alt);
+    const fig = document.createElement('figure'); const b = document.createElement('b'); b.textContent = s.label;
+    const cap = document.createElement('figcaption'); cap.textContent = alt;
+    const btn = document.createElement('button'); btn.textContent = 'Save card';
+    const st = document.createElement('span'); st.className = 'status'; st.setAttribute('aria-live', 'polite');
+    const box = document.createElement('div'); box.className = 'saved';
+    btn.onclick = async () => {
+      st.textContent = 'Saving…'; const r = await saveFitCard(cv);
+      st.textContent = { saved: 'Saved.', declined: 'Not saved.', download: 'Downloading.', fallback: '' }[r.status] || '';
+      box.replaceChildren();
+      if (r.status === 'fallback' && r.url) { const img = new Image(); img.src = r.url; img.alt = alt; const p = document.createElement('p'); p.textContent = 'Press and hold the picture to save it.'; box.append(img, p); }
+    };
+    fig.append(b, cv, cap, btn, st, box); main.append(fig);
+  }
+} catch (e) { out.error = String(e && e.stack || e); console.error(e); }
+out.done = true;
+</script>
+</body>
+</html>
