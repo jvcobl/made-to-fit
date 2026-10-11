@@ -574,7 +574,7 @@ export const COUNCIL = {
     clover: { yes: 'We asked who it costs, and we changed it. Yes.', no: 'We didn\'t ask who it costs. Not yet. No.', overruled: 'We asked who it costs, and then we didn\'t listen. Not yet. No.' },
     hollis: { yes: 'I have seen the ledger. Yes.', yesPlain: 'For Larkspur. Yes.', no: 'We have always done it this way. No.' },
   },
-  passed: 'Carried. It goes up overnight.', passedTonight: 'Carried. It goes up tonight, in time for the festival.', passedClover: 'Already loading the cart.', failed: 'Not carried. It goes on file for next season.',
+  passed: 'Carried. It goes up overnight.', passedTonight: 'Carried. It goes up tonight, in time for the festival.', passedRule: 'Carried. It takes effect tonight.', passedClover: 'Already loading the cart.', passedCloverRule: 'In the ledger tonight. In pen.', failed: 'Not carried. It goes on file for next season.',
   // the Founders' Fund's clause, read out when it applies (Act 3)
   clause: { who: 'clover', t: 'Before the vote: the Fund\'s gift came with a clause. Any project on Founders\' Row needs the Fund\'s sign-off. It hasn\'t been signed.' },
   stalled: { who: 'hollis', t: 'Then it is referred for further study. Next season.' },

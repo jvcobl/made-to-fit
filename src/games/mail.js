@@ -1,4 +1,4 @@
-// Festival mail (the Works, ten years on): the same sorting as the first Monday, at Dot's old desk, with Unit at the
+// Festival mail (the Works, ten years on): the same sorting as the first Monday, at your old desk, with Unit at the
 // next one instead of Dot. How Unit does depends on what happened to the room this morning.
 import { SortGame } from './sort.js';
 import { loadImg } from './kit.js';
@@ -19,7 +19,7 @@ function unitIcon() {
 
 export class FestivalMail extends SortGame {
   constructor(G, o = {}) {
-    super(G, Object.assign({ id: 'mail', title: 'Festival mail', where: 'The Works · Dot\'s old desk', how: 'Festival mail comes down the chute. Send each letter to the cubby with the <b>same symbol</b>: tap the cubby, or press <b>1 to 4</b>.' }, o));
+    super(G, Object.assign({ id: 'mail', title: 'Festival mail', where: 'The Works · your old desk', how: 'Festival mail comes down the chute. Send each letter to the cubby with the <b>same symbol</b>: tap the cubby, or press <b>1 to 4</b>.' }, o));
     this.unitMode = o.unitMode || 'spec'; this.id = 'sort';
   }
   async prepare() {

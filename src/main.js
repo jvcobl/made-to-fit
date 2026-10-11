@@ -493,7 +493,7 @@ class Game {
     if (id === 'home') { if (S.min >= 1020 && S.day > 0 && !st.finalDay()) { await this.stage.fadeTo(1, 600); st.finishDay('sleep'); return; } return this.enterRoom('home'); }
     if (id === 'out') return this.exitRoom();
     if (id === 'bed') { if (S.min >= 1020 && !st.finalDay()) { await this.stage.fadeTo(1, 600); st.finishDay('sleep'); return; } await st.note('You lie down for a while. The room is exactly as you set it.'); this.ui.hideDialog(); this.advance(45); S.energy = clamp(S.energy + 18, 0, S.maxE); S.self = clamp(S.self + 3, 0, 100); return; }
-    if (id === 'mirror') { await st.gut(this.drift() > 0.3 ? 'Your reflection looks paler than it did on Sunday.' : 'There you are.'); this.ui.hideDialog(); return; }
+    if (id === 'mirror') { await st.gut(this.drift() > 0.3 ? (st.ret ? 'Your reflection looks paler than it did this morning.' : 'Your reflection looks paler than it did on Sunday.') : 'There you are.'); this.ui.hideDialog(); return; }
     if (id === 'works' || id === 'dock') return st.enterWorks(id === 'dock' ? 'dock' : 'front');
     if (id === 'hall') { await this.enterRoom('hall'); await st.note(S.day === 2 && S.min >= 1020 && !S.flags.councilDone ? 'People are filing in for the meeting. It starts at six.' : 'The chamber is empty. The founders watch from their portrait.'); this.ui.hideDialog(); return; }
     if (id === 'portrait') { await st.note('The Founders, 1891. Five of them, no two the same shape, all squinting into the sun.'); if (S.flags.statue_seen) await st.gut('The committee that chose whose measurements to take. None of them matches the statue either.'); this.ui.hideDialog(); return; }
@@ -506,13 +506,13 @@ class Game {
     if (id === 'kiosk') { if (this.npcNear('rue', 'market') && this.npcs.rue.place === 'town') return st.talkTo('rue'); await st.note('The kiosk hums. The screen says: YOU COULD BE CALMER.'); this.ui.hideDialog(); return; }
     if (id === 'board') { await st.note(S.fixes.board === 'built' ? 'The new board glows: NEXT BUS 5:40. TODAY: VIA ELM ST. Simple as that.' : 'Route 12, forty past the hour. A tiny asterisk: subject to change. The changes are announced over the speaker.'); this.ui.hideDialog(); if (!S.fixes.board) S.flags.told_board = 1; return; }
     if (id === 'cart') { if (this.npcs.moss.place === 'town') return st.talkTo('moss'); await st.note('The tea cart is closed up for the night.'); this.ui.hideDialog(); return; }
-    if (id === 'council_notice') { await st.note('COUNCIL MEETINGS: every first Tuesday, booked a year ahead, in pen. BUS ROUTES: subject to change.'); this.ui.hideDialog(); return; }
+    if (id === 'council_notice') { await st.note(st.ret ? 'TOWN MEETING: festival day, 6 PM. Two items at most. Bring a cardigan.' + ((S.act || 1) >= 3 ? ' IF YOU HAVE A STAKE, SAY SO. THEN YOU MAY STILL JUDGE.' : '') : 'COUNCIL MEETINGS: every first Tuesday, booked a year ahead, in pen. BUS ROUTES: subject to change.'); this.ui.hideDialog(); return; }
     if (id === 'notice') { await st.note('LOST CAT, orange, answers to nothing. CHOIR, Thursdays. FIX-IT SHED: bring us what pinches!'); this.ui.hideDialog(); S.flags.knows_shed = 1; return; }
     if (id === 'shed') { if (this.npcs.clover.place === 'town') return st.talkTo('clover'); await st.note('The shed is locked. A sign says OPEN 8 TO 6.'); this.ui.hideDialog(); return; }
     if (id === 'workshop') { if (this.npcs.wren.place === 'town') return st.talkTo('wren'); await st.note('You knock once. Nobody answers, which is also an answer.'); this.ui.hideDialog(); return; }
     if (t.kind === 'bench') return st.sit(id);
     if (t.kind === 'pond') return st.fish();
-    if (id === 'mydesk') { if (st.shiftOpen()) return st.startShift(); await st.note('Your desk. Your plant. Somebody has already left a sticky note on it that just says "!".'); this.ui.hideDialog(); return; }
+    if (id === 'mydesk') { if (st.shiftOpen()) return st.startShift(); await st.note(st.ret ? 'Your old desk. Somebody has left a sticky note on it that just says "!". Some things don\'t change.' : 'Your desk. Your plant. Somebody has already left a sticky note on it that just says "!".'); this.ui.hideDialog(); return; }
     if (st.handleExtra) return st.handleExtra(t);
   }
   // ---------- movement ----------

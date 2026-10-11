@@ -2,7 +2,8 @@
 # one frame (1/60 s) at a time, screenshots every frame, splits each screenshot into a 6x6 grid of tiles, and counts
 # general flashes per tile: pairs of opposing changes in mean relative luminance of at least 0.10 where the darker
 # state is below 0.80. Fails if any tile has more than 3 flashes in any one-second window.
-# usage: python3 test/flash.py [sort] [stamp] [works] [outdoor] [--frames N] [--seed N] [--shots DIR]
+# usage: python3 test/flash.py [sort] [stamp] [works] [outdoor] [pond] [blueprint] [paint] [teach] [mail] [look] [festival]
+#   [release] [act2works] [act2fest] [act3fest] [--frames N] [--seed N] [--shots DIR]   (none named: all fifteen)
 import sys, time, json, base64, io
 import numpy as np
 from PIL import Image
@@ -15,9 +16,11 @@ def opt(name, default):
     if name in argv: i = argv.index(name); v = argv[i + 1]; del argv[i:i + 2]; return v
     return default
 FRAMES = int(opt('--frames', 240)); SEED = int(opt('--seed', 9)); SHOTS = opt('--shots', None)
-ALL = ['sort', 'stamp', 'works', 'outdoor', 'pond', 'blueprint', 'paint', 'teach', 'mail', 'look', 'festival', 'release', 'act2fest']
+ALL = ['sort', 'stamp', 'works', 'outdoor', 'pond', 'blueprint', 'paint', 'teach', 'mail', 'look', 'festival', 'release', 'act2works', 'act2fest', 'act3fest']
 SCENARIOS = [a for a in argv if not a.startswith('-')] or ALL
-if 'act2fest' in SCENARIOS: SCENARIOS = [x for x in SCENARIOS if x != 'act2fest'] + ['act2fest']  # it reloads the page: last
+# the later visits reload the page, so they go last, in order; 'release' ends the first visit, so it goes just before them
+LATE = ['release', 'act2works', 'act2fest', 'act3fest']
+SCENARIOS = [x for x in SCENARIOS if x not in LATE] + [x for x in LATE if x in SCENARIOS]
 URL = 'file:///home/claude/wb4/dist/who-bends.html?test=1&fast=1&mgslow=1&mute=1&seed=%d&fixedstep=1' % SEED
 
 # sRGB 8-bit -> linear, then relative luminance Y = 0.2126 R + 0.7152 G + 0.0722 B
@@ -178,22 +181,31 @@ with sync_playwright() as p:
             until("!!__wb.state().flags.festival && !__wb.busy()", 60, 2)
             pg.evaluate("__wb.G.run(() => __wb.G.story.finale())")
             capture('release', lambda i: pg.evaluate("__wb.waiter() === 'line' && __wb.adv()"))
-        elif sc == 'act2fest':
-            # ten years on, the festival: the drone with its lantern over the square
-            pg.evaluate("__wb.gotoAct(2, { built: ['quiet', 'dim'] })")
+        elif sc in ('act2works', 'act2fest', 'act3fest'):
+            # ten and twenty years on: the Works with Unit (and the soft lights), the festival with the drone, the
+            # festival twenty years on (benches, Juno, the Fund's plate); each one starts with a reload, as in the game
+            act = 3 if sc == 'act3fest' else 2
+            pg.evaluate("__wb.gotoAct(%d, { built: %s })" % (act, "['quiet', 'board']" if act == 3 else "['quiet', 'dim']"))
             pg.wait_for_timeout(1500); pg.wait_for_function('window.__wb && __wb.G && __wb.ret && __wb.ret()', timeout=90000)
             t0 = time.time()
             while time.time() - t0 < 240:
-                if pg.evaluate("__wb.waiter() === 'choice' && __wb.options().some((o) => o.id === 'age_keep')"): pg.evaluate("__wb.choose(__wb.options().findIndex((o) => o.id === 'age_keep'))")
-                if pg.evaluate("__wb.mode() === 'play' && !__wb.busy() && !__wb.waiter() && !__wb.panel()"): break
+                if pg.evaluate("__wb.waiter() === 'choice' || __wb.waiter() === 'barrier'"): pg.evaluate("(() => { const o = __wb.options(); const k = o.findIndex((x) => x.id === 'age_keep'); __wb.choose(k >= 0 ? k : Math.max(0, o.findIndex((x) => !x.disabled))); })()")
+                if pg.evaluate("__wb.mode() === 'play' && !__wb.busy() && !__wb.waiter() && !__wb.panel()" + (" && !!__wb.state().flags.juno3" if act == 3 else "")): break
                 pg.evaluate("__wb.waiter() === 'line' && __wb.adv()")
                 if pg.evaluate("!!(__wb.panel() && __wb.panel().includes('today'))"): pg.evaluate("document.querySelector('#tgo').click()")
                 step(6, False); pg.wait_for_timeout(30)
             settings()
-            pg.evaluate("(() => { const S = __wb.state(); S.flags.decided = 1; S.flags.council = 1; S.flags.councilDone = 1; S.flags.remind = 1; S.min = 1200; for (const z of ['market', 'street', 'festival']) S.handled['1:' + z] = 1; S.handled['1:festival:f'] = 1; S.energy = 100; })()")
+            if sc == 'act2works':
+                # inside the Works with Unit at Dot's old desk, the lamps and plants of the soft lights; no card
+                pg.evaluate("(() => { const S = __wb.state(); S.flags.works2 = 1; S.flags.mail2 = 'done'; S.min = 560; __wb.G.run(() => __wb.G.enterRoom('works')); })()")
+                until("__wb.loc() === 'works' && !__wb.busy()", 60, 2)
+                step(30, False)
+                capture('act2works', lambda i: i == 30 and pg.evaluate("(() => { const r = __wb.G.rooms.works; if (r.burst) r.burst(2); })()"))
+                continue
+            pg.evaluate("(() => { const S = __wb.state(); S.flags.decided = 1; S.flags.council = 1; S.flags.councilDone = 1; S.flags.remind = 1; S.flags.square3 = 1; S.flags.conflict3 = 1; S.min = 1200; for (const z of ['market', 'street', 'festival', 'homerow', 'transit', 'commons', 'farend']) S.handled['1:' + z] = 1; S.handled['1:festival:f'] = 1; S.energy = 100; if (__wb.loc() !== 'town') __wb.tp([30, 34]); })()")
             until("!!__wb.state().flags.festival && __wb.mode() === 'play' && !__wb.busy()", 180, 6)
             step(30, False)
-            capture('act2fest')
+            capture(sc)
     print('errors', errs[:6])
     b.close()
 

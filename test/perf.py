@@ -2,7 +2,10 @@
 # the same places every run), reads __wb.perf() over several freshly rendered frames in each, and checks the budgets.
 # Then it visits every scene a second time and fails if any shader program compiles after that warm-up, or if starting
 # the festival compiles any. Prints a table, then one JSON line with every number; exits 1 on any failure.
-# usage: python3 test/perf.py [high] [low] [--seed N] [--html PATH] [--shots DIR] [--env] [--report]
+# The return visits (Acts 2 and 3) load by a reload, as in the game; each is measured the same way: the square at noon,
+# the Works during the shift (Act 2, with Unit), the meeting, and the festival (the arrival shot and the follow camera).
+# usage: python3 test/perf.py [high] [low] [--seed N] [--html PATH] [--shots DIR] [--env] [--report] [--act1]
+#   --act1      only the first visit (skip Acts 2 and 3)
 #   high / low  which quality to measure (default: both, one after the other)
 #   --html      the build to measure (default: ../dist/who-bends.html next to this file)
 #   --shots     save a screenshot of every scene into DIR
@@ -18,10 +21,11 @@ def opt(name, default):
     if name in argv: i = argv.index(name); v = argv[i + 1]; del argv[i:i + 2]; return v
     return default
 SEED = int(opt('--seed', 5)); HTML = os.path.abspath(opt('--html', os.path.join(HERE, '..', 'dist', 'who-bends.html'))); SHOTS = opt('--shots', None)
-ENV = '--env' in argv; REPORT = '--report' in argv
+ENV = '--env' in argv; REPORT = '--report' in argv; LATER = [] if '--act1' in argv else [2, 3]
 QUALITIES = [a for a in argv if a in ('high', 'low')] or ['high', 'low']
 # hall_meeting is the Hall with the meeting's audience (as first measured); hall_council adds the council and every backer
 BUDGET = {'square_noon': 150, 'works_shift': 150, 'hall_meeting': 150, 'hall_council': 150, 'festival_arrival': 200, 'festival_follow': 200}
+for n in (2, 3): BUDGET.update({'a%d_square' % n: 150, 'a%d_works' % n: 150, 'a%d_council' % n: 150, 'a%d_festival_arrival' % n: 200, 'a%d_festival_follow' % n: 200})
 SAMPLES, GAP_MS = 8, 220
 
 # a seeded Math.random: crowd spots, blink timers and wander targets come out the same on every run
@@ -87,7 +91,8 @@ def run(q):
             while (time.time() - t0) * 1000 < ms:
                 w = ev('__wb.waiter()')
                 if w == 'line': ev('__wb.adv()')
-                elif w == 'barrier': ev('__wb.choose(4)')
+                elif w == 'barrier': ev("__wb.choose(4) || __wb.choose(Math.max(0, __wb.options().findIndex((o) => !o.disabled)))")
+                elif w == 'choice': ev("__wb.choose(Math.max(0, __wb.options().findIndex((o) => !o.disabled)))")
                 pg.wait_for_timeout(100)
 
         def measure(name):
@@ -158,6 +163,59 @@ def run(q):
         res['programs_end'] = progs()
         res['second_visit_calls'] = {k: v['calls'] for k, v in second.items() if not k.startswith('_')}
         res['second_visit_festival_start_programs'] = second['_festival_start_programs']
+
+        def play_on(js, timeout=150):
+            # lines advance, choices and cards take their first open option, the today card starts the day
+            t0 = time.time()
+            while time.time() - t0 < timeout:
+                if ev(js): return True
+                w = ev('__wb.waiter()')
+                if w == 'line': ev('__wb.adv()')
+                elif w in ('choice', 'barrier'): ev("__wb.choose(Math.max(0, __wb.options().findIndex((o) => !o.disabled)))")
+                if ev("!!(__wb.panel() && __wb.panel().includes('today'))"): ev("document.querySelector('#tgo').click()")
+                pg.wait_for_timeout(80)
+            raise TimeoutError(js)
+
+        def later(n):
+            # one return visit: the square, the Works (Act 2), the meeting and the festival, with the story held still
+            out = {}; P = 'a%d_' % n
+            ev("""(() => { const G = __wb.G, S = __wb.state(), R = G.story.ret; G.busy++;
+                if (R && R.drone) { R.drone.parent && R.drone.parent.remove(R.drone); R.drone = null; }
+                S.flags.festival = 0; G.town.setFestival(false); S.min = 735; G.run2(async () => { if (G.loc !== 'town') await G.exitRoom(); __wb.tp([30, 30]); }); })()""")
+            play_on("__wb.loc() === 'town'", 60); settle(3000); ev('__wb.state().min = 735'); out[P + 'square'] = measure(P + 'square')
+            if n == 2:
+                ev("(() => { const G = __wb.G; __wb.state().min = 600; G.run2(() => G.enterRoom('works')); })()")
+                play_on("__wb.loc() === 'works'", 60); settle(2500); ev('__wb.state().min = 600'); out[P + 'works'] = measure(P + 'works')
+            # the meeting at six: the council at the dais, five backers on the benches, you at the lectern
+            ev("""(() => { const G = __wb.G, S = __wb.state(); S.min = 1080; S.flags.council = 1; S.flags.remind = 1;
+                S.support = Object.assign({}, S.support, { _perf: ['bea', 'moss', 'wren', 'gil', 'rue'] });
+                G.run2(async () => { if (G.loc !== 'town') await G.exitRoom(); await G.enterRoom('hall'); G.place(G.rooms.hall.spots.lectern); G.placeCouncil(); }); })()""")
+            play_on("__wb.loc() === 'hall'", 60); settle(2500); ev('__wb.state().min = 1080'); out[P + 'council'] = measure(P + 'council')
+            ev("""(() => { const G = __wb.G, S = __wb.state(); delete S.support._perf; S.min = 1190; S.flags.councilDone = 1; S.flags.decided = 1;
+                for (const z of ['market', 'street', 'festival', 'homerow', 'transit', 'commons', 'farend', 'works', 'hall']) S.handled['1:' + z] = 1; S.handled['1:festival:f'] = 1;
+                G.run2(async () => { await G.exitRoom(); __wb.tp([30, 34.5]); }); })()""")
+            play_on("__wb.loc() === 'town'", 60); settle(1500); ev("__wb.tp([30, 30])"); settle(1500)
+            before = progs()
+            ev("(() => { const G = __wb.G; __wb.state().min = 1190; G.busy = 0; G.run(() => G.story.festival()); })()")
+            play_on("__wb.state().flags.festival && __wb.mode() === 'play' && !__wb.busy()", 90)
+            settle(1200); out['_festival_start_programs'] = progs() - before
+            ev("""(() => { const G = __wb.G, st = G.stage; G.busy++; G.place([30, 34.5]); G.player.heading = Math.PI;
+                st.shot(st.camPos.clone().set(30, 22, 54), st.camLook.clone().set(30, 1, 24), 40, 0.5, true); })()""")
+            settle(1500); out[P + 'festival_arrival'] = measure(P + 'festival_arrival')
+            ev("__wb.tp([30, 30])"); settle(2500)
+            out[P + 'festival_follow'] = measure(P + 'festival_follow'); ev('__wb.G.busy = Math.max(0, __wb.G.busy - 1)')
+            return out
+
+        res['later'] = {}
+        for n in LATER:
+            # Acts 2 and 3 start by a reload (the carry in storage), as in the game
+            ev("__wb.gotoAct(%d, { built: ['quiet', 'dim', 'ramp', 'lanterns'] })" % n)
+            pg.wait_for_timeout(1500); pg.wait_for_function('window.__wb && __wb.G && __wb.ret && __wb.ret()', timeout=150000)
+            play_on("__wb.mode() === 'play' && !__wb.busy() && !__wb.waiter() && !__wb.panel()", 240)
+            ev(HOOK)
+            a = later(n); w = progs(); b2 = later(n); e = progs()
+            res['later'][n] = {'scenes': a, 'programs_after_warmup': w, 'programs_end': e, 'second_visit_calls': {k: v['calls'] for k, v in b2.items() if not k.startswith('_')},
+                               'festival_start': a['_festival_start_programs'], 'festival_start_again': b2['_festival_start_programs']}
         b.close()
     return res
 
@@ -180,6 +238,20 @@ def main():
         print('%-7s  shader programs: %d after warm-up, %d after visiting everything again (+%d); starting the festival compiled %d' % (q, r['programs_after_warmup'], r['programs_end'], grow, fs))
         if grow > 0: fail.append('%s: %d shader programs compiled after warm-up' % (q, grow))
         if fs > 0: fail.append('%s: starting the festival compiled %d shader programs' % (q, fs))
+        for n, L in r.get('later', {}).items():
+            for k, v in L['scenes'].items():
+                if k.startswith('_'): continue
+                over = v['calls'] > BUDGET[k]
+                table[q][k] = {x: v[x] for x in ('calls', 'budget', 'calls_min', 'main', 'shadow', 'post', 'programs', 'creatures', 'forms')}
+                print('%-7s  %-17s  %5d  %6d  (%4d  %5d  %6d  %4d)  %9d  %-24s  %8d  %s' % (q, k, v['calls'], BUDGET[k], v['calls_min'], v['main'], v['shadow'], v['post'], v['creatures'], json.dumps(v['forms'], separators=(',', ':')), v['programs'], 'OVER' if over else 'ok'))
+                if over: fail.append('%s %s: %d draw calls > %d' % (q, k, v['calls'], BUDGET[k]))
+            for k, v in L['second_visit_calls'].items():
+                if v > BUDGET[k]: fail.append('%s %s (second visit): %d draw calls > %d' % (q, k, v, BUDGET[k]))
+            g2 = L['programs_end'] - L['programs_after_warmup']
+            table[q]['programs_act%d' % n] = {'after_warmup': L['programs_after_warmup'], 'after_second_visit': L['programs_end'], 'festival_start': L['festival_start'], 'festival_start_again': L['festival_start_again']}
+            print('%-7s  act %d shader programs: %d after warm-up, %d after visiting everything again (+%d); starting the festival compiled %d, then %d' % (q, n, L['programs_after_warmup'], L['programs_end'], g2, L['festival_start'], L['festival_start_again']))
+            if g2 > 0: fail.append('%s act %d: %d shader programs compiled after warm-up' % (q, n, g2))
+            if L['festival_start'] > 0: fail.append('%s act %d: starting the festival compiled %d shader programs' % (q, n, L['festival_start']))
         if r['errors']: fail.append('%s: page errors %s' % (q, r['errors'][:3]))
     table['seed'] = SEED; table['pass'] = not fail
     print(json.dumps(table))

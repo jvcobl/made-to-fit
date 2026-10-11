@@ -102,14 +102,20 @@ export class Return {
     return false;
   }
   // your body braces before you notice: keep it (it's what you do here) or let it go
+  // (kept, it is this place's answer for the day, as a habit is on the first visit: returns 'bend'; let go, the place
+  // can still ask who adjusts)
   async carriedHabit(zone) {
-    const G = this.G, S = this.S, st = this.st; if (S.flags.habitCarried || S.carryHabit !== zone) return;
+    const G = this.G, S = this.S, st = this.st; if (S.flags.habitCarried || S.carryHabit !== zone) return null;
     S.flags.habitCarried = 1;
     const dimNote = zone === 'works' && S.fixes.dim === 'built' ? ' The room is dim now.' : '';
-    const k = await st.choose([{ t: 'OK', sub: 'it is what you do here', id: 'habit_ok' }, { t: 'Not today', sub: 'notice it, and let it go', id: 'habit_no' }], { text: 'You braced before you noticed.' + dimNote, kind: 'gut' });
-    if (k === 0) { SIM.bendCost(S, false); S.stats.bend++; S.masking = true; S.maskZone = zone; st.log('habit', { z: zone, v: 'bend', by: 'habit', pay: ['you'], dir: 'over' }); st.fieldNote('habits'); }
+    const k = await st.choose([{ t: 'OK', sub: 'it is what you do here. −4 energy; the pinch stays, hidden.', id: 'habit_ok' }, { t: 'Not today', sub: 'notice it, and let it go', id: 'habit_no' }], { text: 'You braced before you noticed.' + dimNote, kind: 'gut' });
+    if (k === 0) {
+      SIM.bendCost(S, false); S.stats.bend++; S.masking = true; S.maskZone = zone; S.handled[S.day + ':' + zone + (zone === 'festival' ? ':f' : '')] = 1;
+      st.log('habit', { z: zone, v: 'bend', by: 'habit', pay: ['you'], dir: 'over', verb: 'You braced before you noticed, the way you used to here.' }); st.fieldNote('habits');
+    }
     else { S.carryHabit = 'none'; S.pushHabit = 'none'; await st.gut('You let your shoulders drop. ' + (this.act === 3 ? 'Twenty' : 'Ten') + ' years is a long time to brace for something.'); }
     st.ui.hideDialog();
+    return k === 0 ? 'bend' : null;
   }
   // a day spent: you sleep it off at home, and the evening still happens
   async exhausted() {
@@ -144,13 +150,16 @@ export class Return {
   propose(f, by) {
     const S = this.S, st = this.st; const cur = SIM.fixState(S, f); const F = SIM.FIXES[f];
     if (!['none', 'onfile', 'idea'].includes(cur)) return false;
+    // after the meeting there is no tonight: it waits on file for next year
+    if (S.flags.councilDone) { S.fixes[f] = 'onfile'; st.ui.toast('<b>' + F.name + '</b><br>The meeting is over for this year. It goes on file.', '', 4800); return false; }
     if (SIM.approvedCount(S) >= SIM.SEASON_CAP) { S.fixes[f] = 'onfile'; st.ui.toast('<b>' + F.name + '</b><br>That would be a third fix this year. It goes on file.', '', 4800); return false; }
     S.fixes[f] = 'proposal'; S.support[f] = S.support[f] || []; if (by && !S.support[f].includes(by)) S.support[f].push(by);
     if (S.support[f].length >= 2) S.fixes[f] = 'ready';
     S.stakes = S.stakes || {}; S.stakeDue = S.stakeDue || {}; if (S.stakes[f] !== 'listened') S.stakeDue[f] = S.day * 1440 + Math.round(S.min) + 30;
     S.flags.idea_any = true; st.fieldNote('ud');
-    const need = F.backers.filter((b) => !S.support[f].includes(b));
-    st.ui.toast(`<b>New proposal</b><br>${F.name}<br>${S.fixes[f] === 'ready' ? 'It has its two backers. Tonight at six.' : 'One more backer: try ' + CAST[need[0]].name + '. Tonight at six.'}`, 'idea', 5600);
+    const need = F.backers.filter((b) => !S.support[f].includes(b)).map((b) => CAST[b].name); const left = 2 - S.support[f].length;
+    const msg = S.fixes[f] === 'ready' ? 'It has its two backers. Tonight at six.' : left >= 2 && need.length >= 2 ? 'Two backers by six: try ' + need[0] + ' and ' + need[1] + '.' : need.length ? 'One more backer: try ' + need[0] + '. Tonight at six.' : 'It needs backers by six.';
+    st.ui.toast(`<b>New proposal</b><br>${F.name}<br>${msg}`, 'idea', 5600);
     return true;
   }
   // places whose card today is the visit's own scene, not the everyday one

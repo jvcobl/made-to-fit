@@ -23,14 +23,17 @@ export const CAUSES = {
 const BLEND_ALSO = ['Blend suggests the line most people would say.', 'It pays the same points whoever you are talking to.'];
 // a fixed shot of each place (exterior), for the moment's card
 const SHOTS = {
+  ramp: [[8.0, 7.0, 20.0], [15.0, 0.0, 14.5]],
   market: [[30, 14, 44], [30, 1, 26]], transit: [[62, 9, 34], [53, 1, 24]], commons: [[52, 12, 27], [50, 1, 10]], farend: [[52, 10, 54], [50, 1, 42]],
   homerow: [[14, 10, 50], [14, 1, 37]], street: [[30, 12, 36], [30, 1, 24]], festival: [[30, 14, 44], [30, 1, 26]],
 };
-const STAND = { market: [28.6, 27.8], transit: [52.6, 25.6], commons: [49.5, 12.8], farend: [48.5, 41.5], homerow: [13.8, 38.2], street: [30, 33.5], festival: [28.6, 27.8] };
+const STAND = { ramp: [17.4, 12.6], market: [28.6, 27.8], transit: [52.6, 25.6], commons: [49.5, 12.8], farend: [48.5, 41.5], homerow: [13.8, 38.2], street: [30, 33.5], festival: [28.6, 27.8] };
 const DIM_WORD = { light: ['too bright', 'too dim'], sound: ['too loud', 'too quiet'], people: ['too crowded', 'too lonely'], talk: ['full of hints', 'too blunt'], time: ['too late in your day', 'too early in your day'], change: ['full of surprises', 'too rigid'] };
 // what you did, said plainly
 function verbLine(r) {
   const who = (id) => (CAST[id] ? CAST[id].name : id);
+  // a scene that knows exactly what you did says so in its own words
+  if (r.verb) return r.verb;
   if (r.k === 'barrier' && r.turn) return 'Juno asked you. ' + ({ bend: 'You asked Juno to push through.', gear: 'You lent Juno your gear.', ask: 'You changed your own rule.', fix: 'You redesigned it together.', leave: 'You did nothing, and Juno went.' }[r.v] || '');
   if (r.k === 'choice') return { coop: 'You made the Shed a co-op. Ines left for the city.', nocoop: 'You kept the Shed as it was. Gil and Rue stayed on without a vote.', fund_yes: 'You took the Founders\' Fund\'s money, with its strings.', fund_no: 'You turned down the Fund\'s money. The repairs wait a year.', moved: 'You helped Moss move to the Far End.', mossbid: 'You let Moss bid like everyone else.', disclosed: 'You said you lived on Home Row, and then you judged it.', recused: 'You stepped back. Gil will judge it next season.', quietly: 'You judged the quiet zone on your own street, and said nothing about your house.', against: 'You recommended against a quiet zone on your own street.' }[r.v] || '';
   if (r.k === 'barrier') {
@@ -39,7 +42,7 @@ function verbLine(r) {
     if (r.v === 'restore') return r.by === 'gil' ? 'Gil put the room back to the spec, for the machine.' : 'You put the room back to the spec, for the machine.';
     if (r.v === 'hurry') return 'You took Bea\'s arm and hurried her across.';
     if (r.v === 'wait') return 'You walked at Bea\'s pace, and the van waited.';
-    if (r.v === 'none') return 'You let Bea be. She went round by the bakery.';
+    if (r.v === 'none') return 'You let Bea be. She finished crossing alone.';
     if (r.v === 'fit') return 'The kiosk heard you the first time.';
     if (r.v === 'stand') return 'You stood with Tomas until the bot moved.';
     if (r.v === 'ring') return 'You rang the bot\'s bell for Tomas.';
@@ -86,12 +89,14 @@ export function pickMoments(S, n) {
 // what you faced: the place, the hour, and what you had to work with
 function faced(S, r) {
   const out = [];
-  const z = ZONES.find((q) => q.id === r.z); const place = z ? z.name : { works: 'The Works', hall: 'Town Hall', home: 'Home', street: 'The street', festival: 'The festival' }[r.z] || 'Larkspur';
+  const z = ZONES.find((q) => q.id === r.z); const place = z ? z.name : { works: 'The Works', hall: 'Town Hall', home: 'Home', street: 'The street', festival: 'The festival', ramp: 'The Works ramp' }[r.z] || 'Larkspur';
   out.push(place + ', ' + ((S.act || 1) > 1 ? 'festival day,' : ['', 'Monday', 'Tuesday', 'Wednesday'][r.d]) + ' ' + fmtTime(r.m) + '.');
-  if (r.dim && DIM_WORD[r.dim]) out.push('It was ' + DIM_WORD[r.dim][r.dir === 'under' ? 1 : 0] + ' for you.');
+  // what the scene says was going on (someone else's pinch, not yours), or else how the place sat with you
+  if (r.why) out.push(r.why);
+  else if (r.dim && DIM_WORD[r.dim]) out.push('It was ' + DIM_WORD[r.dim][r.dir === 'under' ? 1 : 0] + ' for you.');
   const f = r.f || {};
   if (f.e != null) out.push(f.e < 25 ? 'You were running on empty.' : f.e < 50 ? 'You were low on energy.' : 'You had energy to spare.');
-  if (r.dim === 'sound' || (r.dim === 'light' && r.dir !== 'under')) out.push(f.gear === 'none' ? 'You had no gear for it yet. Moss sells some.' : f.gear === 'own' ? 'Your gear was in your bag.' : 'You already had your gear on.');
+  if (!r.why && (r.dim === 'sound' || (r.dim === 'light' && r.dir !== 'under'))) out.push(f.gear === 'none' ? 'You had no gear for it yet. Moss sells some.' : f.gear === 'own' ? 'Your gear was in your bag.' : 'You already had your gear on.');
   if (f.burn) out.push('You had woken up heavy that day.');
   if (r.k === 'barrier' && f.owner === '' && f.off >= 2) out.push('Nobody in charge was there to ask.');
   return out.slice(0, 4);
@@ -129,7 +134,8 @@ export async function whoDecided(story) {
     if (r.z === 'works' || r.z === 'hall') { G.setLoc(r.z); G.place(G.rooms[r.z].spawn); const c = G.roomCam(r.z); G.stage.shot(c.pos, c.look, c.fov, 3, true); }
     else { if (G.loc !== 'town') G.setLoc('town'); const sp = STAND[r.z] || STAND.street; G.place(sp); const sh = SHOTS[r.z] || SHOTS.street; G.stage.shot(new THREE.Vector3(...sh[0]), new THREE.Vector3(...sh[1]), 36, 3, true); }
     await G.stage.fadeTo(0, 500);
-    const pay = (r.pay || []).map((id) => ({ id, name: id === 'you' ? 'You' : CAST[id] ? CAST[id].name : id, img: id === 'you' ? G.portraitOf(S.look, { bg: '#efe6d6', w: 120, h: 120 }) : CAST[id] ? G.portraitOf(CAST[id].look, { bg: '#efe6d6', w: 120, h: 120 }) : '' }));
+    // (a voice on the phone, or a machine, has no face to draw: a silhouette)
+    const pay = (r.pay || []).map((id) => ({ id, name: id === 'you' ? 'You' : CAST[id] ? CAST[id].name : id, img: id === 'you' ? G.portraitOf(S.look, { bg: '#efe6d6', w: 120, h: 120 }) : CAST[id] && CAST[id].look ? G.portraitOf(CAST[id].look, { bg: '#efe6d6', w: 120, h: 120 }) : '' }));
     const causes = Object.assign({}, CAUSES, (story.ret && story.ret.causes()) || {});
     const k = await ui.decidedCard({ n: i + 1, of: moments.length, faced: faced(S, r), also: r.k === 'default' ? BLEND_ALSO : causes[r.z] || CAUSES.street, verb: verbLine(r), pay, first: i === 0 });
     if (k === 'skip') skip = true;

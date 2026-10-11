@@ -3,8 +3,10 @@
 
 // ---------- talk: what people say to you, ten years on ----------
 export const TALK2 = {
-  gil: [{ who: 'gil', t: 'You came back! Festival mail\'s on. Dot\'s old desk is yours for the morning. Dot runs the archive now. She has a lamp the size of a sunflower.' }],
+  gil: [{ who: 'gil', t: 'You came back! Festival mail\'s on. Your old desk is free for the morning. Unit has Dot\'s. Dot runs the archive now. She has a lamp the size of a sunflower.' }],
   gilAfter: [{ who: 'gil', t: 'Festival mail, done. Every year I say "never again". Every year: again.' }],
+  gilMissed: [{ who: 'gil', t: 'Mail\'s out. Unit and I managed. No hard feelings. Kettle\'s still warm.' }],
+  gilLeft: [{ who: 'gil', t: 'Unit and I have the mail. No hard feelings. Kettle\'s on, if you want it.' }],
   pip: [
     { who: 'pip', t: 'You\'re back! Want a bun? Everyone wants a bun. Blend\'s top-ten list says buns.' },
     { note: 'Where the rye used to be, a heart-shaped sign: TOP 10 THIS WEEK.' },
@@ -53,15 +55,16 @@ export const TALK2 = {
   hollisAgain: [{ who: 'hollis', t: 'Onward, upward, and slightly to the left, as ever.' }],
   pomeroy: [{ who: 'pomeroy', t: 'APPLES! Ten years and I still haven\'t found my inside voice. I\'ve stopped looking.' }, { do: ['energy+4'] }],
   tomas: [{ who: 'tomas', t: 'Tomas. Mail room. Festival mail week: people write each other letters like it\'s a hundred years ago. Best week of the year.' }],
-  ada: [{ who: 'ada', t: 'Ada. I started in the spring. I like it dim, so I sit by the plants. The plants like it dim too.' }],
+  ada: [{ if: 'fix.dim=built', go: 'plants' }, { who: 'ada', t: 'Ada. I started in the spring. I like it dim, so I wear my cap indoors. Nobody\'s said anything yet.' }, { end: true },
+    { label: 'plants' }, { who: 'ada', t: 'Ada. I started in the spring. I like it dim, so I sit by the plants. The plants like it dim too.' }],
   marta: [{ who: 'marta', t: 'Marta. I drive the van. The app says I\'m four minutes late. The app has never driven a van.' }],
 };
 
 // what Juno brings: your fix, where it is, what pinches, and what Juno says
 export const JUNO_CARD = {
-  quiet: { zone: 'market', dim: 'sound', at: [23.5, 31.2], says: 'The quiet corner. Your corner, they say. I play drums. I need noise like you need quiet, and the only bench in the shade is in your corner.', rule: 'Fridays, the corner can be loud', redesign: 'A loud corner too, at the other end of the square, by the apples', fixCost: 'The apple end gets loud on Fridays, and Bao\'s stall is there' },
-  dim: { zone: 'works', dim: 'light', at: [-3.0, 2.2], loc: 'works', says: 'I started at the Works on Monday. It\'s so dim. I can\'t read my own handwriting. They say the soft lights were yours.', rule: 'Panels up at the new desks', redesign: 'A bright row by the windows, and the soft lights everywhere else', fixCost: 'Two desks by the windows move, and one of them is Ada\'s' },
-  lanterns: { zone: 'homerow', dim: 'people', at: [9.5, 37.4], says: 'Everyone\'s porch light on Home Row is amber. I moved in next door to you. I\'d like company, and I can\'t tell who else would. They say the lanterns were yours.', rule: 'Teal unless you say otherwise', redesign: 'A third colour: knock, I\'m happy to be asked', fixCost: 'Wren makes the new lanterns, at the price on her sign, and the Shed pays' },
+  quiet: { zone: 'market', dim: 'sound', at: [23.5, 31.2], says: 'The quiet corner. Your corner, they say. I play drums. I need noise like you need quiet, and the only bench in the shade is in your corner.', rule: 'Fridays, the corner can be loud', redesign: 'A loud corner too, at the other end of the square, by the apples', fixCost: 'The apple end gets loud on Fridays, and Bao and Lin\'s dumpling cart is there' },
+  dim: { zone: 'works', dim: 'light', at: [-3.0, 2.2], loc: 'works', says: 'I started at the Works on Monday. It\'s so dim. I can\'t read my own handwriting. They say the soft lights were yours.', rule: 'Panels up at the new desks', redesign: 'A bright row by the windows, and the soft lights everywhere else', fixCost: 'Two desks by the windows move, and the people at them liked the shade' },
+  lanterns: { zone: 'homerow', dim: 'people', at: [9.5, 37.4], says: 'Everyone\'s porch light on Home Row is amber. I moved in next door to you. I\'d like company, and I can\'t tell who else would. They say the lanterns were yours.', rule: 'Teal unless you say otherwise', redesign: 'A third colour: knock, I\'m happy to be asked', fixCost: 'Wren makes the new lanterns, at the price on Wren\'s sign, and the Shed pays' },
   plain: { zone: 'works', dim: 'talk', at: [-7.0, 1.2], loc: 'works', says: 'The Works notes say exactly who does what by when. It feels like being told off, every Monday. They say the plain notes were yours.', rule: 'A friendlier line at the top of each note', redesign: 'Plain notes, and a chat after, for anyone who likes one', fixCost: 'Monday meetings run longer, for everyone' },
   bench: { zone: 'market', dim: 'people', at: [30, 26.8], says: 'The benches round the statue are the Standard\'s height. My feet don\'t touch the ground. Nobody ever changed them. You keep the Shed now.', rule: 'One lower bench, by the statue', ruleSub: 'The Shed\'s budget pays, so the roof waits a month', askLabel: 'Put in a lower bench', tag: 'the Shed decides now', redesign: 'Benches at three heights, round the statue', fixCost: 'The Shed\'s budget pays, so the roof waits a year' },
 };
@@ -69,11 +72,12 @@ export const JUNO_CARD = {
 export const TALK3 = {
   clover: [{ who: 'clover', t: 'Retired. It suits me. I still drop in at the Shed every day, to make sure it doesn\'t need me.' }],
   gil: [{ who: 'gil', t: 'I came in to help and I\'ve made four cups of tea. Nobody asked for tea. Everyone drank it.' }],
-  rue: [{ if: 'rue=easing', go: 'e' }, { who: 'rue', t: 'They made me head of measures at Blend. Then I measured myself. I quit in the spring.' }, { who: 'rue', t: 'I run plain-notes workshops now. People come in scared of a pen. They leave with a list.' }, { do: ['note.recovery'] }, { end: true },
+  rue: [{ if: 'rue=easing', go: 'e' }, { who: 'rue', t: 'They made me head of measures at Blend. Then I measured myself. I quit in the spring.' }, { who: 'rue', t: 'I run plain-notes workshops now. People come in scared of a pen. They leave with a list.' }, { who: 'rue', t: 'I\'m on the council too, these days. I ask who things cost. Out loud.' }, { do: ['note.recovery'] }, { end: true },
     { label: 'e' }, { who: 'rue', t: 'I\'m drawing again. Mornings are mornings. Some are bad. That\'s allowed.' }, { who: 'rue', t: 'I run plain-notes workshops, and I\'m on the council now. Somebody has to ask who it costs.' }, { do: ['note.recovery'] }],
   ines: [{ who: 'ines', t: 'The hinges are in the second drawer. Clover told you that. She tells everyone that.' }],
   pip: [{ who: 'pip', t: 'Twenty years of buns! Want one? It\'s a festival bun. It\'s the same bun with a flag in it.' }, { if: 'w.rye_bought', go: 'rye' }, { end: true }, { label: 'rye' }, { who: 'pip', t: 'The rye is back, by the way. You asked for one when nobody hearted it. I thought about that.' }],
-  moss: [{ who: 'moss', t: 'Still pouring. Sit, if you like. The stool remembers you.' }, { do: ['energy+8', 'self+2'] }],
+  moss: [{ who: 'moss', t: 'Still pouring. Sit, if you like. The stool remembers you.' }, { do: ['energy+8', 'self+2'] },
+    { ask: [{ t: 'Still got things under the counter?', go: 'shop', id: 'moss3_shop' }, { t: 'Just the tea, thanks.', tag: 'warm', id: 'moss3_tea' }] }, { end: true }, { label: 'shop' }, { who: 'moss', t: 'Always, love. Headphones, shades. Same as ever. Better batteries.' }, { call: 'shop' }],
   bea: [{ who: 'bea', t: 'Festival soup for three hundred. I\'m in charge of the ladle. Nobody argues with the ladle.' }],
   wren: [{ who: 'wren', t: 'One hundred and twelve lanterns. Twenty years. I still count. Counting is not the same as worrying. Mostly.' }],
   hollis: [{ who: 'hollis', t: 'Still mayor! Nobody else would take the hat.' }],

@@ -13,7 +13,7 @@ export const TITLES = {
   movedon: { title: 'Moved On', text: 'You found the places that fit and stopped going to the ones that did not. The town kept its shape. You kept yours.' },
   known: { title: 'Known', text: 'People here started adjusting before you asked. You started doing it back.' },
   island: { title: 'The Island', text: 'You found your people and the places you could share. The rest of Larkspur stayed exactly as it was.' },
-  working: { title: 'Still Working It Out', text: 'Some days you bent, some days you asked, some days you just went home. Most people\'s first weeks look like this.' },
+  working: { title: 'Still Working It Out', text: 'Some days you bent, some days you asked, some days you just went home. Most people\'s first weeks look like this.', later: 'Sometimes you bent, sometimes you asked, sometimes you just went home. Most festival days look like this.' },
 };
 const ZONE_NAME = { works: 'The Works', market: 'The market', transit: 'The bus stop', commons: 'The Commons', farend: 'The Far End', homerow: 'Home Row', hall: 'The hall', street: 'The street', festival: 'The festival' };
 const STAYED = { works: 'stayed bright', market: 'stayed loud', transit: 'kept changing without a word', commons: 'stayed open and glaring', farend: 'stayed very still', homerow: 'kept its knockers and no signs', hall: 'stayed full and formal', street: 'kept the Standard\'s pace', festival: 'stayed full' };
@@ -60,8 +60,13 @@ export function remember(S, rueState, extra) {
   const out = (extra || []).slice();
   for (const f of Object.keys(SIM.FIXES)) {
     const st = S.fixes[f]; const F = SIM.FIXES[f]; const T = STAKES[f]; const l = (S.stakes || {})[f] === 'listened';
-    if (st === 'built') out.push('The ' + F.short + ' ' + SIM.agree(f, 'is', 'are') + ' up' + (l ? ', ' + T.variantName : '') + '. ' + cap(l ? T.lessLoss : T.loses));
+    // "the counter hours are in place" (not "up", which reads as time running out); a fix from an earlier visit is
+    // simply still there (whoever lost something for it was told at the time, and may not live here any more)
+    const up = F.inplace ? 'in place' : 'up'; const older = (S.act || 1) > 1 && ((S.fixAct || {})[f] || 1) < (S.act || 1);
+    if (st === 'built' && older) out.push('The ' + F.short + ' ' + SIM.agree(f, 'is', 'are') + ' still ' + up + '.');
+    else if (st === 'built') out.push('The ' + F.short + ' ' + SIM.agree(f, 'is', 'are') + ' ' + up + (l ? ', ' + T.variantName : '') + '. ' + cap(l ? T.lessLoss : T.loses));
     else if (st === 'approved') out.push('The ' + F.short + ' ' + SIM.agree(f, 'goes', 'go') + ' up on Thursday' + (l ? ', ' + T.variantName : '') + '. ' + cap(l ? T.lessLoss : T.loses));
+    else if (st === 'onfile' && S.fixRestored === f) out.push('The ' + F.short + ' came down for Unit. ' + SIM.agree(f, 'It is', 'They are') + ' on file again.');
     else if (['proposal', 'ready', 'onfile', 'tabled'].includes(st)) out.push('Your idea for the ' + F.short + ' is on file for next season.');
   }
   if ((S.w || {}).wren_paid) out.push('Wren was paid for the porch lanterns, at the price on the sign.');

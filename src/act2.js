@@ -15,6 +15,8 @@ import { TALK2 } from './talk23.js';
 
 const T = { works: [12, 13.6], hall: [32, 14.2], crossing: [45.9, 21.3], square: [30, 30], shed: [52, 12.6], bakery: [22.3, 20.6], lounge: [38.4, 29.1], farend: [50, 42.4] };
 const ob = (t, at, label, extra) => Object.assign({ t, at: at || null, label: label || '' }, extra || {});
+// "the board, the ramp and the lanterns"
+const LIST = (xs) => (xs.length > 1 ? xs.slice(0, -1).join(', ') + ' and ' + xs[xs.length - 1] : xs[0] || '');
 
 
 // people's looks, ten years on: accessories, never numbers
@@ -27,7 +29,7 @@ async function works(R) {
   S.flags.works2 = 1;
   await G.enterRoom('works');
   // a habit you brought from ten years ago: your body braces at the door before you notice
-  await R.carriedHabit('works');
+  const habit = await R.carriedHabit('works');
   G.npcTo('gil', [-2.4, 3.4]); G.talkFrame('gil'); ui.letterbox(true);
   await st.run(TALK2.gil, { npc: 'gil' });
   await st.say('gil', 'And this is Unit. Corporate sent it. It sorts mail. It was built from the founders\' building manual. Every page.');
@@ -46,10 +48,10 @@ async function works(R) {
     if (R.unit) R.unit.setScreen('');
     await st.gut('Unit hums at exactly the pitch of the ceiling panels. The room is still the way the manual drew it, and so it works.');
     ui.hideDialog(); ui.letterbox(false); G.endTalk();
-    const res = await st.barrier('works'); if (res === 'leave') { S.flags.mail2 = 'left'; st.saveNow('shift', S.day); return; }
+    const res = habit === 'bend' ? 'bend' : await st.barrier('works'); if (res === 'leave') { S.flags.mail2 = 'left'; st.saveNow('shift', S.day); return; }
   }
   if (mode === 'left') { st.saveNow('shift', S.day); return; }
-  // festival mail, at Dot's old desk, with Unit at the next one
+  // festival mail, at your old desk, with Unit at Dot's (the next one)
   G.walkTo(...G.rooms.works.spots.mydesk); await R.beat(600);
   const r = await new FestivalMail(G, { unitMode: mode }).run();
   const pay = mode === 'taught' ? 0 : 30; if (pay) { S.coins += pay; G.audio.sfx('coin'); ui.toast(`<b>+${pay} coins</b> for the festival mail`, 'good'); }
@@ -65,7 +67,7 @@ async function works(R) {
 function restoreWorks(R) {
   const S = R.S, G = R.G; S.w.unit_restored = 1;
   if (S.fixes.dim === 'built') { S.fixes.dim = 'onfile'; S.fixRestored = 'dim'; }
-  G.rooms.works.setDim(false); if (G.rooms.works.actLamps) G.rooms.works.actLamps.visible = false;
+  G.rooms.works.setDim(false); if (G.rooms.works.actLamps) G.rooms.works.actLamps.visible = false; G.town.setFix('dim', false);
 }
 // the turned card: who adjusts so the machine fits? (the columns are relabelled; the order is the same as ever)
 async function unitCard(R, o = {}) {
@@ -75,13 +77,13 @@ async function unitCard(R, o = {}) {
     { key: 'bend', who: 'You', label: 'Do the mail by hand', sub: 'Unit idles. −10 energy; the room stays as it is.', hold: true },
     { key: 'gear', who: 'The machine', label: 'Teach Unit the room', sub: '30 coins of your festival pay, and about an hour. It learns what you show it.' },
     o.noBell ? { key: 'ask', who: 'Them', label: 'Ring the call bell', disabled: true, reason: 'you rang. Sana had a script, and no button for this' } : { key: 'ask', who: 'Them', label: 'Ring Unit\'s call bell', sub: 'Someone, somewhere, minds it. It may take a while.' },
-    { key: 'fix', who: 'The place', label: 'Put the room back to the spec', sub: 'Panels up, lamps off. Unit sorts perfectly. You and Ada pinch.' },
-    { key: 'leave', who: 'Nobody', label: 'Step outside', sub: 'Gil decides, after you go. No festival pay for you.' },
+    { key: 'fix', who: 'The place', label: 'Put the room back to the spec', sub: 'Panels up, lamps off, and your soft lights go back on file. Unit sorts perfectly. You and Ada pinch.' },
+    { key: 'leave', who: 'Nobody', label: 'Step outside', sub: 'Gil decides, after you go, and Corporate wants the spec. No festival pay for you.' },
   ];
   const choice = await st.ui.barrier({ options, title: 'The Works, ten years on', text: 'The room has changed since the manual was written. The machine hasn\'t.', gut: o.noBell ? '' : 'Ten years ago the card asked who adjusts for you. Today it asks who adjusts for Unit.', notice: '', noticeLabel: '', coach: '' });
   st.ui.hideBarrier(); G.focusPinch(false);
   const row = { z: 'works', dim: 'machine', dir: 'over', f: { off: o.noBell ? 1 : 0, owner: 'gil' } };
-  if (choice === 'bend') { S.energy = clamp(S.energy - 10, 0, S.maxE); S.stats.bend++; st.log('barrier', Object.assign({ v: 'bend', pay: ['you'] }, row)); await st.say('gil', 'By hand. Like the old days. I\'ll put the kettle on.'); st.keep('mail_hand', 'Festival mail by hand, with Gil\'s kettle on', '#e2b34c'); st.ui.hideDialog(); return 'idle'; }
+  if (choice === 'bend') { S.energy = clamp(S.energy - 10, 0, S.maxE); S.stats.bend++; st.log('barrier', Object.assign({ v: 'bend', pay: ['you'], verb: 'You did the festival mail by hand. Unit idled.' }, row)); await st.say('gil', 'By hand. Like the old days. I\'ll put the kettle on.'); st.keep('mail_hand', 'Festival mail by hand, with Gil\'s kettle on', '#e2b34c'); st.ui.hideDialog(); return 'idle'; }
   if (choice === 'gear') {
     S.stats.fix++; S.w.unit_taught = 1; st.log('barrier', Object.assign({ v: 'teach', pay: ['you'] }, row));
     await st.say('gil', 'Teach it? Okay. Corporate takes it out of your festival pay. I\'m sorry. I asked.'); st.ui.hideDialog();
@@ -108,7 +110,7 @@ async function unitCard(R, o = {}) {
   }
   // nobody: you step out, and Gil decides
   S.stats.leave++; restoreWorks(R);
-  st.log('barrier', Object.assign({ v: 'leave', pay: ['you'] }, row)); st.log('barrier', { z: 'works', v: 'restore', by: 'gil', pay: ['ada'], dim: 'machine', dir: 'over' });
+  st.log('barrier', Object.assign({ v: 'leave', pay: ['you'], verb: 'You stepped outside, and Gil decided.' }, row)); st.log('barrier', { z: 'works', v: 'restore', by: 'gil', pay: ['ada'], dim: 'machine', dir: 'over' });
   S.flags.mail2 = 'left'; await G.exitRoom();
   await st.note('Through the glass, you watch Gil turn the panels back up. Unit starts sorting. Ada puts on her cap.'); st.ui.hideDialog();
   return 'left';
@@ -122,15 +124,15 @@ async function ramp(R) {
   G.talkFrame('tomas'); st.ui.letterbox(true);
   await st.say('tomas', 'I\'ll ring it. I always ring it. Stand where it can see two of us.');
   const k = await st.choose([
-    { t: 'Stand with him', sub: 'it sees two of you', id: 'ramp_stand' },
-    { t: 'Ring it for him', sub: 'if he wants', id: 'ramp_ring' },
+    { t: 'Stand with him', sub: 'a few minutes of yours; it sees two of you', id: 'ramp_stand' },
+    { t: 'Ring it for him', sub: 'quick; it\'s his bell, and he usually rings it', id: 'ramp_ring' },
     { t: 'Ask Gil about a passing bay, with him', sub: 'a proposal: bots pull in, people go first, and Pip\'s flour waits', id: 'ramp_bay' },
     { t: 'Leave him to it', sub: 'he\'s done this before', id: 'ramp_leave' },
   ]);
-  const row = { z: 'works', dim: 'bots', dir: 'over' };
-  if (k === 0) { await st.note('The bot considers the two of you. Then it reverses up the ramp, very slowly, like a cat leaving a room on purpose.'); await st.say('tomas', 'Two of us. It respects a crowd.'); st.log('barrier', Object.assign({ v: 'stand', by: 'tomas', pay: ['you', 'tomas'] }, row)); st.addBond('tomas', 1); }
+  const row = { z: 'ramp', dim: 'bots', dir: 'over' };
+  if (k === 0) { G.advance(5); await st.note('The bot considers the two of you. Then it reverses up the ramp, very slowly, like a cat leaving a room on purpose.'); await st.say('tomas', 'Two of us. It respects a crowd.'); st.log('barrier', Object.assign({ v: 'stand', by: 'tomas', pay: ['you', 'tomas'] }, row)); st.addBond('tomas', 1); }
   else if (k === 1) { await st.say('tomas', 'Go on, then. It answers anyone.'); await st.note('You press the bot\'s little bell. It beeps, thinks, and backs away.'); st.log('barrier', Object.assign({ v: 'ring', by: 'you', pay: ['tomas'] }, row)); }
-  else if (k === 2) { await st.say('tomas', 'With me. Not for me. All right.'); R.propose('bay', 'gil'); await st.say('gil', 'A bay? Paint and a sign. I can do paint and a sign. It needs the meeting, though. Six o\'clock.'); st.log('barrier', Object.assign({ v: 'fix', pay: [] }, row)); }
+  else if (k === 2) { await st.say('tomas', 'With me. Not for me. All right.'); R.propose('bay', 'gil'); await st.say('gil', 'A bay? Paint and a sign. I can do paint and a sign. It needs the meeting, though. Six o\'clock.'); st.log('barrier', Object.assign({ v: 'fix', pay: [], verb: 'You and Tomas asked Gil about a passing bay, for tonight.' }, row)); }
   else { await st.say('tomas', 'I\'ve done this a hundred times. Go on.'); st.log('barrier', Object.assign({ v: 'leave', pay: ['tomas'] }, row)); }
   await st.say('tomas', 'Festival mail week. People write each other letters like it\'s a hundred years ago. Best week of the year.');
   st.ui.hideDialog(); st.ui.letterbox(false); G.endTalk(); G.npcTo('tomas', null);
@@ -168,22 +170,22 @@ async function kioskCard(R, o = {}) {
     { key: 'bend', who: 'You', label: 'Say it again, slower and flatter', sub: 'Sound like the voice it learned from. −4 energy.', hold: true },
     { key: 'gear', who: 'Your gear', label: 'Type it on your phone, and scan it', sub: 'Slow thumbs. The queue waits behind you.' },
     o.noBell ? { key: 'ask', who: 'Them', label: 'Ring the call bell', disabled: true, reason: 'you rang; it\'s done' } : { key: 'ask', who: 'Them', label: 'Ring the call bell', sub: 'A person answers, eventually. For twelve towns.' },
-    SIM.fixState(S, 'counter') === 'none' ? { key: 'fix', who: 'The place', label: 'Back a person at the counter', sub: 'A proposal for tonight. It comes out of the call-bell operators\' contract, for twelve towns.' } : { key: 'fix', who: 'The place', label: 'A person at the counter', disabled: true, reason: 'already on tonight\'s agenda' },
+    SIM.fixState(S, 'counter') === 'none' ? { key: 'fix', who: 'The place', label: 'Back a person at the counter', sub: (S.flags.councilDone ? 'The meeting is over, so it goes on file for next year.' : 'A proposal for tonight.') + ' It comes out of the call-bell operators\' contract, for twelve towns.' } : { key: 'fix', who: 'The place', label: 'A person at the counter', disabled: true, reason: SIM.fixState(S, 'counter') === 'onfile' ? 'it\'s on file for next year' : SIM.fixState(S, 'counter') === 'built' ? 'it\'s already in place' : 'you\'ve proposed it for tonight' },
     { key: 'leave', who: 'Nobody', label: 'Leave it', sub: 'Your lantern stays unregistered, for now.' },
   ];
   const choice = await st.ui.barrier({ options, title: 'Town Hall, ten years on', text: 'The kiosk listens. It learned to listen from one kind of voice.', gut: '', notice: '', noticeLabel: '', coach: '' });
   st.ui.hideBarrier();
   const row = { z: 'hall', dim: 'voice', dir: 'over', f: { owner: '' } };
-  if (choice === 'bend') { S.stats.bend++; S.energy = clamp(S.energy - 4, 0, S.maxE); S.self = clamp(S.self - 1.5, 0, 100); st.log('barrier', Object.assign({ v: 'bend', pay: ['you'] }, row)); await st.note('You say it the way the kiosk seems to want it said. LANTERN REGISTERED.'); await st.gut('You sounded like someone else. It worked.'); st.ui.hideDialog(); return; }
-  if (choice === 'gear') { S.stats.gear++; st.log('barrier', Object.assign({ v: 'gear', pay: ['you'] }, row)); await st.note('You type it on your phone, one small key at a time, and hold it to the scanner. Behind you, somebody sighs, then catches themselves. LANTERN REGISTERED.'); st.ui.hideDialog(); return; }
+  if (choice === 'bend') { S.stats.bend++; S.energy = clamp(S.energy - 4, 0, S.maxE); S.self = clamp(S.self - 1.5, 0, 100); st.log('barrier', Object.assign({ v: 'bend', pay: ['you'], verb: 'You said it again, in the voice the kiosk learned from.' }, row)); await st.note('You say it the way the kiosk seems to want it said. LANTERN REGISTERED.'); await st.gut('You sounded like someone else. It worked.'); st.ui.hideDialog(); return; }
+  if (choice === 'gear') { S.stats.gear++; st.log('barrier', Object.assign({ v: 'gear', pay: ['you'], verb: 'You typed it on your phone. The queue waited.' }, row)); await st.note('You type it on your phone, one small key at a time, and hold it to the scanner. Behind you, somebody sighs, then catches themselves. LANTERN REGISTERED.'); st.ui.hideDialog(); return; }
   if (choice === 'ask') {
     S.stats.ask++; G.advance(20); await st.note('You press the call bell. Twenty minutes. Then a voice.');
     await st.say('sana', 'Hi, this is Sana. Twelve towns, one headset. I\'ve registered it for you.');
     await st.say('sana', 'I\'ll put a note in about the counter.');
     S.met.sana = true; st.log('barrier', Object.assign({ v: 'ask', by: 'sana', pay: ['sana'] }, row)); st.fieldNote('aging_auto'); st.ui.hideDialog(); return;
   }
-  if (choice === 'fix') { S.stats.fix++; R.propose('counter', 'pip'); st.log('barrier', Object.assign({ v: 'fix', pay: [] }, row)); await st.say('pip', 'A person at the counter? One who knows rye from ride? I\'ll back that.'); st.ui.hideDialog(); return kioskCard(R, Object.assign({}, o, { noFix: true })); }
-  S.stats.leave++; st.log('barrier', Object.assign({ v: 'leave', pay: ['you'] }, row)); S.flags.beaRegisters = 1;
+  if (choice === 'fix') { S.stats.fix++; R.propose('counter', 'pip'); st.log('barrier', Object.assign({ v: 'fix', pay: [], verb: S.flags.councilDone ? 'You backed a person at the counter, for next year.' : 'You backed a person at the counter, for tonight.' }, row)); await st.say('pip', 'A person at the counter? One who knows rye from ride? I\'ll back that.'); st.ui.hideDialog(); return kioskCard(R, Object.assign({}, o, { noFix: true })); }
+  S.stats.leave++; st.log('barrier', Object.assign({ v: 'leave', pay: ['you'], verb: 'You left your lantern unregistered, for now.' }, row)); S.flags.beaRegisters = 1;
   await st.note('You leave it. The lantern can wait.'); st.ui.hideDialog();
 }
 
@@ -204,10 +206,10 @@ async function crossing(R) {
     { t: 'Sign Bea\'s petition, once she\'s across', sub: 'a proposal for tonight; the van runs late at every long crossing', id: 'cross_sign' },
     { t: 'Let her be', sub: 'she finishes alone, and goes the long way next time', id: 'cross_none' },
   ], { text: 'Bea, the light, and the van.', kind: 'note' });
-  const row = { z: 'transit', dim: 'time', dir: 'over' };
+  const row = { z: 'transit', dim: 'pace', dir: 'over', why: 'The light gave Bea forty seconds.' };
   if (k === 0) { await st.say('bea', 'I can walk, dear. I\'d just rather not run.'); st.log('barrier', Object.assign({ v: 'hurry', by: 'you', pay: ['bea'] }, row)); }
   else if (k === 1) { await st.note('You walk at Bea\'s pace. The van honks once more, to make its point.'); st.log('barrier', Object.assign({ v: 'wait', by: 'you', pay: ['marta'] }, row)); st.ui.bubble('marta', 'Honking\'s the only word the van knows. I wasn\'t cross.', { tint: CAST.marta.tint, ms: 5200 }); st.fieldNote('metaperception'); }
-  else if (k === 2) { await st.note('She makes it across. On the far kerb, she takes out the petition and a pen.'); R.propose('crossing', 'bea'); st.addBond('bea', 1); await st.say('bea', 'Two signatures make a petition. Pip will sign too; she crosses with that cart twice a day.'); st.log('barrier', Object.assign({ v: 'fix', by: 'you', pay: [] }, row)); st.fieldNote('agefriendly'); }
+  else if (k === 2) { await st.note('She makes it across. On the far kerb, she takes out the petition and a pen.'); R.propose('crossing', 'bea'); st.addBond('bea', 1); await st.say('bea', 'Two signatures make a petition. Pip will sign too; she crosses with that cart twice a day.'); st.log('barrier', Object.assign({ v: 'fix', by: 'you', pay: [], verb: 'You signed Bea\'s petition, for tonight.' }, row)); st.fieldNote('agefriendly'); }
   else { await st.say('bea', 'I\'ll go round by Pip\'s next time. She saves me a bun for the trouble.'); st.log('barrier', Object.assign({ v: 'none', by: 'you', pay: ['bea'] }, row)); }
   st.fieldNote('crossing');
   st.ui.hideDialog(); G.npcTo('bea', null);
@@ -219,6 +221,7 @@ export const ACT2 = {
   resumeAt: { shift: [12, 13.9], meeting: [32, 14.4] }, resumeLine: { shift: 'Festival mail went out at noon.', meeting: 'The meeting is over. The festival is at eight.' },
   causes: {
     works: ['Unit was built from the founders\' building manual.', 'Corporate pays for the spec, not for the room.'],
+    ramp: ['The ramp was made for carts and chairs. The bots found it too.', 'The ramp has one lane.'],
     hall: ['Nobody applied for the morning shift at the counter.', 'The kiosk learned to listen from one kind of voice.'],
     transit: ['The crossing light is timed to the Standard\'s stride.', 'The van is booked on the app.'],
     market: ['Blend\'s top-ten list decides what sells.', 'Whoever owns a speaker sets its volume.'],
@@ -244,10 +247,10 @@ export const ACT2 = {
     // ten years on, change anything? (an accessory, or nothing; never the faded look)
     await R.st.changeAnything();
     S.min = Math.max(S.min, S.carryDefault === 'leave_early' ? 475 : 495);
-    const items = [{ t: 'Festival mail at the Works, 9:00', sub: 'Gil asked you back. Dot\'s old desk.' }, { t: 'See what ten years changed', sub: 'Town Hall has a kiosk now. Bea has a petition.' }, { t: 'Town meeting, 6 PM', sub: 'Two items at most. They go up tonight.' }, { t: 'The Lantern Festival, 8 PM', sub: 'Market Square.' }];
+    const items = [{ t: 'Festival mail at the Works, 9:00', sub: 'Gil asked you back. Your old desk, for the morning.' }, { t: 'See what ten years changed', sub: 'Town Hall has a kiosk now. Bea has a petition.' }, { t: 'Town meeting, 6 PM', sub: 'Two items at most. They go up tonight.' }, { t: 'The Lantern Festival, 8 PM', sub: 'Market Square.' }];
     const onfile = Object.keys(S.fixes).filter((f) => S.fixes[f] === 'onfile');
     const carried = S.carryDefault && S.carryDefault !== 'as_is' ? 'You set this last time: ' + R.st.defaultText(S.carryDefault) + '.' : '';
-    await ui.today({ day: 'Ten years on', title: 'Festival day', items, note: onfile.length ? 'Still on file from last time: the ' + onfile.map((f) => SIM.FIXES[f].short).join(' and the ') + '. Clover has the file.' : 'Nobody here is the Standard. Some things here are.', carried });
+    await ui.today({ day: 'Ten years on', title: 'Festival day', items, note: onfile.length ? 'Still on file from last time: ' + LIST(onfile.map((f) => 'the ' + SIM.FIXES[f].short)) + '. Clover has the file.' : 'Nobody here is the Standard. Some things here are.', carried });
     R.st.applyDefault();
     G.stage.follow(G.player.root.position, G.followOpts({ snap: true }));
     G.busy = Math.max(0, G.busy - 1); G.mode = 'play'; ui.hud(true);
@@ -262,7 +265,7 @@ export const ACT2 = {
     if (m >= 700 && !S.flags.works2) {
       S.flags.works2 = 1; S.flags.mail2 = 'missed'; const dim = S.fixes.dim === 'built';
       st.text('Gil (work)', dim ? 'Mail\'s out! Unit and I managed. I put the panels back up so it would stop asking. Festival tonight!' : 'Mail\'s out! Unit and I managed. Festival tonight!');
-      st.log('missed', { z: 'works', v: 'shift', pay: ['you', 'gil'] });
+      st.log('missed', { z: 'works', v: 'shift', pay: ['you', 'gil'], verb: 'You missed the festival mail. Gil and Unit covered.' });
       if (dim) { restoreWorks(R); st.log('barrier', { z: 'works', v: 'restore', by: 'gil', pay: ['ada'], dim: 'machine', dir: 'over' }); }
     }
     // Bea at the crossing (early afternoon), if you are close
@@ -276,6 +279,12 @@ export const ACT2 = {
     return false;
   },
   npcWant() { return null; },
+  // asking Gil, ten years on: you're not the new person, and the people at the next desks have changed
+  ask: { gil: { yes: '"Oh! Sure, sure. I can turn the radio off and switch off the row by your desk. Anything for an old hand."', no: '"Hm. Everyone else seems pretty happy with it? Let\'s see how it goes."', yesUnder: '"Too quiet? Ha! Easy. Radio\'s going on, low. And I\'ll swing by more. Not too much. Some."', noUnder: '"Hm. I think people like it quiet in here? Let\'s see how it goes."' } },
+  bystander: { gil: { over: { light: ['unit', 'ROW 3 PANELS: OFF. ROOM DOES NOT MATCH SPEC. SORTING SLOWER.'], other: ['tomas', 'No radio? Fine. I\'ll hum.'] }, under: { other: ['ada', 'Radio\'s on? Fine. I\'ll wear my earplugs.'] } } },
+  // the meeting: Blend's argument, ten years on, and what Rue knows now (she makes the scores)
+  blendArg: { who: 'hollis', t: 'But the Smooth Scores say people are coping beautifully! Larkspur is in the county top five.' },
+  rueSpeaks: { sum: 'Rue tells the hall what the scores she makes can\'t see.', lines: ['Can I say something? I make those scores now.', 'They count taps. A bad morning doesn\'t tap.', 'They measure whether we look all right. Not whether we are.'] },
   applyFix(R, f) { if (f === 'crossing' && R.G.town.setCrossing) R.G.town.setCrossing(crossingState(R.S)); },
   // Unit's card is the Works' card today, and the kiosk's is Town Hall's
   owns(R, z) { return z === 'works' || z === 'hall'; },
@@ -296,7 +305,7 @@ export const ACT2 = {
     if (id === 'hallkiosk') { if (!S.flags.kiosk2) { await kiosk(R); return true; } await st.note('The kiosk says: SPEAK OR TAP. Underneath, in smaller letters: OR RING THE BELL.'); st.ui.hideDialog(); return true; }
     if (id === 'schoolphoto') { await st.note('This year\'s school photo. The classroom behind them was built for thirty desks. Twelve children, and a lot of floor.'); st.fieldNote('births'); st.fieldNote('whyfewer'); st.ui.hideDialog(); return true; }
     if (id === 'crossing') { await st.note({ hold: 'HOLD FOR MORE TIME, says the button. The light waits while you hold it.', waits: 'The light waits now for anyone still in the street. It beeps a little longer.', push: 'The button says PUSH. The light gives you forty seconds, timed to the Standard\'s stride.' }[crossingState(S)]); st.ui.hideDialog(); return true; }
-    if (id === 'board') { await st.note(S.fixes.board === 'built' ? 'The board: VAN EVERY 20 MIN. APP, OR THE COUNTER.' : 'Route 12, forty past the hour. Over it, a pink sticker: BOOK ON THE APP.'); st.ui.hideDialog(); return true; }
+    if (id === 'board') { await st.note(S.fixes.board === 'built' ? 'The board: VAN EVERY 20 MIN. APP, OR THE KIOSK.' : 'Route 12, forty past the hour. Over it, a pink sticker: BOOK ON THE APP.'); st.ui.hideDialog(); return true; }
     if (id === 'kiosk') { if (G.npcs.rue.place === 'town') { await st.talkTo('rue'); return true; } await st.note('The Blend Lounge is closed. The bench is still pink.'); st.ui.hideDialog(); return true; }
     if (id === 'statue' && !S.flags.festival) { await st.note(S.w.standard_solved ? 'THE STANDARD RESIDENT. A composite from one summer. Not a portrait of anyone. Same statue. New plaque. Same pigeons.' : 'THE STANDARD RESIDENT. Larkspur\'s measure.'); st.ui.hideDialog(); return true; }
     if (id === 'shed') { if (G.npcs.clover.place === 'town') { await st.talkTo('clover'); return true; } return false; }
@@ -313,17 +322,19 @@ export const ACT2 = {
     if (id === 'wren') return first ? TALK2.wren : TALK2.wrenAgain;
     if (id === 'clover') return first ? TALK2.clover : TALK2.cloverAgain;
     if (id === 'hollis') return first ? TALK2.hollis : TALK2.hollisAgain;
-    if (id === 'gil') return S.flags.mail2 === 'done' ? TALK2.gilAfter : TALK2.gil;
+    if (id === 'gil') return S.flags.mail2 === 'done' ? TALK2.gilAfter : S.flags.mail2 === 'left' && S.min < 700 ? TALK2.gilLeft : S.flags.mail2 ? TALK2.gilMissed : TALK2.gil;
     return TALK2[id] || [{ who: id, t: 'Festival day!' }];
   },
   async call(R, name) {
     const S = R.S, st = R.st;
     if (name === 'onfile') {
-      const on = Object.keys(S.fixes).filter((f) => S.fixes[f] === 'onfile');
+      // (a fix that came down this morning for Unit stays on file: that fight is for another year)
+      const on = Object.keys(S.fixes).filter((f) => S.fixes[f] === 'onfile' && f !== S.fixRestored);
+      if (S.fixRestored === 'dim') await st.say('clover', 'Gil told me about your soft lights. Down this morning, for Unit. They\'re back on file. Some fixes have to be won twice.');
       if (!on.length) { await st.say('clover', 'Anything pinching? Bring it tonight. We can do two this year.'); return true; }
       for (const f of on) { S.fixes[f] = 'ready'; S.support[f] = (S.support[f] || []).concat(SIM.FIXES[f].backers.filter((b) => !(S.support[f] || []).includes(b))).slice(0, 2); }
       const many = on.length > 1 || SIM.agree(on[0], false, true);
-      await st.say('clover', 'Your ' + on.map((f) => SIM.FIXES[f].short).join(' and your ') + ' ' + (many ? 'are' : 'is') + ' still on file. Same backers, ten years older. I\'ve put ' + (many ? 'them' : 'it') + ' on tonight\'s agenda.');
+      await st.say('clover', 'Your ' + LIST(on.map((f) => SIM.FIXES[f].short)) + ' ' + (many ? 'are' : 'is') + ' still on file. Same backers as ten years ago. I\'ve put ' + (many ? 'them' : 'it') + ' on tonight\'s agenda.');
       for (const f of on) if ((S.stakes || {})[f] !== 'listened') { S.stakeDue = S.stakeDue || {}; S.stakeDue[f] = S.day * 1440 + S.min + 30; }
       return true;
     }
@@ -334,7 +345,7 @@ export const ACT2 = {
     if (S.flags.festival) return S.flags.released ? ob('') : ob('Enjoy the festival. When you are ready, release your lantern at the statue.', [30, 26.6], 'The statue');
     if (S.flags.councilDone) return ob('The festival starts at 8, in the square.', T.square, 'Market Square');
     if (m >= 1020) return ob('Town meeting at 6 PM, Town Hall.', T.hall, 'Town Hall', { inside: 'hall' });
-    if (!S.flags.works2 && m < 700) return ob(R.G.loc === 'works' ? 'Gil is waiting by Dot\'s old desk.' : 'Festival mail at the Works. Gil asked you back.', R.G.loc === 'works' ? null : T.works, 'The Works', { inside: 'works' });
+    if (!S.flags.works2 && m < 700) return ob(R.G.loc === 'works' ? 'Gil is waiting by your old desk.' : 'Festival mail at the Works. Gil asked you back.', R.G.loc === 'works' ? null : T.works, 'The Works', { inside: 'works' });
     if (!S.flags.cross2 && m >= 760 && m < 975) return ob('Bea is at the crossing by the bus stop.', T.crossing, 'The crossing');
     const nb = R.st.needBackers(); if (nb.length) { const near = R.st.nearestOf([...new Set(nb.map((x) => x[1]))]); if (near) { const f = nb.find((x) => x[1] === near.id)[0]; return ob('Ask ' + CAST[near.id].name + ' to back the ' + SIM.FIXES[f].short + '. The meeting is at 6.', near.at, CAST[near.id].name); } }
     if (!S.flags.kiosk2 && m < 1050) return ob('Town Hall has a kiosk now, where the counter was.', T.hall, 'Town Hall', { inside: 'hall' });
@@ -349,7 +360,7 @@ export const ACT2 = {
     const S = R.S, F = S.fixes;
     const L = {
       bea: F.crossing === 'built' ? 'Forty seconds, and then some. I walked across tonight like a queen.' : 'I came round by Pip\'s. Two buns, for the trouble.',
-      gil: S.w.unit_taught ? 'Unit watered my tomatoes. Nobody asked it to. I think I\'m moved.' : S.w.unit_restored ? 'Panels back at full. I brought sunglasses. Indoors. Don\'t tell corporate.' : 'Great festival! Great, great. Unit hums along.',
+      gil: S.w.unit_taught ? ({ plant: 'Unit waters the plants on its way past. Nobody asked it to. I think I\'m moved.', lamp: 'Unit turns its screen down by the lamps. Nobody asked it to. I think I\'m moved.', board: 'Unit reads the plain notes out loud, if you ask. I asked. Twice.' }[(S.unitQuirks || [])[0]] || 'Unit still meets the plants like they\'re news. Every time. I\'ve started introducing them.') : S.w.unit_restored ? 'Panels back at full. I brought sunglasses. Indoors. Don\'t tell corporate.' : 'Great festival! Great, great. Unit hums along.',
       moss: F.quiet === 'built' ? 'Your corner. Busiest bit of the square. My regulars have to arrive early now.' : 'Tea? Ten years, same tea.',
       rue: S.rue === 'easing' ? 'I measure things at Blend all year. Tonight I\'m not measuring anything.' : 'Hearts are up! Everyone looks so happy. Look happy!',
       wren: S.w.wren_paid ? 'Ines came. I came. The apprentice says maybe. Maybe means yes.' : 'I am here. Ines made me. That was a joke. Ines says I should mark my jokes.',

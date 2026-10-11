@@ -656,7 +656,7 @@ export class UI {
     });
   }
   defaultCard(opts) {
-    const p = this.openPanel('center decided', `<div class="tday">Who decided?</div><h2>One thing to set differently next time</h2><div class="list">${opts.map((o) => `<button class="choice" data-id="${o.id}"><span class="t">${esc(o.t)}</span><span class="sub">${esc(o.sub)}</span></button>`).join('')}</div><p class="small">It carries to your next visit, if you make one. You can change it then.</p>`);
+    const p = this.openPanel('center decided', `<div class="tday">Who decided?</div><h2>One thing to set differently next time</h2><div class="list">${opts.map((o) => `<button class="choice" data-id="${o.id}"><span class="t">${esc(o.t)}</span><span class="sub">${esc(o.sub)}</span></button>`).join('')}</div><p class="small">${(this.G.S.act || 1) >= 3 ? 'It carries over if you play this visit again.' : 'It carries to your next visit, if you make one. You can change it then.'}</p>`);
     this.announce('One thing to set differently next time. ' + opts.map((o, i) => (i + 1) + '. ' + o.t + ': ' + o.sub).join(' '));
     return new Promise((r) => {
       p.querySelectorAll('[data-id]').forEach((b) => { b.onclick = () => { this.closePanel(); this.G.audio.sfx('confirm'); r(b.dataset.id); }; });
@@ -688,7 +688,7 @@ export class UI {
       <h1>${esc(d.title)}</h1><p class="lead">${esc(d.text)}</p>${d.line ? `<p class="eline">${esc(d.line)}</p>` : ''}
       <h4 class="eh">What Larkspur will remember</h4><ul class="fates">${d.remember.map((f) => `<li>${esc(f)}</li>`).join('')}</ul>
       <div class="row erow"><button class="btn primary" id="notes">What was this about?</button><button class="btn" id="card">Make your fit card</button>${d.act < 3 && this.G.story.nextAct ? `<button class="btn accent" id="next">${d.act === 1 ? 'Ten years later' : 'Twenty years later'}</button>` : ''}<button class="btn" id="again">Play this visit again</button></div>
-      <div class="ecode"><label for="vcode">Your visit code</label><textarea id="vcode" class="codebox" readonly rows="2">${esc(d.code || '')}</textarea><div class="row"><button class="btn" id="copy">Copy</button></div><p class="small">It holds only what carries to the next visit: no name, nothing else. Paste it into "Played before?" on any device.</p></div>
+      <div class="ecode"><label for="vcode">Your visit code</label><textarea id="vcode" class="codebox" readonly rows="2">${esc(d.code || '')}</textarea><div class="row"><button class="btn" id="copy">Copy</button></div><p class="small">${d.act >= 3 ? 'It holds only what Larkspur remembers of your visits: no name, nothing else.' : 'It holds only what carries to the next visit: no name, nothing else. Paste it into "Played before?" on any device.'}</p></div>
       <div id="cardbox"></div><div id="noteslist"></div></div>`);
     p.querySelector('#again').onclick = () => { try { sessionStorage.setItem('mtf.again', JSON.stringify({ act: d.act, default: this.G.S.default || 'as_is', name: this.G.S.name, carry: this.G.S.startCarry || null })); } catch (e) { /* replay without the default */ } location.reload(); };
     const nx = p.querySelector('#next'); if (nx) nx.onclick = () => this.G.story.nextAct();
