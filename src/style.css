@@ -181,8 +181,9 @@ body.touch .choice .k { display: none; }
 .card b { font-family: var(--display); font-weight: 600; }
 .card .meta { font-size: 13.5px; color: var(--soft); margin-top: 4px; }
 .card .meta.also { color: var(--teal); }
+.card .meta.loses { color: #8a3a26; }
 .pill { display: inline-block; font-family: var(--display); font-weight: 600; font-size: 11.5px; padding: 2px 9px; border-radius: 999px; background: var(--paper2); color: var(--soft); margin-left: 6px; }
-.pill.built { background: #dff2e4; color: #1f5a33; } .pill.ready { background: #fbefd2; color: #7a4f10; } .pill.tabled { background: #f3dcd5; color: #8a3a26; } .pill.approved { background: #dff2e4; color: #1f5a33; }
+.pill.built { background: #dff2e4; color: #1f5a33; } .pill.ready { background: #fbefd2; color: #7a4f10; } .pill.tabled { background: #f3dcd5; color: #8a3a26; } .pill.approved { background: #dff2e4; color: #1f5a33; } .pill.onfile { background: #ece7f3; color: #4b3d6b; }
 .settings .rowset { display: grid; grid-template-columns: 1fr auto; gap: 10px 14px; align-items: center; }
 .settings input[type=range] { width: 160px; accent-color: var(--accent); }
 
@@ -348,7 +349,7 @@ body.reduce * { animation-duration: 0.01ms !important; }
 .mg-ev .ring { width: 20px; height: 20px; flex: none; transform: rotate(-90deg); }
 .mg-ev .ring circle { fill: none; stroke: var(--accent); stroke-width: 3; stroke-dasharray: 50.27; stroke-dashoffset: 0; animation: evring linear forwards; }
 @keyframes evring { to { stroke-dashoffset: 50.27; } }
-.mg-face { width: 40px; height: 40px; border-radius: 50%; flex: none; background: #efe6d6; object-fit: cover; }
+.mg-face { width: 46px; height: 46px; border-radius: 50%; flex: none; background: #efe6d6; object-fit: cover; }
 .mg-hint.ev { color: var(--ink); font-weight: 600; }
 .mg-move { flex: none; min-height: 40px; padding: 6px 14px; font-size: 14px; display: inline-flex; align-items: center; gap: 7px; }
 .mg-move kbd { margin: 0; }

@@ -68,7 +68,7 @@ def run(policy, seed, prof, wheels=False, shots=None, mobile=False, budget=280):
                     for i, t in enumerate(texts):
                         if 'Install' in t or 'Blend suggests' in t: pick = i; break
                 elif policy in ('fixer', 'asker'):
-                    pri = ['Ask about', 'Show Gil', 'Ask what they mean', 'Yes. I would like', 'Do you ever turn it off', 'I will find you', 'It helps more people', 'Can I see', 'Can I help', 'They give me one too', 'I like specific', 'Does it fit you', 'He did not say', 'How do I get', 'Note it', 'What if the market']
+                    pri = ['to back the', 'Show Gil', 'Change the design', 'Present the', 'Yes, I can do that', 'Ask what they mean', 'Yes. I would like', 'Do you ever turn it off', 'I will find you', 'What helps', 'It helps more people', 'Can I see', 'Can I help', 'They give me one too', 'I like specific', 'Does it fit you', 'He did not say', 'How do I get', 'Note it', 'What if the market']
                     found = False
                     for key in pri:
                         for i, t in enumerate(texts):
@@ -94,6 +94,10 @@ def run(policy, seed, prof, wheels=False, shots=None, mobile=False, budget=280):
                 pg.evaluate('__wb.G.setSmooth(true)')
             if loc != 'town' and loc != 'home':
                 pg.evaluate('__wb.tp("works") ; 0') if False else None
+            if loc == 'works' and pg.evaluate('__wb.G.story.shiftOpen()'):
+                pg.evaluate("__wb.G.place(__wb.G.rooms.works.spots.mydesk)"); pg.wait_for_timeout(250)
+                if pg.evaluate('__wb.target()') == 'mydesk': pg.evaluate('__wb.act()')
+                continue
             if loc in ('works', 'hall'):
                 pg.evaluate("__wb.G.exitRoom()"); pg.wait_for_timeout(400); continue
             if loc == 'home':

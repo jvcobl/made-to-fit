@@ -120,7 +120,7 @@ export class Feel {
     }
     const pinched = p.total >= FITS && G.zone !== 'home';
     if (pinched && this.smooth()) out.tags.push('Blend is hiding it'); else if (pinched && this.masked()) out.tags.push('hiding it');
-    if (S.wearing.headphones && G.zone !== 'home') { const L = SIM.levels(S, G.zone, S.min); if (L.sound - S.profile.sound > SIM.BAND) out.tags.push('muffled'); }
+    if (S.wearing.headphones && G.zone !== 'home') { const L = SIM.levels(S, G.zone, S.min, G.sub); if (L.sound - S.profile.sound > SIM.BAND) out.tags.push('muffled'); }
     return out;
   }
   stripUpdate() {

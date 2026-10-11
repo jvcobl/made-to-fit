@@ -57,6 +57,7 @@ function gableRoof(w, d, rh, over = 0.35) {
 }
 const capsuleDist = (px, pz, s) => { const [ax, az, bx, bz] = s; const vx = bx - ax, vz = bz - az; const t = clamp(((px - ax) * vx + (pz - az) * vz) / (vx * vx + vz * vz || 1)); const dx = px - (ax + vx * t), dz = pz - (az + vz * t); return Math.sqrt(dx * dx + dz * dz); };
 
+export const QUIET_RECT = [20.6, 28.4, 26.6, 33];
 export const ZONES = [
   { id: 'works', name: 'The Works', rect: [2, 1, 22.5, 14.5] },
   { id: 'hall', name: 'Town Hall', rect: [24, 1, 40, 13.6] },
@@ -112,6 +113,8 @@ export class Town {
   block(x0, z0, x1, z1, v = 1) { for (let z = Math.floor(z0); z < Math.ceil(z1); z++) for (let x = Math.floor(x0); x < Math.ceil(x1); x++) if (x >= 0 && z >= 0 && x < GW && z < GD) this.grid[z * GW + x] = v; }
   cell(x, z) { const cx = Math.floor(x), cz = Math.floor(z); if (cx < 1 || cz < 1 || cx >= GW - 1 || cz >= GD - 1) return 1; return this.grid[cz * GW + cx]; }
   walkable(x, z, wheels) { const c = this.cell(x, z); return c === 0 || (c === 2 && !wheels); }
+  // the quiet corner of the market square, by the benches (a sub-zone: the zone stays the market)
+  subAt(x, z) { const r = QUIET_RECT; return x >= r[0] && x < r[2] && z >= r[1] && z < r[3] ? 'quietcorner' : null; }
   zoneAt(x, z) {
     for (const zn of ZONES) { const r = zn.rect; if (x >= r[0] && x < r[2] && z >= r[1] && z < r[3]) return zn; }
     return { id: 'street', name: 'Larkspur' };
@@ -388,6 +391,8 @@ export class Town {
       this.awning(ax.x, 2.3, ax.z, 2.7, 1.5, col, '#fbf6ee', ry);
       const s = this.addSign(name, 0, 0, 0, 1.1, 0.34, { size: 52 }); s.position.copy(new THREE.Vector3(0, 0.6, 0.52).applyMatrix4(mtx(x, 0, z, ry))); s.rotation.y = ry;
       this.block(x - 1.3, z - 0.8, x + 1.3, z + 0.8);
+      // Pomeroy stands in front of the apples, facing the statue, and shouts at them
+      if (name === 'Apples') { const f = new THREE.Vector3(0, 0, 1.45).applyMatrix4(mtx(x, 0, z, ry)); this.spots.apples = [f.x, f.z]; }
     });
     // Pip's bakery
     this.house(21, 17.4, 6, 4.4, 3.5, '#f5e7c4', '#a8483f', { cols: 3, chimney: true, doorColor: '#c8553d' });
@@ -583,7 +588,7 @@ export class Town {
       const roof = new THREE.Mesh(new THREE.ConeGeometry(2.0, 1.0, 6), mat('#9edcd6')); roof.position.set(qx, 2.6, qz); roof.castShadow = true; g.add(roof);
       for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2; const p = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 2.2, 6), mat(PAL.woodDark)); p.position.set(qx + Math.cos(a) * 1.7, 1.1, qz + Math.sin(a) * 1.7); g.add(p); }
       for (let i = 0; i < 3; i++) { const c = new THREE.Mesh(new RoundedBoxGeometry(0.7, 0.25, 0.7, 2, 0.1), mat(['#bfa9f0', '#f6cf5b', '#9fd3b0'][i])); c.position.set(qx - 0.7 + i * 0.7, 0.13, qz + (i % 2) * 0.4); g.add(c); }
-      const s = signMesh('Quiet corner\nquiet hour 12–1', 1.4, 0.6, { size: 38, bg: '#fbf6ee', fg: '#2b7a78', border: '#2b7a78' }); s.position.set(qx, 1.85, qz + 1.75); g.add(s);
+      const s = signMesh('Quiet corner\nsofter at noon', 1.4, 0.6, { size: 38, bg: '#fbf6ee', fg: '#2b7a78', border: '#2b7a78' }); s.position.set(qx, 1.85, qz + 1.75); g.add(s);
     }
     // a bus board that shows changes
     {

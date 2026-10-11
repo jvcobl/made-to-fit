@@ -43,21 +43,24 @@ export function newState(seed) {
     act: 1, gw: { gil: 1, moss: 1, clover: 1, hollis: 1 }, owe: {}, w: {}, stakes: {}, ideaFrom: {}, sights: {}, texts: [], fired: {},
   };
 }
-export function levels(S, zone, min) {
+// the six dials of a place right now. sub is a corner inside a zone (the quiet corner of the market square).
+export function levels(S, zone, min, sub) {
   if (zone === 'home') return Object.assign({}, S.profile);
   const P = PLACES[zone] || PLACES.street; const b = bandOf(min);
   const L = { sound: P.sound[b], light: P.light[b], people: P.people[b], talk: P.talk, change: P.change, time: timeDemand(min) };
-  const F = S.fixes || {};
-  // the quiet hour is noon to one; the quiet corner helps a little all day
-  if (zone === 'market' && F.quiet === 'built') { const k = min >= 720 && min < 780 ? 1 : b === 1 ? 0.4 : 0.25; L.sound -= 0.3 * k; L.people -= 0.25 * k; }
-  if (zone === 'works' && F.dim === 'built') L.light = clamp(S.profile.light, 0.4, 0.75);
-  if (zone === 'works' && F.plain === 'built') L.talk = 0.35;
-  if (zone === 'transit' && F.board === 'built') L.change = 0.4;
-  if ((zone === 'homerow' || zone === 'farend') && F.lanterns === 'built') { L.people = clamp(L.people + (S.profile.people - L.people) * 0.5); L.talk -= 0.25; }
+  const F = S.fixes || {}; const V = (f) => variantOf(S, f);
+  // the quiet corner, by the benches: softer all day and softer still at noon; the rest of the square is unchanged
+  if (zone === 'market' && sub === 'quietcorner' && F.quiet === 'built') { const noon = min >= 720 && min < 780 ? 0.1 : 0; L.sound -= (V('quiet') === 'zoned' ? 0.35 : 0.45) + noon; L.people -= 0.4 + noon; }
+  if (zone === 'works' && F.dim === 'built') L.light = clamp(S.profile.light, V('dim') === 'zoned' ? 0.45 : 0.4, 0.75);
+  if (zone === 'works' && F.plain === 'built') L.talk = V('plain') === 'timed' ? 0.45 : 0.35;
+  if (zone === 'transit' && F.board === 'built') L.change = V('board') === 'shared' ? 0.45 : 0.4;
+  if ((zone === 'homerow' || zone === 'farend') && F.lanterns === 'built') { const k = V('lanterns') === 'timed' ? 0.4 : 0.5; L.people = clamp(L.people + (S.profile.people - L.people) * k); L.talk -= 0.25; }
   const m = S.mods[zone]; if (m) for (const k in m) L[k] = clamp(L[k] + m[k]);
   for (const k in L) L[k] = clamp(L[k]);
   return L;
 }
+// a fix's shape: the stakeholder's version if you listened to them, otherwise the one you first drew
+export const variantOf = (S, f) => ((S.stakes || {})[f] === 'listened' && FIXES[f] ? FIXES[f].variant : 'whole');
 export function pinchOf(profile, L, wearing, zone) {
   const demand = (PLACES[zone] || {}).demand;
   const W = { sound: 1, light: 1, people: 1, talk: 0.3, time: demand ? 0.7 : 0.15, change: 0.45 };
@@ -75,7 +78,7 @@ export function pinchOf(profile, L, wearing, zone) {
   }
   return res;
 }
-export const pinch = (S, zone, min) => pinchOf(S.profile, levels(S, zone, min), S.wearing, zone);
+export const pinch = (S, zone, min, sub) => pinchOf(S.profile, levels(S, zone, min, sub), S.wearing, zone);
 
 // a minute of life: drains, recoveries, slow drift
 export function tick(S, mins, ctx) {
@@ -84,7 +87,8 @@ export function tick(S, mins, ctx) {
   const masked = S.masking || smooth;
   // hiding a pinch doesn't make it cost less: it costs the same energy, and some of you besides (below)
   let drain = 0.03 + T * 0.36;
-  if (ctx.zone === 'home') drain = -0.12;
+  // home rests you; so does the first twenty minutes after you leave somewhere that didn't fit
+  if (ctx.zone === 'home' || (S.restUntil && S.min < S.restUntil)) drain = -0.12;
   S.energy = clamp(S.energy - drain * mins, 0, S.maxE);
   if (masked && T > 0.08) { S.self = clamp(S.self - (smooth ? 0.05 : 0.025) * T * mins, 0, 100); S.strain += 0.004 * T * mins; }
   if (smooth) S.self = clamp(S.self - 0.013 * mins, 0, 100);
@@ -108,15 +112,20 @@ export const wakeMin = (S) => Math.round(420 + S.profile.time * 70);
 // a thousand residents nobody designed for
 const POP = (() => { const r = makeRng(4063); const a = []; for (let i = 0; i < 1000; i++) { const v = () => 0.05 + r() * 0.9; a.push({ profile: { sound: v(), light: v(), people: v(), talk: v(), time: v(), change: v() }, wheels: r() < 0.08 }); } return a; })();
 const FIT_ZONES = ['works', 'market', 'transit', 'commons', 'farend', 'homerow', 'hall'];
-export function townFit(fixes) {
-  const fake = { fixes: fixes || {}, mods: {}, profile: null };
+// how many of a thousand residents get through each place without a struggle (a zone that has a fitting corner counts)
+export function townFit(fixes, stakes) {
+  const fake = { fixes: fixes || {}, mods: {}, profile: null, stakes: stakes || {} };
   const by = {}; let sum = 0;
   for (const z of FIT_ZONES) {
     let ok = 0;
     for (const p of POP) {
       fake.profile = p.profile;
       let worst = 0;
-      for (const m of [540, 760, 960, 1200]) worst = Math.max(worst, pinchOf(p.profile, levels(fake, z, m), null, z).total);
+      for (const m of [540, 760, 960, 1200]) {
+        let t = pinchOf(p.profile, levels(fake, z, m), null, z).total;
+        if (z === 'market') t = Math.min(t, pinchOf(p.profile, levels(fake, z, m, 'quietcorner'), null, z).total);
+        worst = Math.max(worst, t);
+      }
       if (z === 'works' && p.wheels && fake.fixes.ramp !== 'built') worst += 1;
       if (worst < 0.42) ok++;
     }
@@ -125,14 +134,19 @@ export function townFit(fixes) {
   return { by, all: sum / FIT_ZONES.length };
 }
 
+// helps: residents whose own pinch it eases (they back it without spending goodwill if they told you about it).
+// stake: the one person it costs, and variant: the shape it takes if you listen to them (see STAKES in content.js).
 export const FIXES = {
-  quiet: { name: 'A quiet hour at the market', short: 'quiet hour', zone: 'market', approve: 'council', backers: ['moss', 'bea'], principle: 'Flexibility in use', what: 'From noon to one the music goes off, the stalls spread out, and there is a quiet corner all day.', also: 'parents with sleeping babies, anyone on a phone call, people with hearing aids. The apple seller will miss shouting.' },
-  board: { name: 'A bus board that shows changes', short: 'bus board', zone: 'transit', approve: 'council', backers: ['bea', 'pip'], principle: 'Perceptible information', what: 'Every route change goes up in big letters, not just over the speaker.', also: 'visitors, anyone with headphones in, anyone who was talking when the speaker crackled.' },
-  lanterns: { name: 'Porch lanterns on Home Row', short: 'porch lanterns', zone: 'homerow', approve: 'council', backers: ['wren', 'moss'], principle: 'Perceptible information', what: 'A teal light means come say hi. An amber one means not now. No one has to guess.', also: 'shy neighbors, people who are unwell, new parents. People who love surprise visits will have to text.' },
-  ramp: { name: 'A ramp at the Works', short: 'ramp', zone: 'works', approve: 'gil', backers: ['bea', 'pip'], principle: 'Low physical effort', what: 'A gentle ramp beside the front steps, with rails.', also: 'Pip and her bread cart, parents with strollers, delivery carts, anyone with a sore knee.' },
-  dim: { name: 'Dimmable lights at the Works', short: 'dimmable lights', zone: 'works', approve: 'gil', backers: ['gil', 'clover'], principle: 'Flexibility in use', what: 'The overhead panels soften, and each desk gets its own lamp.', also: 'Gil and his headaches, anyone working late. People who like it bright turn their own lamp up.' },
-  plain: { name: 'Plain-language meeting notes', short: 'plain notes', zone: 'works', approve: 'gil', backers: ['wren', 'rue'], principle: 'Simple and intuitive use', what: 'Every meeting ends with one note: who does what, by when.', also: 'new staff, tired staff, anyone who missed the meeting, and Gil, who forgets.' },
+  quiet: { name: 'A quiet corner at the market', short: 'quiet corner', zone: 'market', approve: 'council', backers: ['moss', 'bea'], helps: ['moss', 'bea'], stake: 'pomeroy', variant: 'zoned', principle: 'Flexibility in use', what: 'A corner by the benches where the speakers face away and the stalls give it room. Softer still at noon.', also: 'parents with sleeping babies, anyone on a phone call, people with hearing aids.' },
+  board: { name: 'A bus board that shows changes', short: 'bus board', zone: 'transit', approve: 'council', backers: ['bea', 'pip'], helps: ['bea', 'pip'], stake: 'hollis', variant: 'shared', principle: 'Perceptible information', what: 'Every route change goes up in big letters, not just over the speaker.', also: 'visitors, anyone with headphones in, anyone who was talking when the speaker crackled.' },
+  lanterns: { name: 'Porch lanterns on Home Row', short: 'porch lanterns', zone: 'homerow', approve: 'council', backers: ['wren', 'moss'], helps: ['wren', 'moss'], stake: 'bea', variant: 'timed', principle: 'Perceptible information', what: 'A teal light means come say hi. An amber one means not now. No one has to guess.', also: 'shy neighbors, people who are unwell, new parents.' },
+  ramp: { name: 'A ramp at the Works', short: 'ramp', zone: 'works', approve: 'gil', backers: ['bea', 'pip'], helps: ['bea', 'pip'], stake: 'gil', variant: 'shared', principle: 'Low physical effort', what: 'A gentle ramp beside the front steps, with rails.', also: 'Pip and her bread cart, parents with strollers, delivery carts, anyone with a sore knee.' },
+  dim: { name: 'Dimmable lights at the Works', short: 'dimmable lights', zone: 'works', approve: 'gil', backers: ['gil', 'clover'], helps: ['gil', 'dot'], stake: 'fen', variant: 'zoned', principle: 'Flexibility in use', what: 'The overhead panels soften, and each desk gets its own lamp.', also: 'Gil and his headaches, Dot at the next desk, anyone working late.' },
+  plain: { name: 'Plain-language meeting notes', short: 'plain notes', zone: 'works', approve: 'gil', backers: ['wren', 'rue'], helps: ['wren', 'rue'], stake: 'gil', variant: 'timed', principle: 'Simple and intuitive use', what: 'Every meeting ends with one note: who does what, by when.', also: 'new staff, tired staff, anyone who missed the meeting, and Gil, who forgets.' },
 };
+export const SEASON_CAP = 2;
+// fixes approved this visit (by Gil or the town meeting), counting ones already built
+export const approvedCount = (S) => Object.keys(S.fixes).filter((f) => (S.fixes[f] === 'approved' || S.fixes[f] === 'built') && ((S.fixAct || {})[f] || 1) === (S.act || 1)).length;
 export function fixState(S, id) { return S.fixes[id] || 'none'; }
 export function supporters(S, id) { return (S.support[id] || []).length; }
 export function builtCount(S) { return Object.values(S.fixes).filter((v) => v === 'built').length; }

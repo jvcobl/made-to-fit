@@ -1,8 +1,8 @@
 // DOM interface: dialogue, the "who adjusts?" card, phone, creator, room setup, settings, title, evening page and ending.
 import { esc, fmtTime, clamp, FAST, now, keyName } from './util.js';
 import { OPTIONS } from './creature.js';
-import { CAST, HINTS, BLEND, SETUP, FIELD_NOTES, PEOPLE, SLOT_LABEL } from './content.js';
-import { FIXES, pinch, townFit, fixState, supporters } from './sim.js';
+import { CAST, HINTS, BLEND, SETUP, FIELD_NOTES, PEOPLE, SLOT_LABEL, STAKES } from './content.js';
+import { FIXES, pinch, townFit, fixState, supporters, approvedCount, SEASON_CAP } from './sim.js';
 import { ZONES } from './town.js';
 import { FISH } from './games/pond.js';
 
@@ -371,12 +371,16 @@ export class UI {
     });
   }
   proposals(S) {
-    const rows = Object.keys(FIXES).filter((k) => fixState(S, k) !== 'none').map((k) => {
+    const stakes = S.stakes || {};
+    const rows = Object.keys(FIXES).filter((k) => !['none', 'tabled'].includes(fixState(S, k)) || fixState(S, k) === 'tabled').filter((k) => fixState(S, k) !== 'none').map((k) => {
       const F = FIXES[k]; const st = fixState(S, k); const n = supporters(S, k); const who = F.backers.map((b) => CAST[b].name + ((S.support[k] || []).includes(b) ? ' ✓' : '')).join(', ');
-      const label = { idea: 'idea: take it to Clover', proposal: n + ' of 2 backers', ready: F.approve === 'gil' ? 'ready for Gil' : 'ready for the town meeting', approved: 'approved', built: 'built', tabled: 'not this time' }[st];
-      return `<div class="card"><b>${esc(F.name)}</b><span class="pill ${st}">${label}</span><div class="meta">${esc(F.what)}</div>${st === 'proposal' ? `<div class="meta">Ask: ${esc(who)}</div>` : ''}${F.also ? `<div class="meta also">Also helps: ${esc(F.also)}</div>` : ''}<div class="meta" style="font-style:italic">${esc(F.principle)}</div></div>`;
+      const label = { idea: 'idea: take it to Clover', proposal: n + ' of 2 backers', ready: F.approve === 'gil' ? 'ready for Gil or the meeting' : 'ready for the town meeting', approved: 'approved', built: 'built', tabled: 'not this time', onfile: 'on file for next season' }[st] || st;
+      const T = STAKES[k]; const sk = stakes[k];
+      const loss = !T || st === 'idea' ? '' : sk === 'listened' ? `Who loses: ${esc(T.lessLoss)} Changed: ${esc(T.variantName)}. ${esc(T.cost)}` : sk === 'overruled' ? `Who loses: ${esc(T.loses)} You kept the design as it was.` : `Who loses: ${esc(T.loses)} ${esc(CAST[T.who].name)} hasn't had a say yet.`;
+      return `<div class="card"><b>${esc(F.name)}</b><span class="pill ${st}">${label}</span><div class="meta">${esc(F.what)}</div>${st === 'proposal' ? `<div class="meta">Ask: ${esc(who)}</div>` : ''}${F.also ? `<div class="meta also">Also helps: ${esc(F.also)}</div>` : ''}${loss ? `<div class="meta loses">${loss}</div>` : ''}<div class="meta" style="font-style:italic">${esc(F.principle)}</div></div>`;
     }).join('');
-    return rows || '<p class="lede">Nothing yet. When a place pinches, note it, or listen to people who mention what pinches them.</p>';
+    const cap = `<p class="small">Fixes this visit: ${approvedCount(S)} of ${SEASON_CAP}. A town can only build so much in a season.</p>`;
+    return rows ? cap + rows : '<p class="lede">Nothing yet. When a place pinches, note it, or listen to people who mention what pinches them.</p>';
   }
   // ---------- phone ----------
   openPhone() { this.phoneEl.hidden = false; this.renderPhone(); this.G.audio.sfx('phone'); }
@@ -420,7 +424,7 @@ export class UI {
     return `<h3>${DAYNAME[S.day] || 'Today'}</h3>${obj && obj.t ? `<div class="nowcard"><div class="nl">Now</div><div>${esc(obj.t)}</div>${obj.at ? `<button class="btn primary" id="pway">${ICON.way} Show me the way</button>` : ''}</div>` : ''}<div class="goals">${this.goalsHtml()}</div>${gear}<p class="small">Energy ${Math.round(S.energy)} of ${S.maxE} today. ${S.coins} coins.${S.burnout ? ' You woke up running on less.' : ''}</p>`;
   }
   mapSvg(S) {
-    const all = !!this.mapAll; const tf = all ? townFit(S.fixes) : null;
+    const all = !!this.mapAll; const tf = all ? townFit(S.fixes, S.stakes) : null;
     const col = (v) => (v < 0.12 ? '#9fd3b0' : v < 0.3 ? '#f6cf5b' : '#f2a99a');
     const colAll = (v) => `hsl(${Math.round(v * 120)}, 55%, 72%)`;
     const zs = ZONES.map((z) => { const r = z.rect; const v = all ? (tf.by[z.id] != null ? tf.by[z.id] : 0.5) : pinch(S, z.id, S.min).total; const fill = all ? colAll(v) : col(v); return `<rect x="${r[0] * 5}" y="${r[1] * 5}" width="${(r[2] - r[0]) * 5 - 3}" height="${(r[3] - r[1]) * 5 - 3}" rx="10" fill="${fill}" opacity="0.92"/><text x="${(r[0] + r[2]) * 2.5}" y="${(r[1] + r[3]) * 2.5}" text-anchor="middle" font-size="11" fill="#2b2530">${esc(z.name)}</text>` + (all ? `<text x="${(r[0] + r[2]) * 2.5}" y="${(r[1] + r[3]) * 2.5 + 13}" text-anchor="middle" font-size="10" fill="#2b2530">${Math.round((tf.by[z.id] || 0) * 100)}% get by</text>` : ''); }).join('');
@@ -497,7 +501,7 @@ export class UI {
   // ---------- the morning card ----------
   today(d) {
     const items = d.items.map((it, i) => `<li><span class="n">${i + 1}</span><div><b>${esc(it.t)}</b>${it.sub ? `<div class="meta">${esc(it.sub)}</div>` : ''}</div></li>`).join('');
-    const p = this.openPanel('center today', `<div class="pin"></div><div class="tday">${esc(d.day)}</div><h2>${esc(d.title)}</h2><ol class="tlist">${items}</ol>${d.note ? `<p class="tnote">${esc(d.note)}</p>` : ''}<div class="pfoot"><button class="btn primary" id="tgo">Head out</button></div>`);
+    const p = this.openPanel('center today', `<div class="pin"></div><div class="tday">${esc(d.day)}</div><h2>${esc(d.title)}</h2><ol class="tlist">${items}</ol>${d.note ? `<p class="tnote">${esc(d.note)}</p>` : ''}${d.carried ? `<p class="tnote carried">${esc(d.carried)}</p>` : ''}<div class="pfoot"><button class="btn primary" id="tgo">${esc(d.button || 'Head out')}</button></div>`);
     return new Promise((r) => { const go = () => { window.removeEventListener('keydown', kh); this.closePanel(); r(); }; const kh = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } }; p.querySelector('#tgo').onclick = go; setTimeout(() => window.addEventListener('keydown', kh), 250); });
   }
   // ---------- the evening page: what happened, without a score ----------

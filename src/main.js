@@ -18,7 +18,7 @@ import { Menus, actionOf, DEFAULT_KEYS, keyLabel } from './menus.js';
 import { params, FAST, FIXED, STEP, clock, keyName, clamp, lerp, damp, makeRng, pick, sleep } from './util.js';
 
 const LEAVE_TO = { market: [30, 36.5], transit: [46, 24], commons: [38, 14.5], farend: [36, 41.5], homerow: [30, 30], street: [30, 30], festival: [30, 38] };
-const FEST = { bea: [26.2, 28.6], wren: [33.6, 28.8], rue: [35.6, 26.2], gil: [24.8, 25.2], moss: [25.4, 29.4], hollis: [30, 28.2], pip: [34.6, 21.8], clover: [27.0, 21.4] };
+const FEST = { bea: [26.2, 28.6], wren: [33.6, 28.8], rue: [35.6, 26.2], gil: [24.8, 25.2], moss: [25.4, 29.4], hollis: [30, 28.2], pip: [34.6, 21.8], clover: [27.0, 21.4], dot: [28.2, 30.6], fen: [32.2, 30.4], pomeroy: [25.4, 22.6] };
 const CROWD_ZONES = [['market', 13], ['street', 5], ['transit', 4], ['commons', 4], ['homerow', 4], ['farend', 1]];
 // on tall phone screens the fixed room cameras look down from the open side so every door stays in view
 const PORTRAIT_CAM = {
@@ -112,13 +112,16 @@ class Game {
     // coworkers at the Works, neighbors on the council benches
     const R = makeRng(99); const rl = () => ({ shape: pick(OPTIONS.shape.map((x) => x[0]), R), color: pick(OPTIONS.color, R), pattern: 'plain', top: pick(OPTIONS.top.map((x) => x[0]), R), wear: R() < 0.3 ? pick(['scarf', 'glasses', 'hat', 'bow'], R) : 'none' });
     this.rl = rl;
-    this.workers = this.rooms.works.seats.filter((_, i) => i !== 6).slice(0, 7).map(([x, z], i) => { const c = new Creature(i === 4 ? { shape: 'tall', color: '#9edcd6', pattern: 'spots', top: 'tuft', wear: 'glasses' } : rl(), { lod: 'low', seed: 700 + i, form: 'baked' }); c.root.position.set(x, 0.12, z - 0.15); c.heading = Math.PI; c.root.rotation.y = Math.PI; this.rooms.works.scene.add(c.root); return c; });
+    // the other desks (yours is seat 6; Dot and Fen, who are residents, sit at 7 and 8; Ola is at 5)
+    this.workers = this.rooms.works.seats.slice(0, 6).map(([x, z], i) => { const c = new Creature(i === 5 ? { shape: 'blobby', color: '#ffc98e', pattern: 'stripes', top: 'tuft', wear: 'glasses' } : rl(), { lod: 'low', seed: 700 + i, form: 'baked' }); c.root.position.set(x, 0.12, z - 0.15); c.heading = Math.PI; c.root.rotation.y = Math.PI; this.rooms.works.scene.add(c.root); return c; });
     const bs = [[-4.6, 2.0], [-3.2, 2.0], [-2.2, 2.0], [3.0, 2.0], [4.4, 2.0], [-4.2, 3.5], [-2.8, 3.5], [3.4, 3.5], [4.8, 3.5], [2.2, 3.5]];
     this.audience = bs.map(([x, z], i) => { const c = new Creature(rl(), { lod: 'low', seed: 800 + i, form: 'baked' }); c.root.position.set(x, 0.1, z); c.heading = Math.PI; c.root.rotation.y = Math.PI; this.rooms.hall.scene.add(c.root); return c; });
   }
   npcWant(id) {
     const S = this.S, d = S.day, m = S.min;
     if (d === 0) return { place: 'away' };
+    // someone on their way to find you (a fix's stakeholder): they come out into town and walk up
+    const me = this.npcs[id]; if (me && me.visit && me.visitPos) return { place: 'town', pos: me.visitPos };
     if (id === 'bea' && this.beaWay) return { place: 'town', pos: this.beaWay };
     if (id === 'bea' && d === 1 && S.flags.escort_done && m < 630) return { place: 'town', spot: 'squareW' };
     if (S.flags.festival) {
@@ -126,16 +129,20 @@ class Game {
       if (id === 'moss' && S.fixes.quiet === 'built') return { place: 'town', pos: [23.4, 31.0] };
       return { place: 'town', pos: FEST[id] };
     }
-    if (d === 3 && m >= 1070 && m < 1185) {
+    // Tuesday's town meeting: the council at the table; your backers, and Rue if she's easing, on the benches
+    if (d === 2 && m >= 1070 && m < 1185 && !S.flags.councilDone) {
       const council = { hollis: 'hollis', pip: 'pip', clover: 'clover' };
       if (council[id]) return { place: 'hall', spot: council[id] };
-      const backs = Object.values(S.support).some((a) => a.includes(id));
-      if (backs) { const order = ['bea', 'moss', 'wren', 'rue', 'gil']; return { place: 'hall', pos: [[-3.9, 2.0], [-2.6, 3.5], [3.8, 2.0], [2.8, 3.5], [-4.6, 3.5]][order.indexOf(id) % 5] }; }
+      const backs = Object.values(S.support).some((a) => a.includes(id)) || (id === 'rue' && this.story.rueState() === 'easing');
+      if (backs) { const order = ['bea', 'moss', 'wren', 'rue', 'gil']; const k = order.indexOf(id); if (k >= 0) return { place: 'hall', pos: [[-3.9, 2.0], [-2.6, 3.5], [3.8, 2.0], [2.8, 3.5], [-4.6, 3.5]][k] }; }
     }
+    // Rue at the pond, if she asked you to come
+    if (id === 'rue' && d === 2 && S.flags.rue_invite && !S.flags.rue_pond && m >= 960 && m < 1050) return { place: 'town', spot: 'pond' };
     const R = ROUTINES[id]; let w = R[R.length - 1];
     for (const r of R) if (m >= r[0] && m < r[1]) { w = r; break; }
     let place = w[2], spot = w[3];
-    if (place === 'works' && d === 3) { place = 'town'; spot = 'cartFront'; }
+    // festival day: the Works opens 9 to 11 for festival mail, then everyone heads out
+    if (place === 'works' && d === 3 && (m < 540 || m >= 660)) { if (id === 'gil') { place = 'town'; spot = 'cartFront'; } else place = 'away'; }
     return { place, spot };
   }
   spotPos(place, spot, pos) {
@@ -207,7 +214,8 @@ class Game {
   }
   randomIn(zone) {
     const z = ZONES.find((q) => q.id === zone); const rect = zone === 'street' ? [2, 22.5, 54, 25.5] : z.rect;
-    for (let t = 0; t < 30; t++) { const x = rect[0] + 1 + Math.random() * (rect[2] - rect[0] - 2), zz = rect[1] + 1 + Math.random() * (rect[3] - rect[1] - 2); if (this.town.walkable(x, zz)) return [x, zz]; }
+    const quiet = zone === 'market' && this.S.fixes.quiet === 'built';
+    for (let t = 0; t < 30; t++) { const x = rect[0] + 1 + Math.random() * (rect[2] - rect[0] - 2), zz = rect[1] + 1 + Math.random() * (rect[3] - rect[1] - 2); if (quiet && this.town.subAt(x, zz) && Math.random() < 0.75) continue; if (this.town.walkable(x, zz)) return [x, zz]; }
     return null;
   }
   updateCrowd(dt) {
@@ -290,10 +298,15 @@ class Game {
     const S = this.S;
     for (let i = 0; i < mins; i++) {
       S.min += 1;
-      const p = SIM.pinch(S, this.zone, S.min);
-      SIM.tick(S, 1, { pinch: p, zone: this.zone, levels: SIM.levels(S, this.zone, S.min) });
+      const p = SIM.pinch(S, this.zone, S.min, this.sub);
+      SIM.tick(S, 1, { pinch: p, zone: this.zone, levels: SIM.levels(S, this.zone, S.min, this.sub) });
       if (S.energy <= 0) break;
     }
+  }
+  // time spent somewhere else (a favour across town): the clock runs and that place's fit costs what it costs
+  advanceIn(zone, mins) {
+    const S = this.S;
+    for (let i = 0; i < mins; i++) { S.min += 1; SIM.tick(S, 1, { pinch: SIM.pinch(S, zone, S.min), zone, levels: SIM.levels(S, zone, S.min) }); if (S.energy <= 0) break; }
   }
   run(fn) { if (this.busy) return; this.busy++; this.path = []; this.player.speed = 0; Promise.resolve().then(fn).catch((e) => console.error(e)).finally(() => { this.busy = Math.max(0, this.busy - 1); }); }
   run2(fn) { Promise.resolve().then(fn).catch((e) => console.error(e)); }
@@ -322,6 +335,8 @@ class Game {
   placeCouncil() { for (const w of this.audience) w.root.visible = true; }
   applyFix(f) { this.town.setFix(f, true); if (f === 'dim') this.rooms.works.setDim(true); }
   focusPinch(on) { this.barrierFocus = on; }
+  // the corner you are standing in, if any, when asking about the zone you are in
+  subFor(zone) { return zone === this.zone ? this.sub || null : null; }
   drift() { return clamp((100 - this.S.self) / 100 * 1.05); }
   ensurePScene() {
     if (this.pScene) return;
@@ -437,6 +452,7 @@ class Game {
     if (it.id === 'statue' && S.flags.festival) return 'Release your lantern';
     if (it.id === 'home' && S.min >= 1020 && S.day > 0 && S.day < 3) return 'Go home for the night';
     if (it.id === 'bed') return S.min >= 1020 && S.day < 3 ? 'Go to bed' : 'Rest a while';
+    if (it.id === 'mydesk' && this.story.shiftOpen()) return S.day === 1 ? 'Start your shift' : 'Join the weekly sync';
     return it.label;
   }
   interact() {
@@ -452,8 +468,8 @@ class Game {
     if (id === 'bed') { if (S.min >= 1020 && S.day < 3) { await this.stage.fadeTo(1, 600); st.finishDay('sleep'); return; } await st.note('You lie down for a while. The room is exactly as you set it.'); this.ui.hideDialog(); this.advance(45); S.energy = clamp(S.energy + 18, 0, S.maxE); S.self = clamp(S.self + 3, 0, 100); return; }
     if (id === 'mirror') { await st.gut(this.drift() > 0.3 ? 'Your reflection looks paler than it did on Sunday.' : 'There you are.'); this.ui.hideDialog(); return; }
     if (id === 'works' || id === 'dock') return st.enterWorks(id === 'dock' ? 'dock' : 'front');
-    if (id === 'hall') { if (S.day === 3 && S.min >= 1050) { this.ui.toast('The town meeting starts at six.'); return; } await this.enterRoom('hall'); await st.note('The chamber is empty. The founders watch from their portrait.'); this.ui.hideDialog(); return; }
-    if (id === 'portrait') { await st.note('The Founders, 1891. Six of them, all roughly the same shape, squinting into the sun.'); if (S.flags.statue_seen) await st.gut('Whoever was in the room.'); this.ui.hideDialog(); return; }
+    if (id === 'hall') { await this.enterRoom('hall'); await st.note(S.day === 2 && S.min >= 1020 && !S.flags.councilDone ? 'People are filing in for the meeting. It starts at six.' : 'The chamber is empty. The founders watch from their portrait.'); this.ui.hideDialog(); return; }
+    if (id === 'portrait') { await st.note('The Founders, 1891. Five of them, no two the same shape, all squinting into the sun.'); if (S.flags.statue_seen) await st.gut('The committee that chose whose measurements to take. None of them matches the statue either.'); this.ui.hideDialog(); return; }
     if (id === 'statue') { if (S.flags.festival) return st.finale(); await st.note('THE STANDARD RESIDENT. Larkspur was built to fit them.'); await st.gut(this.drift() > 0.4 ? 'You are starting to look a little like it.' : 'You do not look like it. Nobody here does.'); this.ui.hideDialog(); return; }
     if (id === 'kiosk') { if (this.npcNear('rue', 'market') && this.npcs.rue.place === 'town') return st.talkTo('rue'); await st.note('The kiosk hums. The screen says: YOU COULD BE CALMER.'); this.ui.hideDialog(); return; }
     if (id === 'board') { await st.note(S.fixes.board === 'built' ? 'The new board glows: NEXT BUS 5:40. TODAY: VIA ELM ST. Simple as that.' : 'Route 12, forty past the hour. A tiny asterisk: subject to change. The changes are announced over the speaker.'); this.ui.hideDialog(); if (!S.fixes.board) S.flags.told_board = 1; return; }
@@ -463,7 +479,7 @@ class Game {
     if (id === 'workshop') { if (this.npcs.wren.place === 'town') return st.talkTo('wren'); await st.note('You knock once. Nobody answers, which is also an answer.'); this.ui.hideDialog(); return; }
     if (t.kind === 'bench') return st.sit(id);
     if (t.kind === 'pond') return st.fish();
-    if (id === 'mydesk') { await st.note('Your desk. Your plant. Somebody has already left a sticky note on it that just says "!".'); this.ui.hideDialog(); }
+    if (id === 'mydesk') { if (st.shiftOpen()) return st.startShift(); await st.note('Your desk. Your plant. Somebody has already left a sticky note on it that just says "!".'); this.ui.hideDialog(); return; }
     if (st.handleExtra) return st.handleExtra(t);
   }
   // ---------- movement ----------
@@ -537,7 +553,7 @@ class Game {
       const nightNow = S.min >= 1230 || S.min < 400;
       this.audio.setScene(this.mgActive && this.mgScene ? this.mgScene : this.loc === 'home' ? 'home' : this.loc === 'works' ? 'works' : this.loc === 'hall' ? 'council' : S.flags.festival ? 'festival' : this.zone === 'farend' ? 'farend' : nightNow ? 'night' : 'town');
     }
-    const L = SIM.levels(S, this.zone, S.min); const z = this.zone; const day = S.min > 400 && S.min < 1170;
+    const L = SIM.levels(S, this.zone, S.min, this.sub); const z = this.zone; const day = S.min > 400 && S.min < 1170;
     const blendOn = S.blend.has && !S.blend.deleted;
     this.audio.setMix({ crowd: z === 'home' ? 0 : L.people * (z === 'farend' ? 0.3 : 1), chatter: z === 'home' || z === 'farend' ? 0 : L.people, traffic: z === 'transit' ? 0.8 : z === 'street' || z === 'market' ? 0.25 : 0.05, hum: z === 'works' ? 1 : 0, birds: day && ['commons', 'farend', 'homerow', 'street'].includes(z) ? (blendOn ? 0.3 : S.blend.deleted ? 0.85 : 0.6) : 0.05, water: z === 'farend' ? 1 : 0, wind: this.loc === 'town' ? 0.6 : 0.05 });
     this.audio.setState({ muffle: S.wearing.headphones ? 0.8 : 0, smooth: smooth ? 1 : 0, self: S.self / 100 });
@@ -545,15 +561,17 @@ class Game {
   update(dt) {
     const S = this.S; const st = this.stage;
     const paused = this.mode !== 'play' || this.busy > 0 || this.phoneOpen || this.settingsOpen || this.mgActive;
-    if (!paused) { const dm = dt * this.timeScale; S.min += dm; this.minAcc += dm; while (this.minAcc >= 1) { this.minAcc -= 1; SIM.tick(S, 1, { pinch: this.pinchNow, zone: this.zone, levels: SIM.levels(S, this.zone, S.min) }); } }
+    if (!paused) { const dm = dt * this.timeScale; S.min += dm; this.minAcc += dm; while (this.minAcc >= 1) { this.minAcc -= 1; SIM.tick(S, 1, { pinch: this.pinchNow, zone: this.zone, levels: SIM.levels(S, this.zone, S.min, this.sub) }); } }
     // where am I, and how does it fit
     const pos = this.player.root.position;
     let zone = this.loc === 'town' ? this.town.zoneAt(pos.x, pos.z).id : this.loc;
-    if (zone === 'market' && S.flags.festival) zone = 'festival';
+    // the quiet corner is part of the square; once it is built it stays quiet even on festival night
+    let sub = zone === 'market' ? this.town.subAt(pos.x, pos.z) : null;
+    if (zone === 'market' && S.flags.festival && !(sub && S.fixes.quiet === 'built')) { zone = 'festival'; sub = null; }
     if (this.loc === 'town' && (zone === 'works' || zone === 'hall')) zone = 'street';
-    if (zone !== this.zone) { this.zone = zone; this.zoneTime = 0; if (S.masking && S.maskZone !== zone) S.masking = false; this.pinchT = 0; }
+    if (zone !== this.zone || sub !== this.sub) { const was = this.zone; this.zone = zone; this.sub = sub; this.zoneTime = 0; if (S.masking && (S.maskZone !== zone || was === zone)) S.masking = false; this.pinchT = 0; }
     if (!paused) this.zoneTime = (this.zoneTime || 0) + dt * (FAST ? 4 : 1);
-    this.pinchT -= dt; if (this.pinchT <= 0) { this.pinchT = 0.25; this.pinchNow = SIM.pinch(S, zone, S.min); }
+    this.pinchT -= dt; if (this.pinchT <= 0) { this.pinchT = 0.25; this.pinchNow = SIM.pinch(S, zone, S.min, sub); }
     this.movePlayer(dt);
     this.updateNPCs(dt);
     if (this.loc === 'town') this.updateCrowd(dt);

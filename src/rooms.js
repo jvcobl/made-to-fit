@@ -215,7 +215,7 @@ export class Office extends Room {
     B.add(new THREE.CylinderGeometry(0.22, 0.22, 1.1, 14), '#e3e8ec', mtx(7.4, 0.55, 0.6)); B.add(new THREE.CylinderGeometry(0.2, 0.2, 0.45, 14), '#9fd3f0', mtx(7.4, 1.33, 0.6));
     this.block(5.7, 2.2, 7.6, 3.0); this.block(7.0, 0.2, 7.8, 1.0);
     for (const [px, pz] of [[-7.3, 3.8], [3.9, -4.4]]) { B.add(new THREE.CylinderGeometry(0.28, 0.22, 0.5, 12), '#5b6470', mtx(px, 0.25, pz)); for (let i = 0; i < 7; i++) B.add(new THREE.SphereGeometry(0.24, 8, 6), '#5f8f4e', mtx(px + Math.cos(i) * 0.2, 0.75 + (i % 3) * 0.22, pz + Math.sin(i) * 0.2)); this.block(px - 0.4, pz - 0.4, px + 0.4, pz + 0.4); }
-    this.spots.door = [-6.8, 4.2]; this.spots.gil = [4.0, -0.2]; this.spots.mydesk = this.seats[6]; this.spots.front = [0, 3.6]; this.spots.board = [-6.9, -1.5];
+    this.spots.door = [-6.8, 4.2]; this.spots.gil = [4.0, -0.2]; this.spots.mydesk = this.seats[6]; this.spots.dot = this.seats[7]; this.spots.fen = this.seats[8]; this.spots.front = [0, 3.6]; this.spots.board = [-6.9, -1.5];
     this.spawn = [-6.6, 4.0];
     this.inter = [{ id: 'out', kind: 'exit', x: -7.2, z: 4.4, r: 1.2, label: 'Step outside' }, { id: 'mydesk', kind: 'desk', x: this.seats[6][0], z: this.seats[6][1] + 0.2, r: 1.1, label: 'Sit at your desk' }];
     this.cam = { pos: new THREE.Vector3(7.8, 9.6, 12.4), look: new THREE.Vector3(-0.6, 0.6, -0.4), fov: 38 };
@@ -273,7 +273,9 @@ export class Chamber extends Room {
     const frame = new THREE.Mesh(new RoundedBoxGeometry(3.0, 1.9, 0.1, 1, 0.04), std('#b8893a', { metalness: 0.4, roughness: 0.4 })); pg.add(frame);
     const canvas = new THREE.Mesh(new THREE.PlaneGeometry(2.7, 1.6), std('#3a3340')); canvas.position.z = 0.06; pg.add(canvas);
     this.scene.add(pg);
-    for (let i = 0; i < 5; i++) { const f = new Creature(STANDARD, { scale: 0.62, seed: 300 + i, lod: 'low', form: 'baked' }); f.root.position.set(-6.8, 1.9, -1.6 + i * 0.5); f.root.rotation.y = Math.PI / 2; f.heading = Math.PI / 2; f.update(0.01); this.scene.add(f.root); }
+    // the founders: five people, no two the same shape (the Standard was measured off someone else)
+    const FOUNDERS = [{ shape: 'tall', color: '#c9b8a6', pattern: 'plain', top: 'ears', wear: 'hat' }, { shape: 'round', color: '#cbb9a2', pattern: 'belly', top: 'none', wear: 'glasses' }, { shape: 'boxy', color: '#d6c6ad', pattern: 'plain', top: 'horns', wear: 'scarf' }, { shape: 'blobby', color: '#bfa98e', pattern: 'spots', top: 'tuft', wear: 'none' }, { shape: 'spiky', color: '#e0cdb0', pattern: 'plain', top: 'longears', wear: 'bow' }];
+    for (let i = 0; i < 5; i++) { const f = new Creature(Object.assign({}, STANDARD, FOUNDERS[i]), { scale: 0.62, seed: 300 + i, lod: 'low', form: 'baked' }); f.root.position.set(-6.8, 1.9, -1.6 + i * 0.5); f.root.rotation.y = Math.PI / 2; f.heading = Math.PI / 2; f.update(0.01); this.scene.add(f.root); }
     this.addPlaque('The Founders, 1891', -6.86, 1.45, -0.6, 1.4, 0.26, Math.PI / 2);
     this.spots = { door: [5.6, 4.2], lectern: [0, 1.1], hollis: [0, -3.75], pip: [-2.2, -3.75], clover: [2.2, -3.75], benchL: [-3.6, 2.6], benchR: [3.6, 2.6], benchL2: [-3.6, 4.1], benchR2: [3.6, 4.1], portrait: [-5.6, -0.6] };
     this.spawn = [5.6, 4.0];
