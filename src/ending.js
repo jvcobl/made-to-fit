@@ -1,4 +1,4 @@
-// The end of a visit: a title that says what you put first, what Larkspur will remember (in plain sentences, no
+// The end of a visit: a title that says what mattered most in it, what Larkspur will remember (in plain sentences, no
 // lessons), and what carries to the next visit (the carry record, kept on this device and as a code you can copy).
 import * as SIM from './sim.js';
 import { CAST, STAKES } from './content.js';
@@ -30,13 +30,20 @@ export function scores(S) {
   const showed = (S.flags.rue_pond ? 1 : 0) + (S.flags.wren_invited || S.flags.foldHour ? 1 : 0);
   return { town: made.length * 2 + listened, people: bonds + unasked + favours + showed, made };
 }
-// the title, in priority order: your colour first, then what you put first (the town or the people)
+// the title, in priority order: your colour first; then whether you changed the place (a fix you helped make, the
+// rarest thing in a season: two at most, each needing backers, the person it costs, and a vote); then the answer you
+// gave most (pushing through until it showed, or leaving); then who knows you. (Comparing a town score with a people
+// score let friendliness erase a fix: the season caps the one and nothing caps the other, so every sociable fixer
+// came out Known. And four exits out of thirty answers is not a way of life: leaving has to be your usual answer.)
 export function endingKey(S) {
   const colour = colourOf(S.self); const dep = S.blend.dep || 0; const sm = S.blend.has && S.blend.smooth && !S.blend.deleted;
   if (colour === 'grey') return dep >= 4 || sm ? 'blended' : 'carried';
   const sc = scores(S);
-  if (sc.made.length >= 1 && sc.town >= sc.people) return sc.made.length >= 2 ? 'roommade' : 'wider';
-  if ((S.stats.leave || 0) >= 4 && colour === 'yourself') return 'movedon';
+  if (sc.made.length >= 1) return sc.made.length >= 2 ? 'roommade' : 'wider';
+  const st = S.stats || {}; const bends = (st.bend || 0) + (st.smooth || 0), leaves = st.leave || 0;
+  const answers = bends + (st.gear || 0) + (st.ask || 0) + (st.fix || 0) + leaves;
+  if (colour === 'faded' && bends >= 8 && bends >= 0.6 * answers) return 'carried';
+  if (leaves >= 4 && leaves >= 0.4 * answers && colour === 'yourself') return 'movedon';
   if (sc.people >= 3) return 'known';
   if (sc.people >= 2) return 'island';
   return 'working';
