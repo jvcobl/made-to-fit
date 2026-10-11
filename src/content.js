@@ -1,15 +1,16 @@
 // Every word in Larkspur. Scripts are lists of nodes interpreted by story.js.
 // Nodes: {who,t} line · {gut} inner voice · {notice:dim,t} perception · {hint:id} · {ask:[{t,sub,if,do,go,tag}]} · {label} · {go} · {if,go} · {do:[...]} · {face,who} · {call} · {end}
 
+// profile: what each resident likes, on the same six dials as yours (from PEOPLE below); their bodies show what pinches
 export const CAST = {
-  gil: { name: 'Gil', role: 'your manager at the Works', look: { shape: 'boxy', color: '#cbb9a2', pattern: 'plain', top: 'ears', wear: 'glasses' }, voice: ['hum', 0.82], tint: '#8a6f4e' },
-  pip: { name: 'Pip', role: 'bakes for the whole town', look: { shape: 'round', color: '#ffc98e', pattern: 'belly', top: 'longears', wear: 'bow' }, voice: ['chime', 1.25], tint: '#c8553d' },
-  moss: { name: 'Moss', role: 'runs the tea cart', look: { shape: 'blobby', color: '#9fd3b0', pattern: 'spots', top: 'ears', wear: 'leaf' }, voice: ['hum', 0.62], tint: '#2b7a5a' },
-  rue: { name: 'Rue', role: 'works the Blend kiosk', look: { shape: 'tall', color: '#f3a0c2', pattern: 'stripes', top: 'antennae', wear: 'none' }, voice: ['whistle', 1.0], tint: '#d0457f' },
-  bea: { name: 'Bea', role: 'has lived on Home Row for fifty years', look: { shape: 'round', color: '#e3d2ef', pattern: 'plain', top: 'ears', wear: 'hat' }, voice: ['hum', 1.12], tint: '#6c5c9e', cart: true },
-  wren: { name: 'Wren', role: 'makes lanterns at the Far End', look: { shape: 'spiky', color: '#a99be8', pattern: 'plain', top: 'horns', wear: 'scarf' }, voice: ['click', 1.0], tint: '#4f4aa8' },
-  clover: { name: 'Clover', role: 'keeps the Fix-It Shed', look: { shape: 'blobby', color: '#cde38f', pattern: 'spots', top: 'tuft', wear: 'flower' }, voice: ['chime', 0.92], tint: '#5f7a2a' },
-  hollis: { name: 'Hollis', role: 'is the mayor', look: { shape: 'boxy', color: '#93c2ee', pattern: 'plain', top: 'ears', wear: 'hat' }, voice: ['hum', 0.7], tint: '#3f5a87' },
+  gil: { name: 'Gil', role: 'your manager at the Works', look: { shape: 'boxy', color: '#cbb9a2', pattern: 'plain', top: 'ears', wear: 'glasses' }, voice: ['hum', 0.82], tint: '#8a6f4e', profile: { sound: 0.55, light: 0.3, people: 0.65, talk: 0.75, time: 0.45, change: 0.35 } },
+  pip: { name: 'Pip', role: 'bakes for the whole town', look: { shape: 'round', color: '#ffc98e', pattern: 'belly', top: 'longears', wear: 'bow' }, voice: ['chime', 1.25], tint: '#c8553d', profile: { sound: 0.45, light: 0.6, people: 0.85, talk: 0.55, time: 0.2, change: 0.5 } },
+  moss: { name: 'Moss', role: 'runs the tea cart', look: { shape: 'blobby', color: '#9fd3b0', pattern: 'spots', top: 'ears', wear: 'leaf' }, voice: ['hum', 0.62], tint: '#2b7a5a', profile: { sound: 0.3, light: 0.5, people: 0.4, talk: 0.45, time: 0.4, change: 0.4 } },
+  rue: { name: 'Rue', role: 'works the Blend kiosk', look: { shape: 'tall', color: '#f3a0c2', pattern: 'stripes', top: 'antennae', wear: 'none' }, voice: ['whistle', 1.0], tint: '#d0457f', profile: { sound: 0.6, light: 0.65, people: 0.6, talk: 0.25, time: 0.6, change: 0.75 } },
+  bea: { name: 'Bea', role: 'has lived on Home Row for fifty years', look: { shape: 'round', color: '#e3d2ef', pattern: 'plain', top: 'ears', wear: 'hat' }, voice: ['hum', 1.12], tint: '#6c5c9e', cart: true, profile: { sound: 0.35, light: 0.55, people: 0.55, talk: 0.4, time: 0.25, change: 0.3, aid: true } },
+  wren: { name: 'Wren', role: 'makes lanterns at the Far End', look: { shape: 'spiky', color: '#a99be8', pattern: 'plain', top: 'horns', wear: 'scarf' }, voice: ['click', 1.0], tint: '#4f4aa8', profile: { sound: 0.2, light: 0.35, people: 0.2, talk: 0.15, time: 0.55, change: 0.25 } },
+  clover: { name: 'Clover', role: 'keeps the Fix-It Shed', look: { shape: 'blobby', color: '#cde38f', pattern: 'spots', top: 'tuft', wear: 'flower' }, voice: ['chime', 0.92], tint: '#5f7a2a', profile: { sound: 0.55, light: 0.65, people: 0.5, talk: 0.3, time: 0.3, change: 0.7 } },
+  hollis: { name: 'Hollis', role: 'is the mayor', look: { shape: 'boxy', color: '#93c2ee', pattern: 'plain', top: 'ears', wear: 'hat' }, voice: ['hum', 0.7], tint: '#3f5a87', profile: { sound: 0.5, light: 0.6, people: 0.5, talk: 0.35, time: 0.35, change: 0.3 } },
 };
 
 // where people are: [fromMin, toMin, place, spot] per day (0 = any day). place 'town' | 'works' | 'hall' | 'away'

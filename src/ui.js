@@ -22,6 +22,7 @@ export const ICON = {
 const $ = (h) => { const d = document.createElement('div'); d.innerHTML = h.trim(); return d.firstElementChild; };
 export const isTouch = () => (typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches) || 'ontouchstart' in window;
 const DAYNAME = ['Moving day', 'Monday', 'Tuesday', 'Wednesday'];
+export const COMFORT_OPTS = [['hum', 'Hum'], ['tap', 'Tap'], ['rock', 'Rock'], ['spin', 'Spin'], ['flap', 'Flap'], ['pace', 'Pace'], ['charm', 'Fiddle with a charm']];
 
 export class UI {
   constructor(G) {
@@ -33,7 +34,7 @@ export class UI {
       <div id="caption"></div>
       <div id="bubbles"></div>
       <div id="hud" hidden>
-        <div class="clock"><div class="dial"></div><div class="cl"><div class="when"></div><div class="obj"></div><button class="way" id="wayBtn" hidden>${ICON.way}<span>Show the way</span></button></div></div>
+        <div class="clock"><div class="dial"></div><div class="cl"><div class="when"></div><div class="obj"></div><div class="pstrip" role="group" aria-label="How this place fits you" hidden></div><button class="way" id="wayBtn" hidden>${ICON.way}<span>Show the way</span></button></div></div>
         <div class="hudbtns"><button class="btn hb" id="phoneBtn" aria-label="Phone">${ICON.phone}<span class="lbl">Phone</span>${this.touch ? '' : '<kbd class="kphone"></kbd>'}</button><button class="btn hb" id="setBtn" aria-label="Menu: pause and settings">${ICON.cog}<span class="lbl">Menu</span></button></div>
         <div class="dock"><div class="energy" title="Energy for today"><svg viewBox="0 0 36 36"><circle class="track" cx="18" cy="18" r="14" fill="none" stroke-width="5"/><circle class="bar" cx="18" cy="18" r="14" fill="none" stroke-width="5" stroke-linecap="round" stroke-dasharray="88" stroke-dashoffset="0"/></svg><span class="elabel">Energy</span></div><div class="gearbtns"></div></div>
       </div>
@@ -238,6 +239,13 @@ export class UI {
     }
   }
   ping(on) { this.el('#phoneBtn').classList.toggle('ping', on); }
+  // the pinch strip: how this place fits you, in words (feel.js decides what it says and when it is read out)
+  pinchStrip(c) {
+    const el = this.el('#hud .pstrip'); if (!el) return;
+    if (!c) { el.hidden = true; el.innerHTML = ''; return; }
+    el.hidden = false;
+    el.innerHTML = c.items.map(([ic, w, cls]) => `<span class="pchip ${cls}"><i aria-hidden="true">${ic}</i>${esc(w)}</span>`).join('') + c.tags.map((t) => `<span class="ptag">${esc(t)}</span>`).join('');
+  }
   prompt(label, x, y) {
     const p = this.el('#prompt'); if (!label) { p.hidden = true; this._pl = null; return; }
     p.hidden = false; if (this._pl !== label) { this._pl = label; p.innerHTML = (this.touch ? '' : '<kbd>' + esc(this.G.keyOf('interact')) + '</kbd>') + esc(label); }
@@ -300,6 +308,7 @@ export class UI {
       <h4>Color</h4><div class="chips" data-k="color">${OPTIONS.color.map((c) => `<button class="swatch ${c === L.color ? 'on' : ''}" data-v="${c}" style="background:${c}" aria-label="color ${c}"></button>`).join('')}</div>
       ${sec('Pattern', 'pattern', OPTIONS.pattern, L.pattern)}${sec('On top', 'top', OPTIONS.top, L.top)}${sec('Something you always wear', 'wear', OPTIONS.wear, L.wear)}${sec('Your voice', 'voice', OPTIONS.voice, L.voice)}
       ${sec('Getting around', 'wheels', [['feet', 'On foot'], ['wheels', 'On wheels']], L.wheels ? 'wheels' : 'feet')}
+      ${sec('Your comfort move', 'comfort', COMFORT_OPTS, L.comfort || 'hum')}<p class="small">What your creature does when a place fits it.</p>
       <div class="row"><button class="btn" id="rand">Surprise me</button><button class="btn primary" id="done" style="flex:1">That's me</button></div>`;
     const p = this.openPanel('creator', html);
     p.addEventListener('click', (e) => {
@@ -310,7 +319,7 @@ export class UI {
     });
     p.querySelector('#rand').onclick = () => {
       const pk = (a) => a[Math.floor(Math.random() * a.length)];
-      L.shape = pk(OPTIONS.shape)[0]; L.color = pk(OPTIONS.color); L.pattern = pk(OPTIONS.pattern)[0]; L.top = pk(OPTIONS.top)[0]; L.wear = pk(OPTIONS.wear)[0]; L.voice = pk(OPTIONS.voice)[0];
+      L.shape = pk(OPTIONS.shape)[0]; L.color = pk(OPTIONS.color); L.pattern = pk(OPTIONS.pattern)[0]; L.top = pk(OPTIONS.top)[0]; L.wear = pk(OPTIONS.wear)[0]; L.voice = pk(OPTIONS.voice)[0]; L.comfort = pk(COMFORT_OPTS)[0];
       p.querySelectorAll('.chips').forEach((c) => { const k = c.dataset.k; const cur = k === 'wheels' ? (L.wheels ? 'wheels' : 'feet') : k === 'pronoun' ? S.pronoun : L[k]; c.querySelectorAll('[data-v]').forEach((x) => x.classList.toggle('on', x.dataset.v === cur)); });
       this.G.audio.sfx('whoosh'); onChange(L, 'all');
     };

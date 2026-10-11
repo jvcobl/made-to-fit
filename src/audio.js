@@ -20,7 +20,7 @@ export class Audio {
   constructor() {
     this.ctx = null; this.ready = false; this.muted = false;
     this.vol = { master: 0.8, music: 0.7, amb: 0.7, sfx: 0.8 };
-    this.scene = 'silence'; this.wantScene = 'silence'; this.pressure = 0; this.muffle = 0; this.smooth = 0; this.self = 1;
+    this.scene = 'silence'; this.wantScene = 'silence'; this.muffle = 0; this.smooth = 0; this.self = 1;
     this.mix = { crowd: 0, traffic: 0, hum: 0, birds: 0, wind: 0.2, water: 0, chatter: 0 };
     this.beat = 0; this.nextT = 0; this.bar = 0; this.lastMel = 4;
   }
@@ -70,7 +70,7 @@ export class Audio {
   setMuted(v) { this.muted = v; this.applyVolumes(); }
   setScene(name) { this.wantScene = name; }
   setMix(o) { Object.assign(this.mix, o); }
-  setState(o) { if ('pressure' in o) this.pressure = o.pressure; if ('muffle' in o) this.muffle = o.muffle; if ('smooth' in o) this.smooth = o.smooth; if ('self' in o) this.self = o.self; }
+  setState(o) { if ('muffle' in o) this.muffle = o.muffle; if ('smooth' in o) this.smooth = o.smooth; if ('self' in o) this.self = o.self; }
   // called every frame: glide everything toward its targets
   update() {
     if (!this.ready) return; const c = this.ctx, t = c.currentTime;
@@ -94,7 +94,7 @@ export class Audio {
     if (!this.ready) return; const c = this.ctx;
     if (this.nextT < c.currentTime) this.nextT = c.currentTime + 0.05;
     while (this.nextT < c.currentTime + 0.35) { this.playBeat(this.nextT); const S = SCENES[this.scene] || SCENES.town; this.nextT += 60 / S.bpm / 2; }
-    // ambience details: birds, babble, heartbeat
+    // ambience details: birds and babble
     const t = c.currentTime; const x = this.mix;
     if (x.birds > 0.05 && Math.random() < x.birds * 0.06) this.chirp(t + Math.random() * 0.3);
     if (x.chatter > 0.05 && Math.random() < x.chatter * 0.25) this.voice('hum', 0.7 + Math.random() * 0.8, 'mmmhm yeah oh really', { bus: this.amb, gain: 0.09, count: 4 + Math.floor(Math.random() * 5), when: t + Math.random() * 0.2 });
@@ -132,7 +132,6 @@ export class Audio {
   sparkle(t) { [84, 88, 91, 96].forEach((m, i) => this.blip(mtof(m), t + i * 0.04, 0.25, 0.03, 'sine')); }
   kick(t) { const c = this.ctx; const o = c.createOscillator(); const g = c.createGain(); o.frequency.setValueAtTime(110, t); o.frequency.exponentialRampToValueAtTime(42, t + 0.12); o.connect(g); g.connect(this.music); this.env(g, t, 0.003, 0.22, 0.2); o.start(t); o.stop(t + 0.3); }
   shaker(t) { const c = this.ctx; const s = c.createBufferSource(); s.buffer = this.noise.white; const f = c.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = 6000; const g = c.createGain(); s.connect(f); f.connect(g); g.connect(this.music); this.env(g, t, 0.003, 0.04, 0.06); s.start(t, Math.random()); s.stop(t + 0.1); }
-  heart(t) { if (!this.ready) return; const c = this.ctx; for (const [dt, v] of [[0, 0.22], [0.18, 0.14]]) { const o = c.createOscillator(); o.frequency.value = 52; const g = c.createGain(); o.connect(g); g.connect(this.master); this.env(g, t + dt, 0.01, v * this.pressure * this.vol.sfx, 0.16); o.start(t + dt); o.stop(t + dt + 0.25); } }
   chirp(t) { const c = this.ctx; const o = c.createOscillator(); const g = c.createGain(); const f0 = 2400 + Math.random() * 1600; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f0 * 1.4, t + 0.06); o.frequency.exponentialRampToValueAtTime(f0 * 0.9, t + 0.12); o.connect(g); g.connect(this.amb); this.env(g, t, 0.01, 0.025 * this.mix.birds, 0.12); o.start(t); o.stop(t + 0.2); }
   // babble voices: one blip per letter, pitch from the voice and the letter
   voice(kind, pitch, text, o = {}) {
@@ -181,6 +180,14 @@ export class Audio {
       case 'swipe': { const s2 = c.createBufferSource(); s2.buffer = this.noise.pink; const f = c.createBiquadFilter(); f.type = 'bandpass'; f.frequency.setValueAtTime(800, t); f.frequency.exponentialRampToValueAtTime(3000, t + 0.15); const g = c.createGain(); s2.connect(f); f.connect(g); g.connect(B); this.env(g, t, 0.02, 0.08, 0.15); s2.start(t); s2.stop(t + 0.25); bl(mtof(84), 0.06, 0.1, 0.03); break; }
       case 'prize': [72, 79, 84, 88, 91, 96].forEach((m, i) => bl(mtof(m), i * 0.06, 0.25, 0.06, i % 2 ? 'square' : 'triangle')); break;
       case 'hum': [0, 4, 7, 12].forEach((d, i) => bl(mtof((o.n || 67) + d), i * 0.14, 0.3, 0.04, 'sine')); break;
+      // your comfort move, quietly (Settings: Comfort move sound); moves with no sound of their own stay silent
+      case 'comfort': {
+        const ty = (VOICES[o.voice] || VOICES.hum).type === 'square' ? 'triangle' : (VOICES[o.voice] || VOICES.hum).type;
+        if (o.kind === 'hum') [0, 2, 4, 2].forEach((d, i) => bl(mtof(60 + d), i * 0.3, 0.32, 0.022, ty));
+        else if (o.kind === 'tap') [0, 0.2, 0.4].forEach((d) => bl(900, d, 0.04, 0.018, 'triangle'));
+        else if (o.kind === 'charm') { bl(2637, 0, 0.12, 0.01); bl(3136, 0.09, 0.14, 0.008); }
+        break;
+      }
       case 'drop': bl(mtof(76), 0, 0.08, 0.05, 'triangle'); bl(mtof(72), 0.05, 0.1, 0.04, 'triangle'); break;
       case 'whoosh': { const s = c.createBufferSource(); s.buffer = this.noise.pink; const f = c.createBiquadFilter(); f.type = 'bandpass'; f.frequency.setValueAtTime(300, t); f.frequency.exponentialRampToValueAtTime(2000, t + 0.35); const g = c.createGain(); s.connect(f); f.connect(g); g.connect(B); this.env(g, t, 0.15, 0.12, 0.3); s.start(t); s.stop(t + 0.6); break; }
       case 'cheer': { const s = c.createBufferSource(); s.buffer = this.noise.pink; const f = c.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 1100; const g = c.createGain(); s.connect(f); f.connect(g); g.connect(B); this.env(g, t, 0.3, 0.12, 1.6); s.start(t); s.stop(t + 2); break; }

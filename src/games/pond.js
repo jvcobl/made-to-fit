@@ -129,9 +129,7 @@ export class PondGame extends MiniGame {
     ctx.save(); ctx.beginPath(); ctx.arc(this.cx, this.cy, this.R, 0, Math.PI * 2); ctx.fillStyle = g; ctx.fill(); ctx.clip();
     // the willow's shade and the reeds
     ctx.fillStyle = 'rgba(20,40,40,0.28)'; ctx.beginPath(); ctx.ellipse(this.cx + this.R * 0.62, this.cy - this.R * 0.62, this.R * 0.5, this.R * 0.36, -0.6, 0, Math.PI * 2); ctx.fill();
-    ctx.globalAlpha = this.room && mode === 'play' ? this.room.ink : 1;
     for (const q of this.fish) this.drawFish(ctx, q.x, q.y, (q.f.len * 36 + 18), q.f, q.a, false);
-    ctx.globalAlpha = 1;
     for (const r of this.ripples) { const k = r.t / 1.6; ctx.strokeStyle = `rgba(255,255,255,${(1 - k) * 0.5 * r.s})`; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.ellipse(r.x, r.y, 4 + k * 26 * r.s, 2 + k * 13 * r.s, 0, 0, Math.PI * 2); ctx.stroke(); }
     for (let i = 0; i < 9; i++) { const a = i * 0.7 + t * 0.05; const x = this.cx + Math.cos(a) * this.R * 0.55, y = this.cy + Math.sin(a * 1.3) * this.R * 0.5; ctx.fillStyle = 'rgba(255,255,255,0.12)'; ctx.fillRect(x, y, 10, 1.5); }
     ctx.restore();

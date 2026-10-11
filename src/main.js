@@ -11,6 +11,7 @@ import { CAST, ROUTINES, BLEND } from './content.js';
 import { Story } from './story.js';
 import { Guide } from './guide.js';
 import { updateLOD } from './lod.js';
+import { Feel } from './feel.js';
 import { Feed } from './games/feed.js';
 import * as SAVE from './save.js';
 import { Menus, actionOf, DEFAULT_KEYS, keyLabel } from './menus.js';
@@ -43,7 +44,7 @@ class Game {
     if (this.settings.vol) for (const k of ['master', 'music', 'amb', 'sfx']) if (typeof this.settings.vol[k] === 'number') this.audio.vol[k] = clamp(this.settings.vol[k], 0, 1);
     if (params.get('mute') === '1') this.audio.setMuted(true);
     this.S = SIM.newState(+(params.get('seed') || Date.now() % 100000));
-    this.S.look = { shape: 'round', color: '#93c2ee', pattern: 'belly', top: 'longears', wear: 'scarf', voice: 'chime', wheels: false };
+    this.S.look = { shape: 'round', color: '#93c2ee', pattern: 'belly', top: 'longears', wear: 'scarf', voice: 'chime', wheels: false, comfort: 'hum' };
     this.player = new Creature(this.S.look, { seed: 7 });
     this.texts = []; this.mode = 'title'; this.busy = 0; this.loc = 'town'; this.zone = 'street'; this.path = []; this.keys = {}; this.minAcc = 0; this.stepT = 0;
     this.timeScale = FAST ? 22 : 2.5; this.pinchNow = null; this.pinchT = 0; this.talking = null; this.target = null; this.phoneOpen = false; this.holdK = 0;
@@ -55,6 +56,7 @@ class Game {
     this.menus = new Menus(this, this.ui);
     this.guide = new Guide(this);
     this.feed = new Feed(this);
+    this.feel = new Feel(this);
     this.applySettings();
     this.bindInput();
     this.setLoc('town');
@@ -76,6 +78,8 @@ class Game {
     document.body.classList.toggle('reduce', !!s.reduceMotion);
   }
   openSettings() { if (this.menus.open) return; this.menus.settings(); }
+  // which rebindable action a key press means (tasks use it for the comfort move key)
+  actionOf(e) { return actionOf(this.settings.keys, e); }
   // the last save, kept in memory too, so the save code works even when storage is blocked
   lastSave() { if (this.lastSaveObj) return this.lastSaveObj; const r = SAVE.readSave(); return r.save || null; }
   saveNote() { const m = this.lastSaveMeta; if (!m) return 'The game saves each morning, after work and after the town meeting.'; return m.ok ? 'Saved: ' + m.label + '. If you leave now, you come back to ' + m.label + '.' : 'This browser isn\'t keeping saves. Copy your save code to pick up later.'; }
@@ -330,9 +334,13 @@ class Game {
   // a small picture of any creature, rendered with the same models as the town (portraits, permits, the People guide)
   portraitOf(look, o = {}) {
     this.ensurePScene();
-    const key = JSON.stringify([look, o.drift || 0, o.bg || '', o.w || 360]);
+    const seed = o.seed || 31;
+    const key = JSON.stringify([look, o.drift || 0, o.bg || '', o.w || 360, o.h || 360, o.pose || '', seed]);
     this.pCache = this.pCache || {}; if (this.pCache[key]) return this.pCache[key];
-    const c = new Creature(look, { seed: o.seed || 31 }); c.setDrift(o.drift || 0); c.update(0.016);
+    // one stand-in creature per seed, dressed again for each portrait (a new one each time would leak geometry)
+    this.pCre = this.pCre || {}; let c = this.pCre[seed];
+    if (!c) c = this.pCre[seed] = new Creature(look, { seed }); else c.setLook(look);
+    c.setDrift(o.drift || 0); c.posePortrait(o.pose || 'rest'); c.blinkT = 5; c.update(0.016);
     if (o.bg) this.pScene.background = new THREE.Color(o.bg);
     this.pScene.add(c.root);
     this.fitPCam();
@@ -498,30 +506,31 @@ class Game {
     this.player.speed = moved ? 1 : 0;
     if (moved && !this.S.wheels) { this.stepT -= dt; if (this.stepT <= 0) { this.stepT = 0.34; this.audio.sfx('step', { v: 0.7 }); } }
   }
-  // ---------- the felt part: fit becomes light, sound and camera ----------
+  // ---------- the felt part ----------
+  // A place shows on your creature (feel.js) and in words (the pinch strip), never on your own eyes and ears. What is
+  // left on screen is the same for every profile: one slow, capped mood tint (Settings: Mood tint Gentle / Off), Smooth
+  // Mode's grey (the story's sign), low colour when you have lost some of yourself, and a small fixed push-in when a
+  // "Who adjusts?" card opens (none with Reduced motion).
   computeFx(dt) {
     const S = this.S, st = this.stage; const playing = this.mode === 'play' || this.mode === 'cine';
-    const p = this.pinchNow; const smooth = S.blend.has && S.blend.smooth && !S.blend.deleted;
-    const masked = S.masking && S.maskZone === this.zone;
-    let fx = { sat: 1, contrast: 1, vignette: 0.2, aberr: 0, grain: 0.02, tint: 0, bloom: 0.32, exposure: 1, warm: 0 }; let push = 0, pressure = 0;
-    if (p && playing && this.zone !== 'home' && !this.mgActive) {
-      const o = p.dims; const under = o.sound.under * 0.8 + o.people.under + o.light.under * 0.6 + o.change.under * 0.3;
-      push = clamp(o.people.over * 1.7 + o.sound.over * 0.9 + o.light.over * 0.6 + o.change.over * 0.4 + o.talk.over * 0.3);
-      fx.bloom = Math.min(0.62, 0.32 + o.light.over * 0.9); fx.exposure = Math.min(1.1, 1 + o.light.over * 0.25); fx.aberr = o.sound.over * 0.016 + o.people.over * 0.006;
-      fx.vignette = 0.2 + push * 0.4 + under * 0.4; fx.sat = 1 - under * 0.7; fx.contrast = 1 - under * 0.25;
-      pressure = clamp(o.sound.over * 1.4 + o.people.over * 0.9 + o.light.over * 0.3);
-      if (this.barrierFocus) { push = Math.max(push, 0.35); }
-      if (masked) { push *= 0.3; pressure *= 0.35; fx.bloom = lerp(0.32, fx.bloom, 0.35); fx.exposure = lerp(1, fx.exposure, 0.35); fx.aberr *= 0.3; fx.vignette = lerp(0.2, fx.vignette, 0.4); fx.sat *= 0.92; }
-    }
-    if (smooth && this.zone !== 'home') { push = 0; pressure = 0; fx = Object.assign(fx, { sat: 0.42, contrast: 0.94, tint: 0.5, bloom: 0.28, exposure: 0.97, aberr: 0, vignette: 0.14 }); }
-    const selfK = S.self / 100; fx.sat *= lerp(0.72, 1, selfK);
-    if (this.holding) { push = Math.max(push, this.holdK * 0.6); this.player.tense = this.holdK; } else this.player.tense = damp(this.player.tense, masked ? 0.25 : smooth ? 0.15 : push > 0.35 ? 0.4 : 0, 3, dt);
+    const p = this.pinchNow; const smooth = S.blend.has && S.blend.smooth && !S.blend.deleted && this.zone !== 'home';
+    const tintOn = this.settings.moodTint !== 'off';
+    const target = tintOn && p && playing && this.zone !== 'home' && !this.mgActive && S.day > 0 ? clamp(p.total) : 0;
+    this.moodK = damp(this.moodK || 0, target, 0.4, dt); // a 2.5 s time constant: it eases, it never jumps or pulses
+    let fx = { sat: 1 - 0.12 * this.moodK, contrast: 1, vignette: 0.2, aberr: 0, grain: 0.02, tint: 0, bloom: 0.32, exposure: 1, warm: -0.6 * this.moodK };
+    if (smooth) fx = Object.assign(fx, { sat: 0.42, contrast: 0.94, tint: 0.5, bloom: 0.28, exposure: 0.97, vignette: 0.14, warm: 0 });
+    if (tintOn) fx.sat *= lerp(0.8, 1, S.self / 100);
+    fx.sat = Math.max(smooth ? 0.4 : 0.75, fx.sat);
     if (this.mode === 'title') fx = { sat: 1.05, contrast: 1.02, vignette: 0.3, aberr: 0, grain: 0.02, tint: 0, bloom: 0.4, exposure: 1, warm: 0.15 };
-    if (this.mgActive) { fx.vignette = 0.5; fx.sat *= 0.75; }
+    if (this.mgActive) { fx.vignette = 0.5; fx.sat *= 0.75; } // the town waits, dimmed, behind the task card
     st.setFx(fx);
-    st.rig.push = damp(st.rig.push, push * (this.settings.reduceMotion ? 0.4 : 1) * this.settings.fx, 2.2, dt);
-    st.shake = damp(st.shake, pressure > 0.4 ? pressure * this.settings.fx : 0, 2, dt);
-    const face = push > 0.45 && !masked && !smooth ? 'tense' : S.energy < 22 && this.mode === 'play' ? 'sad' : 'neutral';
+    const still = this.settings.reduceMotion;
+    const push = still ? 0 : Math.max(this.barrierFocus ? 0.18 : 0, this.holding ? this.holdK * 0.25 : 0);
+    st.rig.push = damp(st.rig.push, push, 2.2, dt); st.shake = 0;
+    // bracing while you hold "Push through"; a straight back while you hide it
+    const masked = S.masking && S.maskZone === this.zone;
+    this.player.tense = this.holding ? this.holdK : damp(this.player.tense, masked || smooth ? 0.12 : 0, 3, dt);
+    const face = S.energy < 22 && this.mode === 'play' ? 'sad' : 'neutral';
     if (this.player.setExpression && !this.talking && this.player.expr !== face) this.player.setExpression(face);
     // sound of the place, and its music
     if (this.mode === 'play') {
@@ -531,7 +540,7 @@ class Game {
     const L = SIM.levels(S, this.zone, S.min); const z = this.zone; const day = S.min > 400 && S.min < 1170;
     const blendOn = S.blend.has && !S.blend.deleted;
     this.audio.setMix({ crowd: z === 'home' ? 0 : L.people * (z === 'farend' ? 0.3 : 1), chatter: z === 'home' || z === 'farend' ? 0 : L.people, traffic: z === 'transit' ? 0.8 : z === 'street' || z === 'market' ? 0.25 : 0.05, hum: z === 'works' ? 1 : 0, birds: day && ['commons', 'farend', 'homerow', 'street'].includes(z) ? (blendOn ? 0.3 : S.blend.deleted ? 0.85 : 0.6) : 0.05, water: z === 'farend' ? 1 : 0, wind: this.loc === 'town' ? 0.6 : 0.05 });
-    this.audio.setState({ pressure: pressure * this.settings.fx, muffle: S.wearing.headphones ? 0.8 : 0, smooth: smooth && this.zone !== 'home' ? 1 : 0, self: selfK });
+    this.audio.setState({ muffle: S.wearing.headphones ? 0.8 : 0, smooth: smooth ? 1 : 0, self: S.self / 100 });
   }
   update(dt) {
     const S = this.S; const st = this.stage;
@@ -552,6 +561,7 @@ class Game {
     if (this.loc === 'hall') for (const a of this.audience) if (a.root.visible) a.update(dt);
     if (!paused) this.story.tick();
     this.computeFx(dt);
+    this.feel.update(dt);
     this.player.setDrift(this.drift() * 0.92);
     this.player.update(dt);
     updateLOD(this);

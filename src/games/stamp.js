@@ -74,7 +74,6 @@ export class StampGame extends MiniGame {
     ctx.save(); shadow(ctx, 14, 6, 0.2); ctx.fillStyle = '#fffaf0'; rr(ctx, x - 8, y - 26, s + 16, s + 34 + (sub ? 14 : 0), 14); ctx.fill(); noShadow(ctx);
     ctx.font = FONT(600, 12); ctx.fillStyle = o.tag || C.soft; ctx.textAlign = 'left'; ctx.fillText(label.toUpperCase(), x, y - 9);
     ctx.save(); rr(ctx, x, y, s, s, 10); ctx.clip(); if (img) ctx.drawImage(img, x, y, s, s); else { ctx.fillStyle = '#ddd'; ctx.fillRect(x, y, s, s); }
-    if (o.wash) { ctx.fillStyle = `rgba(255,244,226,${o.wash * 0.85})`; ctx.fillRect(x, y, s, s); }
     ctx.restore();
     if (sub) { ctx.font = BODY(12); ctx.fillStyle = C.soft; ctx.fillText(sub, x, y + s + 15); }
     ctx.restore();
@@ -83,16 +82,14 @@ export class StampGame extends MiniGame {
     const W = this.W, H = this.H; if (!this.stamps) this.layout();
     const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#d9c3a2'); g.addColorStop(1, '#c4a47e'); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
     ctx.fillStyle = 'rgba(255,255,255,0.07)'; for (let i = 0; i < 9; i++) ctx.fillRect(0, i * H / 9, W, 2);
-    const wash = this.room && mode === 'play' ? this.room.wash() : 0; const ink = this.room && mode === 'play' ? this.room.ink : 1;
     const f = mode === 'demo' ? (this.forms && this.forms[0]) : this.cur();
-    ctx.globalAlpha = ink;
-    this.card(ctx, this.pxL, this.py, this.ph, this.stdImg, 'The Standard', 'Larkspur, 1891', { wash, tag: '#8a6f4e' });
+    this.card(ctx, this.pxL, this.py, this.ph, this.stdImg, 'The Standard', 'Larkspur, 1891', { tag: '#8a6f4e' });
     if (f) {
       const sx = mode === 'play' ? lerp(W + 40, this.pxR, ease.outBack(this.slide)) : this.pxR;
       const a = this.anim; const out = a ? ease.inOut(clamp((a.t - 0.75) / 0.45)) : 0;
       const ox = out * (a && a.kind === 'approve' ? W : -W * 0.8);
-      this.card(ctx, sx + ox, this.py, this.ph, f.img, f.name, f.role.length > 30 ? f.role.slice(0, 30) + '…' : f.role, { wash, tag: f.id === 'you' ? '#d9603b' : C.soft });
-      if (a) { const k = ease.outBack(clamp(a.t / 0.22)); ctx.save(); ctx.translate(sx + ox + this.ph / 2, this.py + this.ph / 2); ctx.rotate(a.kind === 'approve' ? -0.18 : 0.16); ctx.scale(lerp(1.5, 1, k), lerp(1.5, 1, k)); ctx.globalAlpha = clamp(a.t / 0.12) * 0.9; ctx.strokeStyle = a.kind === 'approve' ? '#3f8f5a' : '#c8553d'; ctx.lineWidth = 5; rr(ctx, -this.ph * 0.42, -24, this.ph * 0.84, 48, 8); ctx.stroke(); ctx.fillStyle = ctx.strokeStyle; ctx.font = FONT(700, Math.min(26, this.ph * 0.15)); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(a.kind === 'approve' ? 'APPROVED' : 'RETURNED', 0, 1); ctx.restore(); ctx.globalAlpha = ink; }
+      this.card(ctx, sx + ox, this.py, this.ph, f.img, f.name, f.role.length > 30 ? f.role.slice(0, 30) + '…' : f.role, { tag: f.id === 'you' ? '#d9603b' : C.soft });
+      if (a) { const k = ease.outBack(clamp(a.t / 0.22)); ctx.save(); ctx.translate(sx + ox + this.ph / 2, this.py + this.ph / 2); ctx.rotate(a.kind === 'approve' ? -0.18 : 0.16); ctx.scale(lerp(1.5, 1, k), lerp(1.5, 1, k)); ctx.globalAlpha = clamp(a.t / 0.12) * 0.9; ctx.strokeStyle = a.kind === 'approve' ? '#3f8f5a' : '#c8553d'; ctx.lineWidth = 5; rr(ctx, -this.ph * 0.42, -24, this.ph * 0.84, 48, 8); ctx.stroke(); ctx.fillStyle = ctx.strokeStyle; ctx.font = FONT(700, Math.min(26, this.ph * 0.15)); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(a.kind === 'approve' ? 'APPROVED' : 'RETURNED', 0, 1); ctx.restore(); }
     }
     // the comparison rows
     ROWS.forEach(([k, label], r) => {

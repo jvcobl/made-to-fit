@@ -82,8 +82,8 @@ export function tick(S, mins, ctx) {
   const p = ctx.pinch; const T = p ? p.total : 0;
   const smooth = S.blend.has && S.blend.smooth;
   const masked = S.masking || smooth;
+  // hiding a pinch doesn't make it cost less: it costs the same energy, and some of you besides (below)
   let drain = 0.03 + T * 0.36;
-  if (masked) drain *= 0.8;
   if (ctx.zone === 'home') drain = -0.12;
   S.energy = clamp(S.energy - drain * mins, 0, S.maxE);
   if (masked && T > 0.08) { S.self = clamp(S.self - (smooth ? 0.05 : 0.025) * T * mins, 0, 100); S.strain += 0.004 * T * mins; }

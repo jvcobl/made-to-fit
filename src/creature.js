@@ -223,7 +223,7 @@ export class Creature {
     this.moving = false; this.waving = false; this.eyeY = 1;
     // reactions to the place, and the comfort move (see setReaction, setComfort)
     this.react = null; this.reactO = {}; this.reactOn = 0; this.reactNext = 1; this.reactDur = 1;
-    this.comfortKind = null; this.comfortLevel = 0; this.comfortFreq = 1; this.comfortOn = 0; this.comfortDur = 1.6; this.comfortNext = 3 + Math.random() * 4; this.comfortActive = 0;
+    this.comfortKind = null; this.comfortLevel = 0; this.comfortFreq = 1; this.comfortOn = 0; this.comfortDur = 1.6; this.comfortNext = 3 + Math.random() * 4; this.comfortActive = 0; this.comfortStarted = null; this.onceOn = 0; this.onceK = null; this.onceDur = 1;
     this.pz = { rx: 0, rz: 0, ry: 0, px: 0, pzz: 0, sy: 1, tense: 0 }; this.eyeMul = 1; this.handK = 0; this.handMode = null; this.poseNow = null; this.fixedPose = null;
     // form: 'near' or 'baked' (setForm); blobLayer: src/lod.js draws this one's blob shadow; owned: geometries to dispose
     this.form = 'near'; this.blobLayer = false; this.owned = []; this.kit = null; this.nearDirty = true; this.bakeDirty = true;
@@ -479,6 +479,10 @@ export class Creature {
   setReaction(kind, o = {}) { if (kind !== this.react) { this.react = kind; this.reactOn = 0; this.reactNext = 0.4 + Math.random() * 1.2; } this.reactO = o; }
   // level 0 (held in) to 1 (free); freq < 1 makes it come less often (after a lot of pushing through)
   setComfort(kind, level, freq = 1) { this.comfortKind = kind || null; this.comfortLevel = level || 0; this.comfortFreq = freq; if (!level) this.comfortOn = 0; }
+  // the creator shows a move the moment you pick it, and keeps showing it while you look
+  previewComfort(kind) { this.comfortKind = kind; this.comfortLevel = 1; this.comfortFreq = 3; this.comfortOn = 0; this.comfortNext = 0.05; }
+  // one reaction, once, now (a glance at the phone when Blend pings)
+  once(kind) { const E = EPISODIC[kind]; if (!E) return; this.onceK = kind; this.onceOn = this.onceDur = E[2]; }
   // a still pose for portraits: 'squint', 'ears', 'drift', 'straight', or a comfort move name
   posePortrait(kind) { this.fixedPose = kind; this.handK = 1; }
   posePlan(dt) {
@@ -489,12 +493,13 @@ export class Creature {
       else if (f === 'flap' || f === 'charm') P.hands = f; else if (f === 'hum') P.note = 1; else if (f === 'rock') P.rx = 0.1; else if (f === 'tap') P.tap = 1;
       return P;
     }
-    const k = this.react, moving = this.moving;
-    if (k && EPISODIC[k]) {
+    const k0 = this.react, moving = this.moving;
+    if (k0 && EPISODIC[k0]) {
       if (this.reactOn > 0) this.reactOn -= dt;
-      else { this.reactNext -= dt; if (this.reactNext <= 0) { const E = EPISODIC[k]; this.reactOn = this.reactDur = E[2]; this.reactNext = E[0] + Math.random() * (E[1] - E[0]); } }
+      else { this.reactNext -= dt; if (this.reactNext <= 0) { const E = EPISODIC[k0]; this.reactOn = this.reactDur = E[2]; this.reactNext = E[0] + Math.random() * (E[1] - E[0]); } }
     } else this.reactOn = 0;
-    const on = this.reactOn > 0 ? Math.sin(Math.PI * clamp(1 - this.reactOn / this.reactDur)) : 0;
+    let k = k0, on = this.reactOn > 0 ? Math.sin(Math.PI * clamp(1 - this.reactOn / this.reactDur)) : 0;
+    if (this.onceOn > 0) { this.onceOn -= dt; k = this.onceK; on = Math.sin(Math.PI * clamp(1 - this.onceOn / this.onceDur)); }
     switch (k) {
       case 'squint': P.eye = 0.45; P.rx = 0.06; break;
       case 'lean': P.rx = 0.1; P.eye = 1.12; break;
@@ -513,7 +518,7 @@ export class Creature {
     const lvl = this.comfortLevel;
     if (lvl > 0 && this.comfortKind && !moving) {
       if (this.comfortOn > 0) this.comfortOn -= dt;
-      else { this.comfortNext -= dt * (lvl >= 1 ? 1 : 0.6); if (this.comfortNext <= 0 && !P.hands) { this.comfortOn = this.comfortDur = 1.2 + Math.random() * 0.8; this.comfortNext = (5 + Math.random() * 4) / Math.max(0.3, this.comfortFreq); } }
+      else { this.comfortNext -= dt * (lvl >= 1 ? 1 : 0.6); if (this.comfortNext <= 0 && !P.hands) { this.comfortOn = this.comfortDur = 1.2 + Math.random() * 0.8; this.comfortNext = (5 + Math.random() * 4) / Math.max(0.3, this.comfortFreq); this.comfortStarted = this.comfortKind; } }
     } else this.comfortOn = 0;
     const tt = this.comfortDur - this.comfortOn;
     const c = this.comfortOn > 0 && !P.hands ? clamp(Math.min(1, tt * 4, this.comfortOn * 4)) * Math.min(1, lvl) : 0;
@@ -523,7 +528,8 @@ export class Creature {
         case 'hum': P.rz += Math.sin(t * Math.PI * 3.2) * 0.05 * c; P.note = c; break;
         case 'tap': P.tap = c; break;
         case 'rock': P.rx += Math.sin(t * Math.PI * 1.6) * 0.1 * c; break;
-        case 'spin': P.spin = Math.PI * 2 * easeIO(clamp(tt / Math.min(1.2, this.comfortDur))); break;
+        // on wheels: a slow turn of the chair one way and back, not a twirl
+        case 'spin': P.spin = wheels ? Math.sin(clamp(tt / this.comfortDur) * Math.PI * 2) * 0.55 * c : Math.PI * 2 * easeIO(clamp(tt / Math.min(1.2, this.comfortDur))); break;
         case 'flap': P.hands = 'flap'; break;
         case 'pace': if (wheels) P.pzz += Math.sin(tt * Math.PI * 1.2) * 0.2 * c; else P.px += Math.sin(tt * Math.PI * 1.2) * 0.2 * c; break;
         case 'charm': P.hands = 'charm'; break;
@@ -550,6 +556,8 @@ export class Creature {
     const s = this.S;
     this.rig.scale.set(s * (1 - sq * 0.5 + tq * 0.4), s * (1 + sq - tq) * z.sy, s * (1 - sq * 0.5 + tq * 0.4));
     this.rig.position.x = z.px; this.rig.position.z = z.pzz;
+    // the chair rolls and turns with you (pace and spin on wheels); leans and looks stay in the body
+    if (this.chair) { this.chair.position.z = this.look.wheels ? z.pzz : 0; this.chair.rotation.y = this.look.wheels ? P.spin : 0; }
     this.rig.rotation.x = (moving ? 0.07 * Math.min(1, this.speed) : 0) + z.rx;
     this.rig.rotation.z = z.rz; this.rig.rotation.y = z.ry + P.spin;
     this.root.rotation.y = angDamp(this.root.rotation.y, this.heading, 10, dt);

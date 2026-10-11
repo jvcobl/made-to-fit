@@ -129,7 +129,13 @@ export class Story {
   async gut(t) { await this.ui.line({ kind: 'gut', text: t }); }
   async note(t) { await this.ui.line({ kind: 'note', text: t }); }
   choose(opts, o) { return this.ui.choose(opts, o); }
-  text(from, t, silent) { this.G.texts.push([from, t]); if (!silent) { this.ui.toast(`<b>${from}</b><br>${t}`, from === 'Blend' ? 'blend' : ''); this.G.audio.sfx(from === 'Blend' ? 'blend' : 'notify'); this.ui.ping(true); } }
+  // a text message: residents' texts pop up; Blend's pings only land on your creature (it glances at its phone) and
+  // the unread dot, with no sound, so the pull shows on the creature rather than being worked on you
+  text(from, t, silent) {
+    this.G.texts.push([from, t]); if (silent) return;
+    if (from === 'Blend') { if (this.G.player.once) this.G.player.once('glance'); this.ui.ping(true); return; }
+    this.ui.toast(`<b>${from}</b><br>${t}`, ''); this.G.audio.sfx('notify'); this.ui.ping(true);
+  }
 
   // ---------- conditions and effects ----------
   cond(str, ctx = {}) {
@@ -359,7 +365,9 @@ export class Story {
     // the mirror: make yourself
     G.mode = 'creator';
     G.player.heading = 0.6;
-    const look = await ui.creator(S.look, (L, k) => { S.look = L; S.wheels = !!L.wheels; G.player.setLook(L); G.player.hop(); if (k === 'voice') G.audio.voice(L.voice, 1, 'hello hello'); });
+    G.posePreview = true; if (!S.look.comfort) S.look.comfort = 'hum';
+    const look = await ui.creator(S.look, (L, k) => { S.look = L; S.wheels = !!L.wheels; G.player.setLook(L); if (k === 'comfort' || k === 'all') G.player.previewComfort(L.comfort || 'hum'); else G.player.hop(); if (k === 'voice') G.audio.voice(L.voice, 1, 'hello hello'); });
+    G.posePreview = false; G.player.setComfort(look.comfort || 'hum', 0);
     S.look = look; S.wheels = !!look.wheels; S.look0 = Object.assign({}, look);
     G.player.setLook(look);
     S.portrait0 = G.portrait();
