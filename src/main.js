@@ -10,6 +10,7 @@ import * as SIM from './sim.js';
 import { CAST, ROUTINES, BLEND } from './content.js';
 import { Story } from './story.js';
 import { Guide } from './guide.js';
+import { updateLOD } from './lod.js';
 import { Feed } from './games/feed.js';
 import { params, FAST, FIXED, STEP, clock, keyName, clamp, lerp, damp, makeRng, pick, sleep } from './util.js';
 
@@ -95,9 +96,9 @@ class Game {
     // coworkers at the Works, neighbors on the council benches
     const R = makeRng(99); const rl = () => ({ shape: pick(OPTIONS.shape.map((x) => x[0]), R), color: pick(OPTIONS.color, R), pattern: 'plain', top: pick(OPTIONS.top.map((x) => x[0]), R), wear: R() < 0.3 ? pick(['scarf', 'glasses', 'hat', 'bow'], R) : 'none' });
     this.rl = rl;
-    this.workers = this.rooms.works.seats.filter((_, i) => i !== 6).slice(0, 7).map(([x, z], i) => { const c = new Creature(i === 4 ? { shape: 'tall', color: '#9edcd6', pattern: 'spots', top: 'tuft', wear: 'glasses' } : rl(), { lod: 'low', seed: 700 + i }); c.root.position.set(x, 0.12, z - 0.15); c.heading = Math.PI; c.root.rotation.y = Math.PI; this.rooms.works.scene.add(c.root); return c; });
+    this.workers = this.rooms.works.seats.filter((_, i) => i !== 6).slice(0, 7).map(([x, z], i) => { const c = new Creature(i === 4 ? { shape: 'tall', color: '#9edcd6', pattern: 'spots', top: 'tuft', wear: 'glasses' } : rl(), { lod: 'low', seed: 700 + i, form: 'baked' }); c.root.position.set(x, 0.12, z - 0.15); c.heading = Math.PI; c.root.rotation.y = Math.PI; this.rooms.works.scene.add(c.root); return c; });
     const bs = [[-4.6, 2.0], [-3.2, 2.0], [-2.2, 2.0], [3.0, 2.0], [4.4, 2.0], [-4.2, 3.5], [-2.8, 3.5], [3.4, 3.5], [4.8, 3.5], [2.2, 3.5]];
-    this.audience = bs.map(([x, z], i) => { const c = new Creature(rl(), { lod: 'low', seed: 800 + i }); c.root.position.set(x, 0.1, z); c.heading = Math.PI; c.root.rotation.y = Math.PI; this.rooms.hall.scene.add(c.root); return c; });
+    this.audience = bs.map(([x, z], i) => { const c = new Creature(rl(), { lod: 'low', seed: 800 + i, form: 'baked' }); c.root.position.set(x, 0.1, z); c.heading = Math.PI; c.root.rotation.y = Math.PI; this.rooms.hall.scene.add(c.root); return c; });
   }
   npcWant(id) {
     const S = this.S, d = S.day, m = S.min;
@@ -182,7 +183,7 @@ class Game {
     this.crowd = [];
     let i = 0;
     for (const [zone, n] of CROWD_ZONES) for (let k = 0; k < n; k++) {
-      const c = new Creature(this.rl(), { lod: 'low', seed: 900 + i++ });
+      const c = new Creature(this.rl(), { lod: 'low', seed: 900 + i++, form: 'baked', shadow: this.stage.quality !== 'low' });
       c.root.visible = false; this.town.scene.add(c.root);
       this.crowd.push({ c, zone, path: [], wait: Math.random() * 3, active: false });
     }
@@ -538,6 +539,7 @@ class Game {
     this.computeFx(dt);
     this.player.setDrift(this.drift() * 0.92);
     this.player.update(dt);
+    updateLOD(this);
     // the world
     if (this.loc === 'town') {
       if (this.mode === 'title') { S.min = 18.4 * 60; }

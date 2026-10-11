@@ -1,4 +1,11 @@
 // Creatures: one parametric body (superellipsoid + spikes + blob) so a look can drift smoothly toward the Standard Resident.
+// Each creature has two forms on one rig, built once and switched by visibility (setForm):
+// - near: the body, one merged eye mesh (both eyes and their highlights), the mouth, both cheeks in one mesh, one merged
+//   top-and-wear mesh, the hands and feet (they animate) and the blob shadow: about ten draws. Merged parts carry each
+//   part's colour, roughness, metalness and glow per vertex, so they shade exactly as the separate parts did.
+// - baked: every part at rest merged into one vertex-coloured mesh beside the body (low-detail extras merge the body in
+//   too): one or two draws. It moves only by the root and rig (bob, squash, heading). Crowds, coworkers, the meeting
+//   audience, the founders, the statue and residents far from you use it; src/lod.js decides for residents.
 import * as THREE from 'three';
 import { clamp, lerp, noise3, mixHex, shadeHex, makeRng, angDamp, damp } from './util.js';
 
@@ -95,7 +102,7 @@ const G = {
   mouth: new THREE.TorusGeometry(0.085, 0.024, 6, 14, Math.PI), ring: new THREE.TorusGeometry(0.06, 0.022, 6, 14), cheek: new THREE.CircleGeometry(0.1, 16),
   hand: new THREE.SphereGeometry(0.15, 12, 10), foot: new THREE.SphereGeometry(0.2, 14, 10),
 };
-let blobTex = null;
+let blobTex = null, blobMat = null;
 function shadowTex() {
   if (blobTex) return blobTex;
   const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d');
@@ -103,9 +110,93 @@ function shadowTex() {
   x.fillStyle = g; x.fillRect(0, 0, 64, 64);
   blobTex = new THREE.CanvasTexture(c); return blobTex;
 }
+// the soft round shadow under every creature; src/lod.js draws the baked ones' shadows with it in one instanced mesh
+export function blobMaterial() { return blobMat || (blobMat = new THREE.MeshBasicMaterial({ map: shadowTex(), transparent: true, depthWrite: false })); }
+const BLOB_GEO = new THREE.PlaneGeometry(1, 1);
+
+// One shared material for every merged part. Vertex colours carry each part's colour, and a 'pbr' attribute carries its
+// roughness, metalness and glow (emissive, in its own colour), so a merged mesh shades like the separate materials did.
+const PARTS = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, metalness: 0 });
+PARTS.onBeforeCompile = (sh) => {
+  sh.vertexShader = sh.vertexShader.replace('#include <color_pars_vertex>', '#include <color_pars_vertex>\nattribute vec3 pbr;\nvarying vec3 vPbr;')
+    .replace('#include <color_vertex>', '#include <color_vertex>\nvPbr = pbr;');
+  sh.fragmentShader = sh.fragmentShader.replace('#include <color_pars_fragment>', '#include <color_pars_fragment>\nvarying vec3 vPbr;')
+    .replace('#include <roughnessmap_fragment>', 'float roughnessFactor = vPbr.x;')
+    .replace('#include <metalnessmap_fragment>', 'float metalnessFactor = vPbr.y;')
+    .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance += vColor.rgb * vPbr.z;');
+};
+PARTS.customProgramCacheKey = () => 'creature-parts-pbr';
+
+// A paint is what a part's material used to be: a colour (linear, as THREE.Color keeps it) and roughness, metalness, glow.
+// paintOf(material, true) follows that material's colour later (the parts tinted like the body as you drift).
+const paint = (color, rough = 0.6, metal = 0, glow = 0) => ({ color: new THREE.Color(color), pbr: [rough, metal, glow], live: null });
+const paintOf = (m, live = false) => ({ color: m.color, pbr: [m.roughness, m.metalness, m.emissive && m.emissive.getHex() ? m.emissiveIntensity : 0], live: live ? m : null });
+const P = {
+  eye: paintOf(BLACK), hl: paintOf(WHITE), inner: paint('#ff9fb3', 0.7), std: paint(STANDARD.color, 0.6),
+  horn: paint('#f3e6c8', 0.45), stalk: paint('#3a3340', 0.5), scarf: paint('#d9603b', 0.85), leaf: paint('#6fae5b', 0.6), stem: paint('#4e7a3f', 0.7),
+  bow: paint('#ef6f9f', 0.5), glasses: paint('#2b2530', 0.35), hat: paint('#3f5a87', 0.75), band: paint('#e2b34c', 0.6),
+  flower: paint('#f2c14e', 0.5), petalW: paint('#ffffff', 0.6), petalP: paint('#ffd6e4', 0.6),
+  phones: paint('#2f3a4a', 0.4), cup: paint('#2f3a4a', 0.35), pad: paint('#4fb3a9', 0.5), shades: paint('#16161c', 0.12, 0.3),
+  frame: paint('#3d4b5c', 0.4, 0.4), tire: paint('#2a2a30', 0.8), seat: paint('#4f6f8f', 0.7),
+};
+
+// part geometries with fixed sizes are shared by every creature
+const GEO = new Map();
+const shared = (key, make) => { let g = GEO.get(key); if (!g) { g = make(); GEO.set(key, g); } return g; };
+const sph = (...a) => shared('s' + a, () => new THREE.SphereGeometry(...a));
+const cyl = (...a) => shared('y' + a, () => new THREE.CylinderGeometry(...a));
+const cone = (...a) => shared('c' + a, () => new THREE.ConeGeometry(...a));
+const tor = (...a) => shared('t' + a, () => new THREE.TorusGeometry(...a));
+const box = (...a) => shared('b' + a, () => new THREE.BoxGeometry(...a));
+const circ = (...a) => shared('o' + a, () => new THREE.CircleGeometry(...a));
+const cap = (...a) => shared('p' + a, () => new THREE.CapsuleGeometry(...a));
+const EMPTY = new THREE.BufferGeometry();
+
+// a part's placement, composed the way Object3D does it: translate, rotate (XYZ), scale
+const _q = new THREE.Quaternion(), _e = new THREE.Euler(), _s = new THREE.Vector3(), _p = new THREE.Vector3(), _t = new THREE.Vector3(), _v = new THREE.Vector3(), _n3 = new THREE.Matrix3(), _o = new THREE.Object3D();
+const mtx = (pos, rx = 0, ry = 0, rz = 0, sx = 1, sy = 1, sz = 1) => new THREE.Matrix4().compose(_p.copy(pos), _q.setFromEuler(_e.set(rx, ry, rz)), _s.set(sx, sy, sz));
+const at = (x, y, z) => new THREE.Matrix4().makeTranslation(x, y, z);
+const scaled = (k) => new THREE.Matrix4().makeScale(k, k, k);
+
+// Merge a kit, a list of [geometry, paint, matrix], into one indexed geometry with colour and pbr per vertex. The vertex
+// ranges painted with a live material are kept, so their colour can follow it (refreshLive).
+function mergeKit(list) {
+  let nv = 0, ni = 0;
+  for (const [g] of list) { nv += g.attributes.position.count; ni += g.index ? g.index.count : g.attributes.position.count; }
+  const pos = new Float32Array(nv * 3), nor = new Float32Array(nv * 3), col = new Float32Array(nv * 3), pbr = new Float32Array(nv * 3);
+  const idx = nv > 65535 ? new Uint32Array(ni) : new Uint16Array(ni);
+  const live = []; let v = 0, i = 0;
+  for (const [g, pt, m] of list) {
+    const Pa = g.attributes.position, Na = g.attributes.normal, n = Pa.count, c = pt.color, r = pt.pbr;
+    _n3.getNormalMatrix(m);
+    for (let k = 0; k < n; k++) {
+      const o = (v + k) * 3;
+      _v.fromBufferAttribute(Pa, k).applyMatrix4(m); pos[o] = _v.x; pos[o + 1] = _v.y; pos[o + 2] = _v.z;
+      _v.fromBufferAttribute(Na, k).applyMatrix3(_n3).normalize(); nor[o] = _v.x; nor[o + 1] = _v.y; nor[o + 2] = _v.z;
+      col[o] = c.r; col[o + 1] = c.g; col[o + 2] = c.b; pbr[o] = r[0]; pbr[o + 1] = r[1]; pbr[o + 2] = r[2];
+    }
+    if (g.index) { const I = g.index.array; for (let k = 0; k < I.length; k++) idx[i + k] = I[k] + v; i += I.length; }
+    else { for (let k = 0; k < n; k++) idx[i + k] = v + k; i += n; }
+    if (pt.live) live.push([v, n, pt.live]);
+    v += n;
+  }
+  const out = new THREE.BufferGeometry();
+  out.setAttribute('position', new THREE.BufferAttribute(pos, 3)); out.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
+  out.setAttribute('color', new THREE.BufferAttribute(col, 3)); out.setAttribute('pbr', new THREE.BufferAttribute(pbr, 3));
+  out.setIndex(new THREE.BufferAttribute(idx, 1)); out.computeBoundingSphere(); out.userData.live = live;
+  return out;
+}
+function refreshLive(geo) {
+  const L = geo.userData.live; if (!L || !L.length) return;
+  const a = geo.attributes.color.array;
+  for (const [v, n, m] of L) { const c = m.color; for (let k = v * 3, e = (v + n) * 3; k < e; k += 3) { a[k] = c.r; a[k + 1] = c.g; a[k + 2] = c.b; } }
+  geo.attributes.color.needsUpdate = true;
+}
+const swap = (mesh, geo) => { const old = mesh.geometry; mesh.geometry = geo; if (old !== EMPTY && old !== geo) old.dispose(); };
 
 let nextSeed = 101;
 export class Creature {
+  // o: { seed, lod: 'low' (fewer segments, no pattern or cheeks), scale, form: 'near' | 'baked', shadow: false (casts none) }
   constructor(look, o = {}) {
     this.o = o;
     this.look = Object.assign({}, STANDARD, look);
@@ -114,6 +205,9 @@ export class Creature {
     this.low = o.lod === 'low';
     this.drift = 0; this.tense = 0; this.speed = 0; this.heading = 0; this.phase = 0; this.time = Math.random() * 10;
     this.blinkT = 1 + Math.random() * 3; this.hopT = 0; this.expr = 'neutral'; this.wave = 0; this.stare = null;
+    this.moving = false; this.waving = false; this.eyeY = 1;
+    // form: 'near' or 'baked' (setForm); blobLayer: src/lod.js draws this one's blob shadow; owned: geometries to dispose
+    this.form = 'near'; this.blobLayer = false; this.owned = []; this.kit = null; this.nearDirty = true; this.bakeDirty = true;
     this.root = new THREE.Group(); this.root.userData.creature = this;
     this.rig = new THREE.Group(); this.root.add(this.rig);
     const S = 0.5 * this.size; this.S = S;
@@ -122,16 +216,40 @@ export class Creature {
     this.partMat = M(this.look.color, 0.6);
     this.footMat = M(shadeHex(this.look.color, -0.18), 0.7);
     this.body = new THREE.Mesh(new THREE.BufferGeometry(), this.bodyMat);
-    this.body.castShadow = true; this.body.receiveShadow = !this.low;
+    this.body.castShadow = o.shadow !== false; this.body.receiveShadow = !this.low;
     this.rig.add(this.body);
-    this.face = new THREE.Group(); this.top = new THREE.Group(); this.wear = new THREE.Group(); this.gear = new THREE.Group(); this.stdTop = new THREE.Group();
-    this.rig.add(this.face, this.top, this.wear, this.gear, this.stdTop);
+    // the near rig: everything in this group is hidden in the baked form
+    this.near = new THREE.Group();
+    this.face = new THREE.Group(); this.handGroup = new THREE.Group(); this.gear = new THREE.Group();
+    this.eyes = [new THREE.Mesh(EMPTY, PARTS)]; this.arcs = [new THREE.Mesh(EMPTY, BLACK)]; this.arcs[0].visible = false;
+    this.mouth = new THREE.Mesh(G.mouth, BLACK); this.mouth.rotation.z = Math.PI;
+    this.mouthO = new THREE.Mesh(G.ring, BLACK); this.mouthO.visible = false;
+    this.face.add(this.eyes[0], this.arcs[0], this.mouth, this.mouthO);
+    // hands live in their own group (not the face), so they can move anywhere around the body
+    this.hands = [new THREE.Mesh(G.hand, this.partMat), new THREE.Mesh(G.hand, this.partMat)];
+    for (const h of this.hands) { h.castShadow = false; this.handGroup.add(h); }
+    // the top (ears, horns...) and what you always wear share one merged mesh, scaled together as you drift
+    this.top = this.wear = new THREE.Mesh(EMPTY, PARTS);
+    this.stdTop = new THREE.Mesh(EMPTY, PARTS); this.stdTop.visible = false;
+    this.gearParts = { headphones: new THREE.Mesh(EMPTY, PARTS), shades: new THREE.Mesh(EMPTY, PARTS) };
+    this.gearParts.headphones.visible = this.gearParts.shades.visible = false; this.gear.add(this.gearParts.headphones, this.gearParts.shades);
+    this.near.add(this.face, this.handGroup, this.top, this.stdTop, this.gear);
+    // both cheeks in one mesh, shown in both forms (low-detail creatures have none)
+    this.cheeks = this.low ? null : new THREE.Mesh(EMPTY, CHEEK);
+    // the baked form: every other part at rest in one mesh; low-detail extras merge the body in too
+    this.baked = new THREE.Mesh(EMPTY, PARTS); this.baked.visible = false;
+    this.baked.castShadow = this.low && this.body.castShadow; this.baked.receiveShadow = false;
+    this.rig.add(this.near, this.baked); if (this.cheeks) this.rig.add(this.cheeks);
     this.feet = new THREE.Group(); this.root.add(this.feet);
-    const blob = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: shadowTex(), transparent: true, depthWrite: false }));
+    const blob = new THREE.Mesh(BLOB_GEO, blobMaterial());
     blob.rotation.x = -Math.PI / 2; blob.position.y = 0.015; blob.scale.setScalar(S * 2.6); this.root.add(blob); this.blob = blob;
     this.params = null; this.texKey = '';
     this.wearing = { headphones: false, shades: false };
+    if (o.form === 'baked') this.form = 'baked';
     this.rebuild(true);
+    this.applyForm();
+    // the town's see-through circle must never rewrite the shared creature materials
+    this.root.traverse((m) => { if (m.isMesh) m.userData.noOcc = true; });
   }
   get position() { return this.root.position; }
   effLook() { const d = this.drift; return { color: mixHex(this.look.color, STANDARD.color, clamp(d * 1.1)), patAlpha: clamp(1 - d * 1.4), partScale: clamp(1 - d * 1.25), stdScale: clamp((d - 0.35) * 1.8) }; }
@@ -152,124 +270,179 @@ export class Creature {
       else { if (this.bodyMat.map) this.bodyMat.map.dispose(); this.bodyMat.map = patternTexture(this.look, L.color, L.patAlpha, this.seed); this.bodyMat.color.set('#ffffff'); }
       this.bodyMat.needsUpdate = true;
       this.partMat.color.set(shadeHex(L.color, -0.06)); this.footMat.color.set(shadeHex(L.color, -0.2));
+      refreshLive(this.top.geometry); this.bakeDirty = true;
     }
-    this.top.scale.setScalar(Math.max(0.0001, L.partScale)); this.wear.scale.setScalar(Math.max(0.0001, L.partScale));
+    this.applyLook(L);
+    if (this.form === 'baked' && this.bakeDirty) this.bake();
+  }
+  applyLook(L) {
+    this.top.scale.setScalar(Math.max(0.0001, L.partScale)); this.top.visible = L.partScale > 0.01 && this.kit.tw.length > 0;
     this.stdTop.scale.setScalar(Math.max(0.0001, L.stdScale)); this.stdTop.visible = L.stdScale > 0.01;
-    this.top.visible = L.partScale > 0.01; this.wear.visible = L.partScale > 0.01;
+    // the Standard's ears are only built once someone starts to grow them
+    if (this.stdTop.visible && this.stdBuilt !== this.kit) { this.stdBuilt = this.kit; swap(this.stdTop, mergeKit(this.kit.std)); }
   }
   setLook(look) { this.look = Object.assign({}, STANDARD, look); this.params = null; this.texKey = ''; this.rebuild(true); }
   setDrift(d) { d = clamp(d); if (Math.abs(d - this.drift) < 0.004) return; this.drift = d; this.rebuild(false); }
+  // 'near' or 'baked'; each form is built once (and again after placeParts) and then only shown or hidden
+  setForm(f) {
+    if (f === this.form) return;
+    this.form = f;
+    if (f === 'near' && this.nearDirty) this.buildNear();
+    if (f === 'baked' && this.bakeDirty) this.bake();
+    this.applyForm();
+  }
+  applyForm() {
+    const near = this.form === 'near';
+    this.near.visible = near; this.feet.visible = near; if (this.chair) this.chair.visible = near;
+    this.baked.visible = !near; this.body.visible = near || !this.low;
+    this.blob.visible = !this.blobLayer;
+    if (near) this.poseParts();
+  }
   placeParts() {
-    const p = this.params, look = this.look;
-    for (const g of [this.face, this.top, this.wear, this.stdTop, this.feet, this.gear]) { while (g.children.length) { const c = g.children.pop(); c.traverse((o) => { if (o.geometry && !Object.values(G).includes(o.geometry)) o.geometry.dispose(); }); } }
-    if (this.chair) { this.root.remove(this.chair); this.chair = null; }
-    // face
-    this.eyes = []; this.arcs = [];
-    for (const sx of [-1, 1]) {
-      const pos = surf(sx * 0.34, 0.2, 0.92, p, -0.035);
-      const e = new THREE.Mesh(G.eye, BLACK); e.position.copy(pos); this.face.add(e); this.eyes.push(e);
-      const h = new THREE.Mesh(G.hl, WHITE); h.position.set(0.04, 0.045, 0.1); e.add(h);
-      const a = new THREE.Mesh(G.arc, BLACK); a.position.copy(pos).add(new THREE.Vector3(0, -0.02, 0.03)); a.visible = false; this.face.add(a); this.arcs.push(a);
-      if (!this.low) { const ch = new THREE.Mesh(G.cheek, CHEEK); const cp = surf(sx * 0.58, -0.04, 0.8, p, 0.012); ch.position.copy(cp); ch.lookAt(cp.clone().multiplyScalar(2)); this.face.add(ch); }
+    const p = this.params, look = this.look, S = this.S;
+    for (const g of this.owned) g.dispose(); this.owned.length = 0;
+    const K = this.kit = { eyes: [], arcs: [], tw: [], std: [], hp: [], sh: [] };
+    // face: both eyes and their highlights in one mesh, centred between the eyes so a blink can squash it in y
+    const ep = this.eyePos = [-1, 1].map((sx) => surf(sx * 0.34, 0.2, 0.92, p, -0.035));
+    const ec = this.eyeC = ep[0].clone().lerp(ep[1], 0.5); this.eyeOff = ep[1].clone().sub(ec);
+    for (const e of ep) {
+      K.eyes.push([G.eye, P.eye, at(e.x - ec.x, e.y - ec.y, e.z - ec.z)]);
+      K.eyes.push([G.hl, P.hl, at(e.x - ec.x + 0.04, e.y - ec.y + 0.045, e.z - ec.z + 0.1)]);
+      K.arcs.push([G.arc, P.eye, at(e.x, e.y - 0.02, e.z + 0.03)]);
     }
     const mp = surf(0, -0.06, 1, p, 0.0);
-    this.mouth = new THREE.Mesh(G.mouth, BLACK); this.mouth.position.copy(mp); this.mouth.rotation.z = Math.PI; this.face.add(this.mouth);
-    this.mouthO = new THREE.Mesh(G.ring, BLACK); this.mouthO.position.copy(mp); this.mouthO.visible = false; this.face.add(this.mouthO);
+    this.mouth.position.copy(mp); this.mouthO.position.copy(mp);
+    if (this.cheeks) {
+      const ck = [];
+      for (const sx of [-1, 1]) { const cp = surf(sx * 0.58, -0.04, 0.8, p, 0.012); _o.position.copy(cp); _o.lookAt(cp.x * 2, cp.y * 2, cp.z * 2); _o.updateMatrix(); ck.push([G.cheek, P.eye, _o.matrix.clone()]); }
+      swap(this.cheeks, mergeKit(ck));
+    }
     // hands
-    this.hands = [];
-    for (const sx of [-1, 1]) { const h = new THREE.Mesh(G.hand, this.partMat); h.position.copy(surf(sx, -0.3, 0.12, p, -0.06)); h.castShadow = false; this.face.add(h); this.hands.push(h); this.hands[this.hands.length - 1].userData.base = h.position.clone(); }
-    // top
-    this.buildTop(this.top, look.top, p, this.partMat);
-    this.buildTop(this.stdTop, 'ears', lookParams(STANDARD), M(STANDARD.color, 0.6));
-    this.buildWear(look.wear, p);
-    this.buildGear(p);
+    [-1, 1].forEach((sx, i) => { const h = this.hands[i]; h.position.copy(surf(sx, -0.3, 0.12, p, -0.06)); h.userData.base = h.position.clone(); });
+    // top and wear (one mesh), the Standard's ears, gear
+    this.topKit(K.tw, look.top, p, paintOf(this.partMat, true));
+    this.wearKit(K.tw, look.wear, p);
+    this.topKit(K.std, 'ears', lookParams(STANDARD), P.std);
+    this.gearKit(K, p);
     // feet or chair
-    const S = this.S;
-    if (look.wheels) this.buildChair(p);
+    while (this.feet.children.length) this.feet.remove(this.feet.children[0]);
+    if (this.chair) { this.root.remove(this.chair); for (const g of this.chairGeo) g.dispose(); this.chair = null; this.wheels = null; }
+    if (look.wheels) { this.footL = this.footR = null; this.buildChair(p); }
     else {
       this.footL = new THREE.Mesh(G.foot, this.footMat); this.footR = new THREE.Mesh(G.foot, this.footMat);
-      for (const [f, sx] of [[this.footL, -1], [this.footR, 1]]) { f.scale.set(S * 0.95, S * 0.55, S * 1.25); f.position.set(sx * S * 0.38 * p.width, S * 0.1, S * 0.08); f.castShadow = false; this.feet.add(f); }
+      for (const [f, sx] of [[this.footL, -1], [this.footR, 1]]) { f.scale.set(S * 0.95, S * 0.55, S * 1.25); f.position.set(sx * S * 0.38 * p.width, S * 0.1, S * 0.08); f.castShadow = false; f.userData.noOcc = true; this.feet.add(f); }
     }
     this.baseY = (0.86 * p.height) * S + (look.wheels ? S * 0.86 : S * 0.1);
     this.topY = (p.height + 0.1) * S + this.baseY;
+    this.nearDirty = true; this.bakeDirty = true;
+    if (this.form === 'near') this.buildNear();
   }
-  buildTop(g, kind, p, mat) {
-    const inner = M('#ff9fb3', 0.7);
+  // the merged meshes of the near rig, from the kit placeParts laid out
+  buildNear() {
+    const K = this.kit; this.nearDirty = false;
+    swap(this.eyes[0], mergeKit(K.eyes)); this.eyes[0].position.copy(this.eyeC);
+    swap(this.arcs[0], mergeKit(K.arcs));
+    swap(this.top, K.tw.length ? mergeKit(K.tw) : EMPTY);
+    if (this.wearing.headphones || this.wearing.shades) this.ensureGear();
+    this.applyLook(this.effLook()); this.setExpression(this.expr);
+  }
+  ensureGear() {
+    if (this.gearBuilt === this.kit) return;
+    this.gearBuilt = this.kit;
+    swap(this.gearParts.headphones, mergeKit(this.kit.hp)); swap(this.gearParts.shades, mergeKit(this.kit.sh));
+  }
+  // every part at rest in rig space, merged into one mesh
+  bake() {
+    const K = this.kit, S = this.S, L = this.effLook(), list = [];
+    this.bakeDirty = false;
+    if (this.low) list.push([this.body.geometry, { color: this.bodyMat.color, pbr: [this.bodyMat.roughness, this.bodyMat.metalness, 0] }, new THREE.Matrix4()]);
+    const ec = at(this.eyeC.x, this.eyeC.y, this.eyeC.z);
+    for (const [g, pt, m] of K.eyes) list.push([g, pt, ec.clone().multiply(m)]);
+    list.push([G.mouth, P.eye, mtx(this.mouth.position, 0, 0, Math.PI)]);
+    const part = paintOf(this.partMat), foot = paintOf(this.footMat);
+    for (const h of this.hands) { const b = h.userData.base; list.push([G.hand, part, at(b.x, b.y, b.z)]); }
+    if (L.partScale > 0.01) { const k = scaled(L.partScale); for (const [g, pt, m] of K.tw) list.push([g, pt, k.clone().multiply(m)]); }
+    if (L.stdScale > 0.01) { const k = scaled(L.stdScale); for (const [g, pt, m] of K.std) list.push([g, pt, k.clone().multiply(m)]); }
+    // feet and chair hang from the root: bring them into rig space at rest
+    const inv = scaled(1 / S).multiply(at(0, -this.baseY, 0));
+    if (this.footL) for (const f of [this.footL, this.footR]) list.push([G.foot, foot, inv.clone().multiply(mtx(_t.set(f.position.x, S * 0.1, S * 0.08), 0, 0, 0, f.scale.x, f.scale.y, f.scale.z))]);
+    if (this.chair) {
+      const cs = inv.clone().multiply(scaled(S));
+      for (const [g, pt, m] of this.chairKit.stat) list.push([g, pt, cs.clone().multiply(m)]);
+      for (const w of this.wheels) { const wm = cs.clone().multiply(at(w.position.x, w.position.y, w.position.z)); for (const [g, pt, m] of this.chairKit.wheel) list.push([g, pt, wm.clone().multiply(m)]); }
+    }
+    swap(this.baked, mergeKit(list));
+  }
+  topKit(K, kind, p, main) {
     if (kind === 'ears') {
-      for (const sx of [-1, 1]) { const m = new THREE.Mesh(new THREE.SphereGeometry(0.26, 14, 10), mat); m.scale.set(1, 1, 0.55); m.position.copy(surf(sx * 0.55, 0.84, 0.02, p, -0.04)); m.rotation.z = -sx * 0.35; g.add(m); const i = new THREE.Mesh(new THREE.CircleGeometry(0.13, 14), inner); i.position.set(0, 0, 0.145); m.add(i); }
+      for (const sx of [-1, 1]) { const m = mtx(surf(sx * 0.55, 0.84, 0.02, p, -0.04), 0, 0, -sx * 0.35, 1, 1, 0.55); K.push([sph(0.26, 14, 10), main, m], [circ(0.13, 14), P.inner, m.clone().multiply(at(0, 0, 0.145))]); }
     } else if (kind === 'longears') {
-      for (const sx of [-1, 1]) { const m = new THREE.Mesh(new THREE.CapsuleGeometry(0.11, 0.62, 4, 10), mat); const b = surf(sx * 0.32, 0.95, 0, p, -0.05); m.position.copy(b).add(new THREE.Vector3(sx * 0.12, 0.38, 0)); m.rotation.z = -sx * 0.32; m.scale.set(1, 1, 0.6); g.add(m); const i = new THREE.Mesh(new THREE.CapsuleGeometry(0.055, 0.42, 4, 8), inner); i.position.set(0, 0.02, 0.06); i.scale.set(1, 1, 0.4); m.add(i); }
+      for (const sx of [-1, 1]) { const m = mtx(surf(sx * 0.32, 0.95, 0, p, -0.05).add(_t.set(sx * 0.12, 0.38, 0)), 0, 0, -sx * 0.32, 1, 1, 0.6); K.push([cap(0.11, 0.62, 4, 10), main, m], [cap(0.055, 0.42, 4, 8), P.inner, m.clone().multiply(mtx(_t.set(0, 0.02, 0.06), 0, 0, 0, 1, 1, 0.4))]); }
     } else if (kind === 'horns') {
-      const hm = M('#f3e6c8', 0.45);
-      for (const sx of [-1, 1]) { const m = new THREE.Mesh(new THREE.ConeGeometry(0.11, 0.44, 12), hm); const b = surf(sx * 0.42, 0.88, 0.12, p, -0.03); m.position.copy(b).add(new THREE.Vector3(sx * 0.08, 0.18, 0)); m.rotation.z = -sx * 0.45; g.add(m); }
+      for (const sx of [-1, 1]) K.push([cone(0.11, 0.44, 12), P.horn, mtx(surf(sx * 0.42, 0.88, 0.12, p, -0.03).add(_t.set(sx * 0.08, 0.18, 0)), 0, 0, -sx * 0.45)]);
     } else if (kind === 'antennae') {
-      const tip = M(shadeHex(this.look.color, -0.35), 0.4);
-      for (const sx of [-1, 1]) { const b = surf(sx * 0.22, 0.97, 0.05, p, -0.03); const s = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.5, 6), M('#3a3340', 0.5)); s.position.copy(b).add(new THREE.Vector3(sx * 0.08, 0.24, 0)); s.rotation.z = -sx * 0.3; g.add(s); const ball = new THREE.Mesh(new THREE.SphereGeometry(0.09, 12, 8), tip); ball.position.set(0, 0.27, 0); s.add(ball); }
+      const tip = paint(shadeHex(this.look.color, -0.35), 0.4);
+      for (const sx of [-1, 1]) { const s = mtx(surf(sx * 0.22, 0.97, 0.05, p, -0.03).add(_t.set(sx * 0.08, 0.24, 0)), 0, 0, -sx * 0.3); K.push([cyl(0.022, 0.022, 0.5, 6), P.stalk, s], [sph(0.09, 12, 8), tip, s.clone().multiply(at(0, 0.27, 0))]); }
     } else if (kind === 'tuft') {
       const b = surf(0, 1, 0, p, -0.05);
-      for (const a of [-0.45, 0, 0.45]) { const c = new THREE.Mesh(new THREE.ConeGeometry(0.09, 0.34, 8), mat); c.position.copy(b).add(new THREE.Vector3(Math.sin(a) * 0.14, 0.13, 0)); c.rotation.z = -a; g.add(c); }
+      for (const a of [-0.45, 0, 0.45]) K.push([cone(0.09, 0.34, 8), main, mtx(_t.set(b.x + Math.sin(a) * 0.14, b.y + 0.13, b.z), 0, 0, -a)]);
     }
   }
-  buildWear(kind, p) {
-    const g = this.wear;
+  wearKit(K, kind, p) {
     if (kind === 'scarf') {
       const y = -0.28 * p.height; const r = surf(1, -0.28, 0, p).x;
-      const t = new THREE.Mesh(new THREE.TorusGeometry(r + 0.02, 0.12, 10, 28), M('#d9603b', 0.85)); t.rotation.x = Math.PI / 2; t.position.y = y; t.scale.set(1, (surf(0, -0.28, 1, p).z + 0.02) / (r + 0.02), 1); g.add(t);
-      const tail = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.46, 0.1), M('#d9603b', 0.85)); tail.position.copy(surf(0.4, -0.45, 0.85, p, 0.05)); tail.rotation.z = 0.25; g.add(tail);
+      const ring = new THREE.TorusGeometry(r + 0.02, 0.12, 10, 28); this.owned.push(ring);
+      K.push([ring, P.scarf, mtx(_t.set(0, y, 0), Math.PI / 2, 0, 0, 1, (surf(0, -0.28, 1, p).z + 0.02) / (r + 0.02), 1)]);
+      K.push([box(0.2, 0.46, 0.1), P.scarf, mtx(surf(0.4, -0.45, 0.85, p, 0.05), 0, 0, 0.25)]);
     } else if (kind === 'leaf') {
       const b = surf(0.15, 1, 0, p, -0.02);
-      const l = new THREE.Mesh(new THREE.SphereGeometry(0.3, 12, 8), M('#6fae5b', 0.6)); l.scale.set(1, 0.16, 0.48); l.position.copy(b).add(new THREE.Vector3(0.16, 0.08, 0)); l.rotation.set(0.1, 0.6, 0.35); g.add(l);
-      const s = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.18, 5), M('#4e7a3f', 0.7)); s.position.copy(b).add(new THREE.Vector3(0, 0.05, 0)); g.add(s);
+      K.push([sph(0.3, 12, 8), P.leaf, mtx(_t.set(b.x + 0.16, b.y + 0.08, b.z), 0.1, 0.6, 0.35, 1, 0.16, 0.48)], [cyl(0.018, 0.018, 0.18, 5), P.stem, at(b.x, b.y + 0.05, b.z)]);
     } else if (kind === 'bow') {
-      const b = surf(0.55, 0.78, 0.25, p, -0.02); const bm = M('#ef6f9f', 0.5);
-      for (const sx of [-1, 1]) { const c = new THREE.Mesh(new THREE.ConeGeometry(0.13, 0.26, 10), bm); c.rotation.z = sx * Math.PI / 2; c.position.copy(b).add(new THREE.Vector3(sx * 0.13, 0.06, 0)); g.add(c); }
-      const k = new THREE.Mesh(new THREE.SphereGeometry(0.075, 10, 8), bm); k.position.copy(b).add(new THREE.Vector3(0, 0.06, 0)); g.add(k);
+      const b = surf(0.55, 0.78, 0.25, p, -0.02);
+      for (const sx of [-1, 1]) K.push([cone(0.13, 0.26, 10), P.bow, mtx(_t.set(b.x + sx * 0.13, b.y + 0.06, b.z), 0, 0, sx * Math.PI / 2)]);
+      K.push([sph(0.075, 10, 8), P.bow, at(b.x, b.y + 0.06, b.z)]);
     } else if (kind === 'glasses') {
-      const gm = M('#2b2530', 0.35);
-      for (const e of this.eyes) { const r = new THREE.Mesh(new THREE.TorusGeometry(0.16, 0.024, 6, 20), gm); r.position.copy(e.position).add(new THREE.Vector3(0, 0, 0.07)); g.add(r); }
-      const br = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.3, 5), gm); br.rotation.z = Math.PI / 2; br.position.copy(this.eyes[0].position).lerp(this.eyes[1].position, 0.5).add(new THREE.Vector3(0, 0.02, 0.07)); g.add(br);
+      const [e0, e1] = this.eyePos;
+      for (const e of this.eyePos) K.push([tor(0.16, 0.024, 6, 20), P.glasses, at(e.x, e.y, e.z + 0.07)]);
+      const m = e0.clone().lerp(e1, 0.5); K.push([cyl(0.018, 0.018, 0.3, 5), P.glasses, mtx(_t.set(m.x, m.y + 0.02, m.z + 0.07), 0, 0, Math.PI / 2)]);
     } else if (kind === 'hat') {
-      const b = surf(0, 1, 0, p, -0.06); const hm = M('#3f5a87', 0.75);
-      const crown = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.45, 0.4, 20), hm); crown.position.copy(b).add(new THREE.Vector3(0, 0.2, 0)); g.add(crown);
-      const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.7, 0.05, 24), hm); brim.position.copy(b).add(new THREE.Vector3(0, 0.02, 0)); g.add(brim);
-      const band = new THREE.Mesh(new THREE.CylinderGeometry(0.455, 0.455, 0.09, 20), M('#e2b34c', 0.6)); band.position.copy(b).add(new THREE.Vector3(0, 0.08, 0)); g.add(band);
-      g.rotation.z = 0.08;
+      // the hat sits tilted a little: its parts turn together about the rig's z axis
+      const b = surf(0, 1, 0, p, -0.06); const tilt = new THREE.Matrix4().makeRotationZ(0.08);
+      K.push([cyl(0.4, 0.45, 0.4, 20), P.hat, tilt.clone().multiply(at(b.x, b.y + 0.2, b.z))], [cyl(0.7, 0.7, 0.05, 24), P.hat, tilt.clone().multiply(at(b.x, b.y + 0.02, b.z))], [cyl(0.455, 0.455, 0.09, 20), P.band, tilt.clone().multiply(at(b.x, b.y + 0.08, b.z))]);
     } else if (kind === 'flower') {
       const b = surf(-0.5, 0.78, 0.3, p, 0.0);
-      const c = new THREE.Mesh(new THREE.SphereGeometry(0.075, 10, 8), M('#f2c14e', 0.5)); c.position.copy(b); g.add(c);
-      for (let i = 0; i < 5; i++) { const a = i / 5 * Math.PI * 2; const pe = new THREE.Mesh(new THREE.SphereGeometry(0.085, 10, 8), M(i % 2 ? '#ffffff' : '#ffd6e4', 0.6)); pe.position.copy(b).add(new THREE.Vector3(Math.cos(a) * 0.13, Math.sin(a) * 0.13, 0.02)); g.add(pe); }
+      K.push([sph(0.075, 10, 8), P.flower, at(b.x, b.y, b.z)]);
+      for (let i = 0; i < 5; i++) { const a = i / 5 * Math.PI * 2; K.push([sph(0.085, 10, 8), i % 2 ? P.petalW : P.petalP, at(b.x + Math.cos(a) * 0.13, b.y + Math.sin(a) * 0.13, b.z + 0.02)]); }
     }
   }
-  buildGear(p) {
-    const g = this.gear; this.gearParts = {};
-    const hp = new THREE.Group();
+  gearKit(K, p) {
     const r = surf(1, 0.25, 0, p).x;
-    const band = new THREE.Mesh(new THREE.TorusGeometry(r + 0.06, 0.05, 8, 24, Math.PI), M('#2f3a4a', 0.4)); band.position.y = 0.25 * p.height; band.scale.y = (p.height * 0.95) / (r + 0.06); hp.add(band);
-    for (const sx of [-1, 1]) { const cup = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.16, 18), M('#2f3a4a', 0.35)); cup.rotation.z = Math.PI / 2; cup.position.set(sx * (r + 0.05), 0.2 * p.height, 0); hp.add(cup); const pad = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.17, 0.03, 16), M('#4fb3a9', 0.5)); pad.rotation.z = Math.PI / 2; pad.position.set(sx * (r + 0.14), 0.2 * p.height, 0); hp.add(pad); }
-    hp.visible = this.wearing.headphones; g.add(hp); this.gearParts.headphones = hp;
-    const sh = new THREE.Group(); const sm = M('#16161c', 0.12, { metalness: 0.3 });
-    for (const e of this.eyes) { const l = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.2, 0.05), sm); l.position.copy(e.position).add(new THREE.Vector3(0, 0.01, 0.08)); sh.add(l); }
-    const br = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.04, 0.04), sm); br.position.copy(this.eyes[0].position).lerp(this.eyes[1].position, 0.5).add(new THREE.Vector3(0, 0.05, 0.08)); sh.add(br);
-    sh.visible = this.wearing.shades; g.add(sh); this.gearParts.shades = sh;
+    const band = new THREE.TorusGeometry(r + 0.06, 0.05, 8, 24, Math.PI); this.owned.push(band);
+    K.hp.push([band, P.phones, mtx(_t.set(0, 0.25 * p.height, 0), 0, 0, 0, 1, (p.height * 0.95) / (r + 0.06), 1)]);
+    for (const sx of [-1, 1]) K.hp.push([cyl(0.22, 0.22, 0.16, 18), P.cup, mtx(_t.set(sx * (r + 0.05), 0.2 * p.height, 0), 0, 0, Math.PI / 2)], [cyl(0.17, 0.17, 0.03, 16), P.pad, mtx(_t.set(sx * (r + 0.14), 0.2 * p.height, 0), 0, 0, Math.PI / 2)]);
+    const [e0, e1] = this.eyePos;
+    for (const e of this.eyePos) K.sh.push([box(0.34, 0.2, 0.05), P.shades, at(e.x, e.y + 0.01, e.z + 0.08)]);
+    const m = e0.clone().lerp(e1, 0.5); K.sh.push([box(0.22, 0.04, 0.04), P.shades, at(m.x, m.y + 0.05, m.z + 0.08)]);
   }
   buildChair(p) {
     const ch = new THREE.Group(); const S = this.S; ch.scale.setScalar(S);
-    const frame = M('#3d4b5c', 0.4, { metalness: 0.4 }); const tire = M('#2a2a30', 0.8); const seat = M('#4f6f8f', 0.7);
-    const st = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.16, 1.4), seat); st.position.y = 0.78; ch.add(st);
-    this.wheels = [];
+    const stat = [[box(1.7, 0.16, 1.4), P.seat, at(0, 0.78, 0)]];
+    const wheel = [[tor(0.6, 0.07, 8, 28), P.tire, mtx(_t.set(0, 0, 0), 0, Math.PI / 2, 0)], [tor(0.5, 0.025, 6, 24), P.frame, mtx(_t.set(0, 0, 0), 0, Math.PI / 2, 0)]];
+    for (let i = 0; i < 4; i++) wheel.push([box(0.03, 1.0, 0.03), P.frame, mtx(_t.set(0, 0, 0), i * Math.PI / 4, 0, 0)]);
+    // each wheel is one mesh (it spins); seat, casters and footrest are one more
+    const wg = mergeKit(wheel); this.wheels = [];
     for (const sx of [-1, 1]) {
-      const w = new THREE.Group(); w.position.set(sx * (p.width + 0.2), 0.66, -0.05);
-      const t = new THREE.Mesh(new THREE.TorusGeometry(0.6, 0.07, 8, 28), tire); t.rotation.y = Math.PI / 2; w.add(t);
-      const hub = new THREE.Mesh(new THREE.TorusGeometry(0.5, 0.025, 6, 24), frame); hub.rotation.y = Math.PI / 2; w.add(hub);
-      for (let i = 0; i < 4; i++) { const s = new THREE.Mesh(new THREE.BoxGeometry(0.03, 1.0, 0.03), frame); s.rotation.x = i * Math.PI / 4; w.add(s); }
-      ch.add(w); this.wheels.push(w);
-      const c = new THREE.Mesh(new THREE.SphereGeometry(0.13, 10, 8), tire); c.position.set(sx * 0.55, 0.13, 0.62); ch.add(c);
+      const w = new THREE.Mesh(wg, PARTS); w.position.set(sx * (p.width + 0.2), 0.66, -0.05); ch.add(w); this.wheels.push(w);
+      stat.push([sph(0.13, 10, 8), P.tire, at(sx * 0.55, 0.13, 0.62)]);
     }
-    const fr = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.06, 0.4), frame); fr.position.set(0, 0.3, 0.75); ch.add(fr);
-    ch.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+    stat.push([box(1.2, 0.06, 0.4), P.frame, at(0, 0.3, 0.75)]);
+    const sm = new THREE.Mesh(mergeKit(stat), PARTS); ch.add(sm);
+    ch.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.userData.noOcc = true; } });
+    this.chairKit = { stat, wheel }; this.chairGeo = [wg, sm.geometry];
+    ch.visible = this.form === 'near';
     this.root.add(ch); this.chair = ch;
   }
-  setGear(name, on) { this.wearing[name] = on; if (this.gearParts && this.gearParts[name]) this.gearParts[name].visible = on; }
+  setGear(name, on) { this.wearing[name] = on; if (on) this.ensureGear(); if (this.gearParts && this.gearParts[name]) this.gearParts[name].visible = on; }
   setExpression(e) {
     this.expr = e;
     const happy = e === 'happy';
@@ -283,7 +456,7 @@ export class Creature {
   update(dt) {
     this.time += dt;
     const t = this.time;
-    const moving = this.speed > 0.05;
+    const moving = this.speed > 0.05; this.moving = moving;
     this.phase += dt * (moving ? 7 + this.speed * 5 : 0);
     let bob = moving && !this.look.wheels ? Math.abs(Math.sin(this.phase)) * 0.09 * this.S * 2 : 0;
     if (this.hopT > 0) { this.hopT -= dt; bob += Math.sin((1 - this.hopT / 0.45) * Math.PI) * 0.22; }
@@ -296,20 +469,32 @@ export class Creature {
     this.rig.position.x = this.tense > 0.05 ? Math.sin(t * 47) * 0.012 * this.tense : 0;
     this.rig.rotation.x = moving ? 0.07 * Math.min(1, this.speed) : 0;
     this.root.rotation.y = angDamp(this.root.rotation.y, this.heading, 10, dt);
-    if (this.footL) {
-      const a = moving ? Math.sin(this.phase) : 0;
-      this.footL.position.z = this.S * (0.08 + a * 0.28); this.footR.position.z = this.S * (0.08 - a * 0.28);
-      this.footL.position.y = this.S * (0.1 + Math.max(0, a) * 0.14); this.footR.position.y = this.S * (0.1 + Math.max(0, -a) * 0.14);
-    }
-    if (this.wheels) for (const w of this.wheels) w.rotation.x -= this.speed * dt * 6;
-    if (this.hands) {
-      const a = moving ? Math.sin(this.phase) * 0.18 : 0;
-      this.hands[0].position.z = this.hands[0].userData.base.z - a; this.hands[1].position.z = this.hands[1].userData.base.z + a;
-      if (this.wave > 0) { this.wave -= dt; this.hands[1].position.y = this.hands[1].userData.base.y + 0.35 + Math.sin(t * 16) * 0.12; } else this.hands[1].position.y = this.hands[1].userData.base.y;
-    }
+    // timers run in both forms; the parts that show them only in the near form
+    this.waving = this.wave > 0; if (this.waving) this.wave -= dt;
     this.blinkT -= dt;
     let eyeY = this.tense > 0.3 ? 0.55 : 1;
     if (this.blinkT < 0) { eyeY = 0.1; if (this.blinkT < -0.12) this.blinkT = 2 + Math.random() * 4; }
-    for (const e of this.eyes) e.scale.y = eyeY;
+    this.eyeY = eyeY;
+    if (this.form === 'near') {
+      if (this.wheels) for (const w of this.wheels) w.rotation.x -= this.speed * dt * 6;
+      this.poseParts();
+    }
+  }
+  // feet stepping, hands swinging (and waving), eyes blinking: the near rig's pose for the current moment
+  poseParts() {
+    const S = this.S, moving = this.moving;
+    if (this.footL) {
+      const a = moving ? Math.sin(this.phase) : 0;
+      this.footL.position.z = S * (0.08 + a * 0.28); this.footR.position.z = S * (0.08 - a * 0.28);
+      this.footL.position.y = S * (0.1 + Math.max(0, a) * 0.14); this.footR.position.y = S * (0.1 + Math.max(0, -a) * 0.14);
+    }
+    const h = this.hands, a = moving ? Math.sin(this.phase) * 0.18 : 0;
+    h[0].position.z = h[0].userData.base.z - a; h[1].position.z = h[1].userData.base.z + a;
+    h[1].position.y = this.waving ? h[1].userData.base.y + 0.35 + Math.sin(this.time * 16) * 0.12 : h[1].userData.base.y;
+    // Both eyes squash about the point between them. On a lopsided (blobby) face one eye sits a little higher than the
+    // other, so a slight turn keeps each eye at its own height, as if each squashed about its own centre.
+    const s = this.eyeY, dx = this.eyeOff.x, dy = this.eyeOff.y;
+    const rz = s === 1 || !dy ? 0 : Math.asin(clamp(dy / Math.hypot(dx, s * dy), -1, 1)) - Math.atan2(s * dy, dx);
+    for (const e of this.eyes) { e.scale.y = s; e.rotation.z = rz; }
   }
 }

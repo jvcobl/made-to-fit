@@ -27,7 +27,8 @@ node build.mjs artifact   # dist/who-bends-artifact.html, without document tags,
 - `src/sim.js` is the fit engine and season state: place levels by time of day, pinch in both directions, drains and recovery, the 1,000-resident town-fit model, fixes and endings.
 - `src/render.js` covers the renderer, sky, daylight, post-processing (bloom plus a color grade that carries the sensory effects), the camera rig and the see-through circle.
 - `src/town.js` and `src/rooms.js` build the town and the three interiors procedurally, with no model files.
-- `src/creature.js` builds creatures from one parametric body, so a look can drift smoothly toward the Standard Resident.
+- `src/creature.js` builds creatures from one parametric body, so a look can drift smoothly toward the Standard Resident. Each creature has a near form (about ten draws, every part as before) and a baked form (its parts merged into one or two draws).
+- `src/lod.js` decides each frame which residents get the near form (you, whoever you are talking to, and up to four residents close to you or to what the camera is looking at) and draws every other creature's blob shadow in one instanced mesh.
 - `src/audio.js` generates the music, ambience, babble voices and sound effects with WebAudio.
 - `src/ui.js` and `src/style.css` hold the interface.
 - `src/guide.js` handles wayfinding (beacon, trail, edge arrow, phone-map route) and Bea's walk to work.
@@ -39,6 +40,7 @@ URL parameters for local runs: `?test=1` (lighter rendering), `fast=1` (fast tim
 - `python3 test/play.py <fixer|blender|asker|leaver|random> <seed> <sens|std|lively> [wheels] [screenshot-dir|-] [mobile]` plays a whole season in headless Chromium and prints a JSON summary.
 - `python3 test/ui_tour.py` screenshots the phone, a hint, the council and the festival.
 - `python3 test/audio_smoke.py` runs with sound on and checks the audio engine.
+- `python3 test/perf.py [high] [low]` plays into the busiest scenes (noon square, the Works, the Hall and the town meeting, the festival) and fails if draw calls go over budget (150 per scene, 200 at the festival) or any shader compiles after warm-up or when the festival starts.
 - `python3 test/flash.py [sort] [stamp] [works] [outdoor]` is the photosensitivity check (WCAG 2.3.1): it steps the game one frame at a time for a light-sensitive player, measures each frame in a 6 by 6 grid, and fails if any tile has more than 3 general flashes in a second. It takes several minutes per scenario.
 - `python3 test/mg.py [mobile] <sens|std|lively>` plays the two Works tasks with real pointer input; `test/visit.py`, `test/bp.py`, `test/pond.py`, `test/pond2.py`, `test/paint.py`, `test/feed.py` and `test/people.py` cover the visitor choice, the sketches, the pond, painting, the feed and the People guide; `test/faces.py` checks portrait framing on a phone.
 
