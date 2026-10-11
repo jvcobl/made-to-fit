@@ -1,0 +1,11 @@
+node_modules/
+test/*.png
+test/sa/
+test/sb/
+test/sf/
+test/shots_f/
+test/tour/
+test/qa5/
+test/view.bundle.js
+test/wrapped.html
+feas/

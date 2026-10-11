@@ -1,0 +1,14 @@
+{
+  "name": "who-bends",
+  "version": "0.4.0",
+  "description": "Who Bends, prototype 4: a 30-minute 3D browser game about person-environment fit.",
+  "scripts": {
+    "build": "node build.mjs",
+    "build:artifact": "node build.mjs artifact"
+  },
+  "dependencies": {
+    "esbuild": "^0.24.0",
+    "three": "^0.169.0"
+  },
+  "private": true
+}
