@@ -135,7 +135,7 @@ export async function escortBea(G) {
   const pts = [[12.8, 38.9], [19.0, 38.3], [19.0, 30.4], [19.4, 25.4], [14.4, 25.0]];
   const lines = [
     'Morning, No. 2! First day at the Works? I\'m headed that way. Walk with me.',
-    'We\'ll take the garden cut. Seventy years, and it\'s still the only shortcut on the row.',
+    'We\'ll take the garden cut. Fifty years, and it\'s still the only shortcut on the row.',
     null,
     'That\'s the square. The statue in the middle is the Standard Resident. The whole town was built to fit it. Nobody looks like it. Least of all me.',
     'The Works is the gray one with the twitchy windows. Straight up that path. Go on, or Gil will say "no worries" at you.',

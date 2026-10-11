@@ -34,12 +34,13 @@ export function newState(seed) {
     look: null, look0: null, name: 'Sam', pronoun: 'they',
     energy: 100, maxE: 100, self: 100, strain: 0, spot: 0, coins: 20, burnoutDays: 0, burnout: false,
     gear: { headphones: false, shades: false }, wearing: { headphones: false, shades: false },
-    blend: { has: false, smooth: false, score: 0, streak: 0, usedToday: false, badges: [], uses: 0, drops: 0, deleted: false },
+    blend: { has: false, smooth: false, score: 0, streak: 0, usedToday: false, badges: [], uses: 0, drops: 0, deleted: false, dep: 0 },
     lantern: { entries: {}, learned: {} },
     bonds: { gil: 0, pip: 0, moss: 0, rue: 0, bea: 0, wren: 0, clover: 0, hollis: 0 },
     met: {}, flags: {}, talked: {}, fixes: {}, support: {}, mods: {}, handled: {},
     stats: { bend: 0, ask: 0, gear: 0, fix: 0, leave: 0, smooth: 0, shifts: 0, sat: 0 },
     tf0: 0, tf: 0, log: [], zone: 'home', masking: false,
+    act: 1, gw: { gil: 1, moss: 1, clover: 1, hollis: 1 }, owe: {}, w: {}, stakes: {}, ideaFrom: {}, sights: {}, texts: [], fired: {},
   };
 }
 export function levels(S, zone, min) {

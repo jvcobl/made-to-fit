@@ -106,11 +106,9 @@ class Game {
     if (id === 'bea' && d === 1 && S.flags.escort_done && m < 630) return { place: 'town', spot: 'squareW' };
     if (S.flags.festival) {
       if (id === 'wren' && !S.flags.wren_invited) return { place: 'town', spot: 'workshop' };
-      if (id === 'rue' && !S.flags.rue_free && S.blend.score >= 120) return { place: 'away' };
       if (id === 'moss' && S.fixes.quiet === 'built') return { place: 'town', pos: [23.4, 31.0] };
       return { place: 'town', pos: FEST[id] };
     }
-    if (d === 3 && id === 'rue' && S.blend.score >= 120 && !S.flags.rue_cracked) return { place: 'away' };
     if (d === 3 && m >= 1070 && m < 1185) {
       const council = { hollis: 'hollis', pip: 'pip', clover: 'clover' };
       if (council[id]) return { place: 'hall', spot: council[id] };
@@ -594,7 +592,9 @@ window.__wb = {
   tp: (spot) => { const xz = Array.isArray(spot) ? spot : G.town.spots[spot]; if (G.loc !== 'town') G.setLoc('town'); G.place(xz); },
   skip: (m) => { G.advance(m); }, act: () => G.interact(), adv: () => G.ui.advance(), target: () => G.target && G.target.id,
   choose: (i) => { const w = G.ui.waiter; if (w && w.buttons && w.buttons[i]) { const b = w.buttons[i]; if (offOf(b)) return false; if (b.dataset.hold) b._resolve(); else b.click(); return true; } return false; },
-  options: () => { const w = G.ui.waiter; return w && w.buttons ? w.buttons.map((b) => ({ t: b.innerText.replace(/\n/g, ' ').slice(0, 80), disabled: offOf(b), key: [...b.classList].find((c) => ['bend', 'gear', 'ask', 'fix', 'leave'].includes(c)) || null })) : []; },
+  options: () => { const w = G.ui.waiter; return w && w.buttons ? w.buttons.map((b) => ({ t: b.innerText.replace(/\n/g, ' ').slice(0, 80), id: b.dataset.id || null, disabled: offOf(b), key: [...b.classList].find((c) => ['bend', 'gear', 'ask', 'fix', 'leave'].includes(c)) || null })) : []; },
+  // draw calls, triangles and compiled shader programs in the last rendered frame (all passes)
+  perf: () => { const st = G.stage, r = st.renderer; if (!st._probe) { r.info.autoReset = false; const orig = st.render.bind(st); st._probe = { last: null }; st.render = () => { r.info.reset(); orig(); st._probe.last = { calls: r.info.render.calls, tris: r.info.render.triangles, programs: r.info.programs.length }; }; } return st._probe.last; },
   panel: () => (G.ui.panel.hidden ? null : G.ui.panel.className),
   obj: () => G.story.objective(), way: () => G.showWay(),
   mgTest: (n, a) => G.story.testGame(n, a), mg: () => (G.mgActive && G.mg ? G.mg.id : null), mgAuto: (q) => (G.mg && G.mg.auto ? G.mg.auto(q) : false),

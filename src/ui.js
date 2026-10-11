@@ -122,7 +122,7 @@ export class UI {
     const box = d.querySelector('.choices'); box.innerHTML = '';
     return new Promise((resolve) => {
       const buttons = opts.map((op, i) => {
-        const b = document.createElement('button'); b.className = 'choice' + (op.blend ? ' blend' : '') + (op.disabled ? ' off' : '');
+        const b = document.createElement('button'); b.className = 'choice' + (op.blend ? ' blend' : '') + (op.disabled ? ' off' : ''); if (op.id) b.dataset.id = op.id;
         if (op.disabled) b.setAttribute('aria-disabled', 'true');
         b.innerHTML = `<span class="k">${i + 1}</span><span class="t">${esc(op.t)}</span>` + (op.blend ? `<span class="tag">${esc(BLEND.suggest)}</span>` : op.sub ? `<span class="sub">${esc(op.disabled && op.reason ? op.reason : op.sub)}</span>` : op.tag && op.tag !== 'blend' ? `<span class="tag">${esc(op.tag)}</span>` : '');
         b.onclick = () => { if (op.disabled) { this.nudge(b, op.reason); return; } this.waiter = null; box.innerHTML = ''; this.G.audio.sfx('confirm'); resolve(i); };

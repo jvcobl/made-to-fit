@@ -2,8 +2,9 @@
 import * as THREE from 'three';
 import * as SIM from './sim.js';
 import { CAST, TALK, HINTS, BARRIER, GUTS, NOTICE, ASK, PROLOGUE, SETUP, TEXTS, COUNCIL, FESTIVAL, ENDINGS, QUESTIONS, BLEND, NIGHT, PEOPLE, LIKED, UNASKED, FIELD_NOTES, SLOT_LABEL } from './content.js';
-import { clamp, pick, sleep, FAST, fmtTime, now } from './util.js';
+import { clamp, pick, sleep, FAST, fmtTime, now, seedRng } from './util.js';
 import { escortBea } from './guide.js';
+import { parseCond, parseEffect, compare } from './script.js';
 import { SortGame } from './games/sort.js';
 import { StampGame } from './games/stamp.js';
 import { Blueprint, PlainNote, BLUEPRINTS } from './games/blueprint.js';
@@ -37,6 +38,7 @@ export class Story {
       await this.titleScreen(true);
       first = this.S.day;
     } else {
+      seedRng(this.S.seed);
       await this.titleScreen();
       await this.prologue();
     }
@@ -66,46 +68,71 @@ export class Story {
   // ---------- conditions and effects ----------
   cond(str, ctx = {}) {
     if (!str) return true;
-    return str.split('&').map((s) => s.trim()).every((part) => part.split('|').some((alt) => this.cond1(alt.trim(), ctx)));
+    let groups; try { groups = parseCond(str); } catch (e) { console.warn(e.message); return false; }
+    return groups.every((alts) => alts.some((t) => this.term(t, ctx)));
   }
-  cond1(c, ctx) {
-    const S = this.S; let neg = false; if (c[0] === '!') { neg = true; c = c.slice(1); }
-    let v;
-    let m;
-    if (c === 'blend') v = S.blend.has && !S.blend.deleted;
-    else if (c === 'smooth') v = S.blend.has && S.blend.smooth;
-    else if (c === 'wheels') v = S.wheels;
-    else if (c === 'late') v = S.min >= 840;
-    else if (c === 'plain') v = S.profile.talk < 0.4;
-    else if ((m = c.match(/^flag\.(\w+)$/))) v = !!S.flags[m[1]];
-    else if ((m = c.match(/^met\.(\w+)$/))) v = !!S.met[m[1]];
-    else if ((m = c.match(/^sens\.(\w+)$/))) v = sens(S, m[1]);
-    else if ((m = c.match(/^gear\.(\w+)$/))) v = !!S.gear[m[1]];
-    else if ((m = c.match(/^fix\.(\w+)(!?=)(\w+)$/))) { const st = SIM.fixState(S, m[1]); v = m[2] === '=' ? st === m[3] : st !== m[3]; }
-    else if ((m = c.match(/^hint\.(\w+)=(\w+)$/))) { const e = S.lantern.entries[m[1]]; v = !!e && (e.result || e.pending) === m[2]; }
-    else if ((m = c.match(/^(self|day|coins|spot|energy)(<=|>=|<|>|=)([\d.]+)$/))) { const a = S[m[1]], b = +m[3]; v = { '<': a < b, '>': a > b, '<=': a <= b, '>=': a >= b, '=': a === b }[m[2]]; }
-    else if ((m = c.match(/^bond\.(\w+)(<=|>=|<|>|=)(-?\d+)$/))) { const a = S.bonds[m[1]] || 0, b = +m[3]; v = { '<': a < b, '>': a > b, '<=': a <= b, '>=': a >= b, '=': a === b }[m[2]]; }
-    else { console.warn('unknown condition', c); v = false; }
-    return neg ? !v : v;
+  term(t, ctx) {
+    const S = this.S, m = t.m; let v;
+    switch (t.name) {
+      case 'blend': v = S.blend.has && !S.blend.deleted; break;
+      case 'smooth': v = S.blend.has && S.blend.smooth; break;
+      case 'wheels': v = S.wheels; break;
+      case 'late': v = S.min >= 840; break;
+      case 'plain': v = S.profile.talk < 0.4; break;
+      case 'flag': v = !!S.flags[m[1]]; break;
+      case 'met': v = !!S.met[m[1]]; break;
+      case 'sens': v = sens(S, m[1]); break;
+      case 'gear': v = !!S.gear[m[1]]; break;
+      case 'fix': { const st = SIM.fixState(S, m[1]); v = m[2] === '=' ? st === m[3] : st !== m[3]; break; }
+      case 'hint': { const e = S.lantern.entries[m[1]]; v = !!e && (e.result || e.pending) === m[2]; break; }
+      case 'num': v = compare(m[1] === 'dep' ? (S.blend.dep || 0) : S[m[1]], m[2], +m[3]); break;
+      case 'bond': v = compare(S.bonds[m[1]] || 0, m[2], +m[3]); break;
+      case 'gw': v = compare((S.gw || {})[m[1]] || 0, m[2], +m[3]); break;
+      case 'act': v = compare(S.act || 1, m[1], +m[2]); break;
+      case 'w': v = !!(S.w || {})[m[1]]; break;
+      case 'know': v = !!((S.know || {})[m[1]] || {})[m[2]]; break;
+      case 'stake': v = ((S.stakes || {})[m[1]] || 'unasked') === m[2]; break;
+      case 'rue': v = (S.rue || 'streak') === m[1]; break;
+      case 'sight': v = !!(S.sights || {})[m[1]]; break;
+      case 'told': v = ((S.ideaFrom || {})[m[1]] || []).includes(m[2]); break;
+      case 'shift': case 'meetingday': case 'festivalday': v = this.role ? this.role(t.name) : false; break;
+      default: v = false;
+    }
+    return t.neg ? !v : v;
+  }
+  // every change to a bond goes through here; a warmer bond also earns goodwill (capped at 3), unless the
+  // scene says otherwise (backing a fix is its own reward, so back scripts pass { gw: false })
+  addBond(id, n, o = {}) {
+    const S = this.S; S.bonds[id] = (S.bonds[id] || 0) + n;
+    if (n > 0 && o.gw !== false) { S.gw = S.gw || {}; S.gw[id] = Math.min(3, (S.gw[id] || 0) + n); }
   }
   async effect(e, ctx = {}) {
-    const S = this.S, G = this.G; let m;
-    if ((m = e.match(/^bond\.(\w+)([+-]\d+)$/))) S.bonds[m[1]] = (S.bonds[m[1]] || 0) + +m[2];
-    else if ((m = e.match(/^(self|energy|coins|spot)([+-][\d.]+)$/))) { S[m[1]] = clamp(S[m[1]] + +m[2], 0, m[1] === 'coins' ? 9999 : m[1] === 'spot' ? 1 : m[1] === 'energy' ? S.maxE : 100); if (m[1] === 'coins' && +m[2] > 0) G.audio.sfx('coin'); }
-    else if ((m = e.match(/^flag\.(\w+)$/))) S.flags[m[1]] = true;
-    else if ((m = e.match(/^unflag\.(\w+)$/))) delete S.flags[m[1]];
-    else if ((m = e.match(/^idea\.(\w+)$/))) this.addIdea(m[1]);
-    else if ((m = e.match(/^back\.(\w+)$/))) this.addBacker(m[1], ctx.npc);
-    else if ((m = e.match(/^know\.(\w+)\.(\w+)$/))) this.know(m[1], m[2]);
-    else if ((m = e.match(/^note\.(\w+)$/))) this.fieldNote(m[1]);
-    else if ((m = e.match(/^gear\.(\w+)$/))) { S.gear[m[1]] = true; G.onGear(m[1]); }
-    else if (e === 'blend.install') G.installBlend();
-    else if ((m = e.match(/^blend\.score([+-]\d+)$/))) S.blend.score = Math.max(0, S.blend.score + +m[1]);
-    else if ((m = e.match(/^time\+(\d+)$/))) G.advance(+m[1]);
-    else console.warn('unknown effect', e);
+    const S = this.S, G = this.G; const p = parseEffect(e); if (!p) { console.warn('unknown effect', e); return; }
+    const m = p.m;
+    switch (p.name) {
+      case 'bond': this.addBond(m[1], +m[2], { gw: !ctx.back }); break;
+      case 'gw': { S.gw = S.gw || {}; S.gw[m[1]] = clamp((S.gw[m[1]] || 0) + +m[2], 0, 3); break; }
+      case 'stat': if (m[1] === 'dep') S.blend.dep = clamp((S.blend.dep || 0) + +m[2], 0, 9); else { S[m[1]] = clamp(S[m[1]] + +m[2], 0, m[1] === 'coins' ? 9999 : m[1] === 'spot' ? 1 : m[1] === 'energy' ? S.maxE : 100); if (m[1] === 'coins' && +m[2] > 0) G.audio.sfx('coin'); } break;
+      case 'flag': S.flags[m[1]] = true; break;
+      case 'unflag': delete S.flags[m[1]]; break;
+      case 'w': S.w = S.w || {}; S.w[m[1]] = 1; break;
+      case 'idea': this.addIdea(m[1], ctx.npc); break;
+      case 'back': this.addBacker(m[1], ctx.npc); break;
+      case 'know': this.know(m[1], m[2]); break;
+      case 'note': this.fieldNote(m[1]); break;
+      case 'gear': S.gear[m[1]] = true; G.onGear(m[1]); break;
+      case 'install': G.installBlend(); break;
+      case 'score': S.blend.score = Math.max(0, S.blend.score + +m[1]); break;
+      case 'time': G.advance(+m[1]); break;
+      case 'stake': S.stakes = S.stakes || {}; S.stakes[m[1]] = m[2]; break;
+      case 'keep': this.keep(m[1]); break;
+      default: console.warn('unhandled effect', e);
+    }
   }
-  addIdea(id) {
+  addIdea(id, from) {
     const S = this.S; S.flags.idea_any = true;
+    // who told you about it: they back it without being asked for goodwill
+    if (from && CAST[from]) { S.ideaFrom = S.ideaFrom || {}; const a = S.ideaFrom[id] = S.ideaFrom[id] || []; if (!a.includes(from)) a.push(from); }
     if (SIM.fixState(S, id) !== 'none') return;
     S.fixes[id] = 'idea';
     this.ui.toast(`<b>Noted for the Fix-It Shed</b><br>${SIM.FIXES[id].name}`, 'idea'); this.G.audio.sfx('ink');
@@ -185,7 +212,7 @@ export class Story {
       else if (n.ask) {
         const blendOn = this.cond('blend');
         const opts = n.ask.filter((o) => !o.if || this.cond(o.if, ctx)).map((o) => Object.assign({}, o, { blend: blendOn && o.blend }));
-        const k = await this.choose(opts.map((o) => ({ t: o.t, sub: o.sub, tag: o.tag, blend: o.blend })));
+        const k = await this.choose(opts.map((o) => ({ t: o.t, sub: o.sub, tag: o.tag, blend: o.blend, id: o.id })));
         const o = opts[k];
         if (o.blend) { this.S.blend.score += 5; this.S.blend.usedToday = true; this.S.self = clamp(this.S.self - 1.5, 0, 100); this.ui.toast('+5 Calm', 'blend', 1600); }
         if (o.do) for (const e of o.do) await this.effect(e, ctx);
@@ -220,7 +247,7 @@ export class Story {
   resolveHint(id, now) {
     const S = this.S, e = S.lantern.entries[id], H = HINTS[id]; if (!e || e.result) return;
     e.result = e.pending;
-    if (e.result === 'right') S.bonds[H.by] = (S.bonds[H.by] || 0) + 1;
+    if (e.result === 'right') this.addBond(H.by, 1);
     if (now) this.ui.toast(e.result === 'right' ? H.right : H.wrong, e.result === 'right' ? 'good' : '', 5200);
     else this.text('Lantern', e.result === 'right' ? H.right : H.wrong, true);
     if (e.result === 'right') { this.learn(H.by); this.know(H.by, 'no'); }
@@ -312,7 +339,7 @@ export class Story {
   // ---------- days ----------
   async morning(d) {
     const G = this.G, S = this.S;
-    S.day = d; S.min = SIM.wakeMin(S);
+    S.day = d; S.min = SIM.wakeMin(S); seedRng((S.seed * 31 + d * 7919 + (S.act || 1) * 104729) >>> 0);
     G.setLoc('home'); G.place(G.rooms.home.spots.center); G.player.heading = -0.9;
     { const c = G.roomCam('home'); G.stage.shot(c.pos, c.look, c.fov, 3, true); }
     S.dayStats = Object.assign({}, S.stats); S.metAt0 = Object.keys(S.met); S.fixAt0 = Object.assign({}, S.fixes);
@@ -420,8 +447,8 @@ export class Story {
     const G = this.G, S = this.S; if (G.busy || G.mode !== 'play') return;
     const m = S.min, d = S.day;
     if (d === 1 && m >= 555 && !S.flags.shift1 && !S.flags.ping1) { S.flags.ping1 = 1; this.text('Gil (work)', 'No worries if you\'re running late! :)'); }
-    if (d === 1 && m >= 690 && !S.flags.shift1 && !S.flags.missed1) { S.flags.missed1 = 1; S.bonds.gil -= 1; this.text('Gil (work)', 'Missed you today! No worries!! Tomorrow :)'); }
-    if (d === 2 && m >= 690 && !S.flags.shift2 && !S.flags.missed2) { S.flags.missed2 = 1; S.bonds.gil -= 1; this.text('Gil (work)', 'We missed you at sync! Notes to follow :)'); }
+    if (d === 1 && m >= 690 && !S.flags.shift1 && !S.flags.missed1) { S.flags.missed1 = 1; this.text('Gil (work)', 'Missed you today! No worries!! Tomorrow :)'); }
+    if (d === 2 && m >= 690 && !S.flags.shift2 && !S.flags.missed2) { S.flags.missed2 = 1; this.text('Gil (work)', 'We missed you at sync! Notes to follow :)'); }
     if (d === 1 && m >= 1045 && m < 1070 && !S.flags.busEvent && G.zone === 'transit') { S.flags.busEvent = 1; G.run(() => this.busEvent()); return; }
     { const e6 = S.lantern.entries.clover_six; if (e6 && e6.day === d && m >= 1080 && !S.flags.clover6) { S.flags.clover6 = 1; this.text('Clover', 'Drawings attached. Six on the dot.'); } }
     if (d === 3 && m >= 1065 && !S.flags.remind) { S.flags.remind = 1; this.text('Hollis', 'Town meeting in 15 minutes! Town Hall.'); }
@@ -541,7 +568,7 @@ export class Story {
     if (day === 2 && r && r.stats) {
       const st = r.stats;
       G.npcTo('gil', [G.rooms.works.spots.mydesk[0] + 1.3, G.rooms.works.spots.mydesk[1] - 0.6]); G.talkFrame('gil'); this.ui.letterbox(true);
-      if (st.approvedWho.includes('gil')) { await this.say('gil', 'You approved... mine? Ha. Huh. I haven\'t hung a lantern in about nine years. Thank you.'); S.bonds.gil = (S.bonds.gil || 0) + 1; }
+      if (st.approvedWho.includes('gil')) { await this.say('gil', 'You approved... mine? Ha. Huh. I haven\'t hung a lantern in about nine years. Thank you.'); this.addBond('gil', 1); }
       else if (st.approved > 0) await this.say('gil', 'You approved some? Are we allowed to... Honestly? Good. It\'s a lantern.');
       else await this.say('gil', 'Zero matches again! Every year. Every single year. Weird, right?');
       S.flags.permits = 1; this.fieldNote('average'); this.ui.hideDialog(); this.ui.letterbox(false); G.endTalk();
@@ -579,7 +606,7 @@ export class Story {
       const asks = Object.keys(SIM.FIXES).filter((f) => ['proposal', 'ready'].includes(SIM.fixState(S, f)) && SIM.FIXES[f].backers.includes(id) && !(S.support[f] || []).includes(id) && T.back && T.back[f]);
       if (asks.length) {
         const k = await this.choose(asks.map((f) => ({ t: 'Ask about the ' + SIM.FIXES[f].short })).concat([{ t: 'That is all for now' }]));
-        if (k < asks.length) await this.run(T.back[asks[k]], { npc: id });
+        if (k < asks.length) await this.run(T.back[asks[k]], { npc: id, back: true });
       }
       if (firstMeet && S.met[id]) await this.likingGap(id);
     }
@@ -820,7 +847,7 @@ export class Story {
     const fates = [];
     fates.push(F.board === 'built' ? 'Bea\'s daughter made the 7:40, because the bus board said Elm Street in big letters.' : 'Bea waited at the bench for the 7:40. It went down Elm Street again.');
     fates.push(S.flags.wren_invited ? 'Wren came to the festival, and pointed out which lanterns were theirs. Most of them.' : 'Wren spent the festival in the workshop, finishing lanterns nobody had ordered yet.');
-    fates.push(S.flags.rue_free ? 'Rue came without the app, and said her face was doing things she had not told it to.' : S.blend.score >= 120 ? 'Rue was out sick. The kiosk stayed dark, and Blend kept counting.' : 'Rue spent the festival chasing a four-hundred-and-fourteen-day streak.');
+    fates.push(S.flags.rue_free ? 'Rue came without the app, and said her face was doing things she had not told it to.' : 'Rue spent the festival chasing a four-hundred-and-fourteen-day streak.');
     { const w = ['ramp', 'dim', 'plain'].filter((f) => F[f] === 'built'); if (w.length) fates.push('The Works is a little different now: ' + LIST(w.map((f) => SIM.FIXES[f].short)) + '. Other people use ' + (w.length > 1 ? 'them' : 'it') + ' more than you do.'); }
     fates.push(S.flags.hollis_archive ? 'Hollis has started talking about a new statue, with lots of shapes, possibly designed by committee.' : 'The statue of the Standard Resident still stands in the square, fitting no one.');
     const seenBend = Object.keys(S.revealed || {}).filter((k) => S.revealed[k] === 'seen').map((k) => CAST[k].name);

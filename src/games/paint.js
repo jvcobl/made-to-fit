@@ -63,7 +63,7 @@ export class PaintGame extends MiniGame {
     const line = score === 3 ? P.yes : score === 2 ? P.near : P.kind;
     const L = Object.assign({ id, score, name }, this.ch); this.made.push(L); this.left--; this.rising = { L, t: 0 }; this.G.audio.sfx(score >= 2 ? 'good' : 'page');
     this.fx.burst(this.W / 2, this.H * 0.3, 18, [this.ch.color, '#fffaf0', '#ffcf7a'], { speed: 260, size: 7 });
-    const S = this.G.S; S.bonds[id] = (S.bonds[id] || 0) + (score >= 2 ? 1 : 0);
+    const S = this.G.S; if (score >= 2) this.G.story.addBond(id, 1);
     this.box.querySelector('.preact').innerHTML = `<div class="rq"><img src="${this.G.portraitOf(CAST[id].look, { bg: '#efe6d6', w: 200, h: 200 })}" alt=""><div><b>${esc(name)}</b>, later: "${esc(line)}"</div></div>`;
     this.box.querySelector('.hang').disabled = true;
     const remaining = Object.keys(LANTERN_PREFS).filter((k) => S.met[k] && !this.made.find((m) => m.id === k)).length;
