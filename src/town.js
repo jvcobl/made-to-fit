@@ -365,7 +365,7 @@ export class Town {
     const cx = 30, cz = 24;
     this.batch.add(new RoundedBoxGeometry(2.6, 1.5, 2.6, 2, 0.12), '#d9ccb6', mtx(cx, 0.75, cz), { ao: [-0.75, 0.2, 0.75] });
     this.batch.add(new RoundedBoxGeometry(3.2, 0.3, 3.2, 1, 0.08), '#cbbca2', mtx(cx, 0.15, cz));
-    const st = new Creature(STANDARD, { scale: 2.3, seed: 1945 });
+    const st = new Creature(STANDARD, { scale: 2.3, seed: 1945, form: 'baked' });
     st.root.position.set(cx, 1.5, cz); st.update(0.01);
     st.bodyMat.roughness = 0.38; st.bodyMat.metalness = 0.12;
     st.root.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.userData.noOcc = true; } });
@@ -614,17 +614,20 @@ export class Town {
     const g = new THREE.Group(); g.visible = false; this.scene.add(g); this.festival = g;
     const bulbs = []; const poles = [];
     for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2 + 0.2; poles.push(new THREE.Vector3(30 + Math.cos(a) * 9.6, 4.2, 24 + Math.sin(a) * 9.6)); }
-    poles.forEach((p) => { const m = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 4.2, 6), new THREE.MeshStandardMaterial({ color: PAL.woodDark })); m.position.set(p.x, 2.1, p.z); g.add(m); });
+    // the eight poles are one mesh, and so are all the bulbs (their colours ride on the vertices): two draws in all
+    const pb = new Batch(); const pole = new THREE.CylinderGeometry(0.07, 0.07, 4.2, 6);
+    poles.forEach((p) => pb.add(pole, PAL.woodDark, mtx(p.x, 2.1, p.z)));
+    g.add(pb.mesh(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, metalness: 0 })));
     for (let i = 0; i < 8; i++) {
       const a = poles[i], b = poles[(i + 1) % 8], c = new THREE.Vector3(30, 5.2, 24);
       for (let k = 1; k < 12; k++) { const t = k / 12; const p = a.clone().lerp(b, t); p.y -= Math.sin(t * Math.PI) * 0.8; bulbs.push(p); }
       for (let k = 1; k < 9; k++) { const t = k / 9; const p = a.clone().lerp(c, t); p.y -= Math.sin(t * Math.PI) * 0.6; bulbs.push(p); }
     }
     const cols = ['#ffcf7a', '#ff9f8a', '#9ef2e4', '#ffe9a8', '#f3a0c2'];
-    const inst = new THREE.InstancedMesh(new THREE.SphereGeometry(0.09, 8, 6), new THREE.MeshStandardMaterial({ color: '#ffffff', emissive: '#ffffff', emissiveIntensity: 1.8, roughness: 0.5 }), bulbs.length);
+    const bb = new Batch(); const bulb = new THREE.SphereGeometry(0.09, 8, 6);
+    bulbs.forEach((p, i) => bb.add(bulb, cols[i % cols.length], mtx(p.x, p.y, p.z)));
+    g.add(bb.mesh(new THREE.MeshStandardMaterial({ color: '#ffffff', emissive: '#ffffff', emissiveIntensity: 1.8, roughness: 0.5, vertexColors: true })));
     const col = new THREE.Color();
-    bulbs.forEach((p, i) => { inst.setMatrixAt(i, mtx(p.x, p.y, p.z)); col.set(cols[i % cols.length]); inst.setColorAt(i, col); });
-    g.add(inst);
     // floating lanterns for the finale
     const n = 90; this.sky = { n, mesh: null, data: [] };
     const lm = new THREE.InstancedMesh(new THREE.SphereGeometry(0.22, 10, 8), new THREE.MeshStandardMaterial({ color: '#ffffff', emissive: '#ffffff', emissiveIntensity: 2.2, roughness: 0.6 }), n);
@@ -633,8 +636,10 @@ export class Town {
       this.sky.data.push(d); col.set(d.c); lm.setColorAt(i, col); lm.setMatrixAt(i, mtx(d.x, -10, d.z, 0, 1, 1.2, 1));
     }
     lm.visible = false; this.scene.add(lm); this.sky.mesh = lm; this.skyLaunch = 0;
-    const glow = new THREE.PointLight('#ffb468', 0, 26, 1.4); glow.position.set(30, 6, 24); g.add(glow); this.festGlow = glow;
-    const glow2 = new THREE.PointLight('#ff8fb0', 0, 16, 1.6); glow2.position.set(36, 3, 28); g.add(glow2); this.festGlow2 = glow2;
+    // the festival's two lights are in the scene from the start, dark until it begins, so the number of lights (and
+    // with it every lit shader) never changes mid-game
+    const glow = new THREE.PointLight('#ffb468', 0, 26, 1.4); glow.position.set(30, 6, 24); this.scene.add(glow); this.festGlow = glow;
+    const glow2 = new THREE.PointLight('#ff8fb0', 0, 16, 1.6); glow2.position.set(36, 3, 28); this.scene.add(glow2); this.festGlow2 = glow2;
   }
   setFestival(on) { this.festival.visible = on; if (this.festGlow) { this.festGlow.intensity = on ? 18 : 0; this.festGlow2.intensity = on ? 6 : 0; } }
   // your lantern goes first, then the ones you painted for people, then everyone else's

@@ -273,7 +273,7 @@ export class Chamber extends Room {
     const frame = new THREE.Mesh(new RoundedBoxGeometry(3.0, 1.9, 0.1, 1, 0.04), std('#b8893a', { metalness: 0.4, roughness: 0.4 })); pg.add(frame);
     const canvas = new THREE.Mesh(new THREE.PlaneGeometry(2.7, 1.6), std('#3a3340')); canvas.position.z = 0.06; pg.add(canvas);
     this.scene.add(pg);
-    for (let i = 0; i < 5; i++) { const f = new Creature(STANDARD, { scale: 0.62, seed: 300 + i, lod: 'low' }); f.root.position.set(-6.8, 1.9, -1.6 + i * 0.5); f.root.rotation.y = Math.PI / 2; f.heading = Math.PI / 2; f.update(0.01); this.scene.add(f.root); }
+    for (let i = 0; i < 5; i++) { const f = new Creature(STANDARD, { scale: 0.62, seed: 300 + i, lod: 'low', form: 'baked' }); f.root.position.set(-6.8, 1.9, -1.6 + i * 0.5); f.root.rotation.y = Math.PI / 2; f.heading = Math.PI / 2; f.update(0.01); this.scene.add(f.root); }
     this.addPlaque('The Founders, 1891', -6.86, 1.45, -0.6, 1.4, 0.26, Math.PI / 2);
     this.spots = { door: [5.6, 4.2], lectern: [0, 1.1], hollis: [0, -3.75], pip: [-2.2, -3.75], clover: [2.2, -3.75], benchL: [-3.6, 2.6], benchR: [3.6, 2.6], benchL2: [-3.6, 4.1], benchR2: [3.6, 4.1], portrait: [-5.6, -0.6] };
     this.spawn = [5.6, 4.0];
