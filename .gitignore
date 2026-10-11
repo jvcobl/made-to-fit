@@ -9,3 +9,4 @@ test/qa5/
 test/view.bundle.js
 test/wrapped.html
 feas/
+dist/
