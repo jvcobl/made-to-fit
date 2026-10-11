@@ -73,8 +73,8 @@ with sync_playwright() as p:
     pg.evaluate("document.querySelector('#rgo').click()")
     ok = until(pg, "window.__wb && __wb.ret && __wb.ret() && __wb.waiter() === 'choice' && __wb.options().some((o) => o.id === 'age_glasses')", 90)
     shot(pg, '06_ten_years')
-    S = pg.evaluate("(() => { const S = __wb.state(); return { act: S.act, name: S.name, origin: S.origin, recap: S.w.recap, fixes: Object.keys(S.fixes).filter((f) => S.fixes[f] === 'built'), plain: S.stakes.plain, quiet: S.stakes.quiet || null, blend: S.blend.deleted, rue: S.ruePrev, wear: S.look.wear, top: S.look.top, light: S.profile.light, sound: S.profile.sound } })()")
-    check('ten years later, from the recap', ok and S['act'] == 2 and S['name'] == 'Robin' and S['origin'] == 'recap' and S['recap'] == 1, S)
+    S = pg.evaluate("(() => { const S = __wb.state(); return { min: Math.round(S.min), act: S.act, name: S.name, origin: S.origin, recap: S.w.recap, fixes: Object.keys(S.fixes).filter((f) => S.fixes[f] === 'built'), plain: S.stakes.plain, quiet: S.stakes.quiet || null, blend: S.blend.deleted, rue: S.ruePrev, wear: S.look.wear, top: S.look.top, light: S.profile.light, sound: S.profile.sound } })()")
+    check('ten years later, from the recap, in the morning', ok and S['act'] == 2 and S['name'] == 'Robin' and S['origin'] == 'recap' and S['recap'] == 1 and S['min'] < 560, S)
     check('the recap carried: fixes, who you listened to, Blend, Rue, look, room', sorted(S['fixes']) == ['plain', 'quiet'] and S['plain'] == 'listened' and not S['quiet'] and S['blend'] and S['rue'] == 'easing' and S['wear'] == 'bow' and S['top'] == 'antennae' and S['light'] == 0.1 and S['sound'] == 0.9, S)
     carry = pg.evaluate("JSON.parse(localStorage.getItem('mtf.carry') || '{}')")
     a1 = (carry.get('acts') or {}).get('1') or {}
@@ -89,8 +89,8 @@ with sync_playwright() as p:
     pg.wait_for_selector('#nm', timeout=20000)
     pg.fill('#nm', 'Robin'); pg.evaluate("document.querySelector('#nOk').click()")
     ok = until(pg, "window.__wb && __wb.ret && __wb.ret() && __wb.waiter() === 'choice' && __wb.options().some((o) => o.id === 'age_glasses')", 90)
-    S = pg.evaluate("(() => { const S = __wb.state(); return { act: S.act, name: S.name, origin: S.origin } })()")
-    check('Return to Larkspur: your name, then ten years later', ok and S['act'] == 2 and S['name'] == 'Robin' and S['origin'] == 'recap', S)
+    S = pg.evaluate("(() => { const S = __wb.state(); return { min: Math.round(S.min), act: S.act, name: S.name, origin: S.origin } })()")
+    check('Return to Larkspur: your name, then ten years later, in the morning (not the title\'s dusk)', ok and S['act'] == 2 and S['name'] == 'Robin' and S['origin'] == 'recap' and S['min'] < 560, S)
     # a visit code typed on the title: a second visit's code starts the third
     code = pg.evaluate("__wb.visitCode(2, { built: ['quiet', 'crossing'] })")
     pg.evaluate("localStorage.clear(); sessionStorage.clear()"); pg.goto(URL)
@@ -105,8 +105,8 @@ with sync_playwright() as p:
     try: pg.wait_for_selector('#nm', timeout=20000); pg.fill('#nm', 'Robin'); pg.evaluate("document.querySelector('#nOk').click()"); named = True
     except Exception: pass
     ok = until(pg, "window.__wb && __wb.ret && __wb.ret() && __wb.ret().act === 3 && !!__wb.state().flags && __wb.waiter() === 'choice' && __wb.options().some((o) => o.id === 'coop_yes')", 90)
-    S = pg.evaluate("(() => { const S = __wb.state(); return { act: S.act, built: Object.keys(S.fixes).filter((f) => S.fixes[f] === 'built') } })()")
-    check('a visit code on the title: a cut-off code is refused plainly; the code inside a sentence starts twenty years later', 'look right' in err and named and ok and S['act'] == 3 and 'crossing' in S['built'], [err, named, S])
+    S = pg.evaluate("(() => { const S = __wb.state(); return { min: Math.round(S.min), act: S.act, built: Object.keys(S.fixes).filter((f) => S.fixes[f] === 'built') } })()")
+    check('a visit code on the title: a cut-off code is refused plainly; the code inside a sentence starts twenty years later', 'look right' in err and named and ok and S['act'] == 3 and 'crossing' in S['built'] and S['min'] < 560, [err, named, S])
     check('no page errors', not errors, errors[:5])
     b.close()
 print(json.dumps(out, indent=1))

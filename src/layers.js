@@ -10,6 +10,9 @@ import { Unit, deliveryBot, van } from './robot.js';
 const mat = (c, o = {}) => new THREE.MeshStandardMaterial(Object.assign({ color: c, roughness: 0.75 }, o));
 const RAMP = { x0: 13.6, x1: 18.8, h: 0.54, z: 11.2 };
 export const rampY = (x) => Math.max(0, Math.min(RAMP.h, RAMP.h * (RAMP.x1 - x) / (RAMP.x1 - RAMP.x0)));
+// the crossing light: 'push' (timed to the Standard), 'hold' (the button for more time, if Marta was listened to) or
+// 'waits' (the light waits for anyone still in the street)
+export const crossingState = (S) => ((S.fixes || {}).crossing === 'built' ? ((S.stakes || {}).crossing === 'listened' ? 'hold' : 'waits') : 'push');
 
 export function townLayer(T, act, S) {
   if (T.actLayer) return T.actLayer;
@@ -22,7 +25,7 @@ export function townLayer(T, act, S) {
   // the board, if you won it ten years ago; otherwise a sticker on the old timetable
   if (F.board === 'built') {
     const old = T.fixGroups.board && T.fixGroups.board.children[0]; if (old) old.visible = false;
-    sign('VAN EVERY 20 MIN\nAPP, OR THE COUNTER', 53.6, 2.0, 22.97, 1.5, 0.6, { size: 34, bg: '#13202e', fg: '#9ef2e4', border: '#4fb3a9', glow: 1.3 });
+    sign('VAN EVERY 20 MIN\nAPP, OR THE KIOSK', 53.6, 2.0, 22.97, 1.5, 0.6, { size: 34, bg: '#13202e', fg: '#9ef2e4', border: '#4fb3a9', glow: 1.3 });
   } else sign('BOOK ON\nTHE APP', 52.97, 1.12, 23.8, 0.5, 0.36, { size: 40, bg: '#ff5fa2', fg: '#ffffff', border: false }, Math.PI / 2);
   // the crossing by the bus stop: a light timed to the Standard's stride
   {
@@ -32,7 +35,11 @@ export function townLayer(T, act, S) {
     const head = new THREE.Mesh(new RoundedBoxGeometry(0.34, 0.62, 0.2, 2, 0.05), mat('#2a2a30')); head.position.set(x - 1.1, 2.45, 22.0); g.add(head);
     T.crossRed = new THREE.Mesh(new THREE.SphereGeometry(0.09, 12, 8), mat('#e4574a', { emissive: '#e4574a', emissiveIntensity: 1.6 })); T.crossRed.position.set(x - 1.1, 2.6, 22.11); g.add(T.crossRed);
     T.crossGreen = new THREE.Mesh(new THREE.SphereGeometry(0.09, 12, 8), mat('#4fd18b', { emissive: '#4fd18b', emissiveIntensity: 0.15 })); T.crossGreen.position.set(x - 1.1, 2.3, 22.11); g.add(T.crossGreen);
-    T.crossButton = sign(F.crossing === 'built' ? 'HOLD FOR\nMORE TIME' : 'PUSH', x - 1.1, 1.35, 22.07, 0.34, 0.26, { size: 30, bg: '#f6cf5b', fg: '#2b2530', border: false });
+    // the button says what the light does: PUSH (timed to the Standard), or the fix in the shape it was voted
+    const btn = { push: 'PUSH', hold: 'HOLD FOR\nMORE TIME', waits: 'WAITS FOR\nEVERYONE' }; const signs = {};
+    for (const k of Object.keys(btn)) { signs[k] = sign(btn[k], x - 1.1, 1.35, 22.07, 0.34, 0.26, { size: k === 'push' ? 30 : 26, bg: '#f6cf5b', fg: '#2b2530', border: false }); signs[k].visible = false; }
+    T.setCrossing = (state) => { for (const k of Object.keys(signs)) signs[k].visible = k === state; T.crossButton = signs[state]; };
+    T.setCrossing(crossingState(S));
     T.spots.crossing = [x - 0.4, 21.3]; T.spots.crossFar = [x + 0.2, 26.4];
     T.addInter({ id: 'crossing', kind: 'prop', x: x - 0.5, z: 21.6, r: 1.6, label: 'Look at the crossing' });
   }
@@ -109,9 +116,11 @@ export function roomLayer(rooms, act, S) {
     W.spots.unit = [seat[0] + 0.9, seat[1] + 0.4]; W.spots.tomas = [-5.4, 3.0]; W.spots.ada = W.seats[8];
     // the lamps and plants (only if you softened the panels in your first visit: the room you left behind)
     if (F.dim === 'built') {
+      const lg = new THREE.Group(); W.actLamps = lg; const n0 = g.children.length;
       const lampM = mat('#2f3a4a'); const shade = mat('#ffd9a0', { emissive: '#ffcf7a', emissiveIntensity: 0.9 });
       W.seats.forEach(([x, z], i) => { if (i === 7) return; const b = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.05, 0.42, 6), lampM); b.position.set(x + 0.6, 1.0, z - 1.0); g.add(b); const s = new THREE.Mesh(new THREE.ConeGeometry(0.14, 0.16, 12, 1, true), shade); s.position.set(x + 0.6, 1.26, z - 1.0); g.add(s); });
       for (const [px, pz] of [[-7.2, -3.6], [-2.6, 4.3], [0.6, 4.3], [3.6, 3.6], [7.3, -0.6]]) { const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.17, 0.4, 10), mat('#c97f5a')); pot.position.set(px, 0.2, pz); g.add(pot); for (let i = 0; i < 5; i++) { const l = new THREE.Mesh(new THREE.SphereGeometry(0.2, 8, 6), mat('#5f8f4e')); l.position.set(px + Math.cos(i * 1.3) * 0.15, 0.6 + (i % 3) * 0.16, pz + Math.sin(i * 1.3) * 0.15); g.add(l); } }
+      for (const ch of g.children.slice(n0)) lg.add(ch); g.add(lg);
       out.lampsShown = true;
     }
     if (F.plain === 'built') { const s = signMesh('THIS WEEK\nwho · what · by when', 1.5, 0.9, { size: 40, bg: '#fbf6ee', fg: '#2f3a4a', border: '#4fb3a9' }); s.position.set(-7.86, 1.75, 1.2); s.rotation.y = Math.PI / 2; g.add(s); }

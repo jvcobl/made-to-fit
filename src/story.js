@@ -16,6 +16,8 @@ import { Blueprint, PlainNote, BLUEPRINTS } from './games/blueprint.js';
 import { PondGame, FISH } from './games/pond.js';
 import { cardTile } from './packs.js';
 import { PaintGame } from './games/paint.js';
+import { TeachUnit } from './games/teach.js';
+import { FestivalMail } from './games/mail.js';
 import { Return, stateFromCarry } from './returns.js';
 
 // where objectives point: a spot just in front of each door
@@ -42,18 +44,38 @@ export class Story {
 
   async start() {
     const G = this.G;
-    // a return visit straight after an ending ("Ten years later"), handed over across a reload
-    const hand = this.takeHandoff(); if (hand) { await this.startReturn(hand.act, hand.carry, hand.name); return; }
     const read = SAVE.readSave();
+    // a return visit straight after an ending ("Ten years later"), handed over across a reload. A bare link
+    // (#return=N with a code) asks first if a visit is still in progress here.
+    const hand = this.takeHandoff();
+    if (hand) {
+      const live0 = read.save && read.save.phase !== 'end' ? read.save : null;
+      const ok = !hand.link || !live0 || (await G.menus.confirm('Start that visit?', 'This replaces your saved visit (' + (live0.label || 'in progress') + '). Finished visits stay.', 'Start it', 'Keep my save'));
+      if (ok) { await this.startReturn(hand.act, hand.carry, hand.name); return; }
+    }
     // "Play this visit again" reloads straight into a new visit, with the one thing you chose to set differently
     let again = null; try { again = JSON.parse(sessionStorage.getItem('mtf.again') || 'null'); sessionStorage.removeItem('mtf.again'); } catch (e) { again = null; }
-    const pick = again && (again.act || 1) === 1 ? { kind: 'new' } : again ? { kind: 'return', act: again.act, carry: this.carryFor(again.act - 1), again } : await this.titleScreen({ save: read.save || null, ret: this.nextReturn(read.save) });
+    const pick = again && (again.act || 1) === 1 ? { kind: 'new' } : again ? { kind: 'return', act: again.act, carry: again.carry || this.carryFor(again.act - 1), again } : await this.titleScreen({ save: read.save || null, ret: this.nextReturn(read.save) });
     if (again && again.default) this.S.carryDefault = again.default;
+    // starting another visit replaces a visit still in progress: say so first (finished visits always stay)
+    const live = read.save && read.save.phase !== 'end' && !again ? read.save : null;
+    const keepLive = async () => !live || G.menus.confirm('Start that visit?', 'This replaces your saved visit (' + (live.label || 'in progress') + '). Finished visits stay.', 'Start it', 'Keep my save');
     // a visit code, or the title's "Return to Larkspur": the visit after the one it holds
-    if (pick.kind === 'code' && pick.carry) { const a = (pick.carry.act || 1) + 1; if (a <= 3) { await this.startReturn(a, pick.carry, null, again && again.default); return; } this.ui.toast('That code is from your last visit. There isn\'t another one after it, but you can start again from the beginning.', '', 6000); }
+    if (pick.kind === 'code' && pick.carry) {
+      const a = (pick.carry.act || 1) + 1;
+      if (a > 3) { this.ui.toast('That code is from your last visit. There isn\'t another one after it, but you can start again from the beginning.', '', 6000); await this.start(); return; }
+      if (!(await keepLive())) { await this.start(); return; }
+      await this.startReturn(a, pick.carry, null, again && again.default); return;
+    }
     if (pick.kind === 'return' && !pick.carry) pick.carry = this.carryFor(pick.act - 1);
-    if (pick.kind === 'return' && pick.carry) { await this.startReturn(pick.act, pick.carry, pick.again ? pick.again.name : null, pick.again && pick.again.default); return; }
-    if (pick.kind === 'recap') { const r = await recap(this); if (r) { await this.startReturn(2, r.carry, r.name); return; } location.reload(); return; }
+    if (pick.kind === 'return') {
+      if (!pick.carry) { this.ui.toast('This browser no longer remembers that visit. A visit code from its ending page still works.', '', 6000); await this.start(); return; }
+      if (!pick.again && !(await keepLive())) { await this.start(); return; }
+      await this.startReturn(pick.act, pick.carry, pick.again ? pick.again.name : null, pick.again && pick.again.default); return;
+    }
+    if (pick.kind === 'recap') { const r = await recap(this, live); if (r) { await this.startReturn(2, r.carry, r.name); return; } location.reload(); return; }
+    // a save code from another device replaces the visit saved here, so that asks first too
+    if (pick.kind === 'code' && pick.save && !(await keepLive())) { await this.start(); return; }
     const save = pick.kind === 'continue' ? pick.save : pick.kind === 'code' ? pick.save : null;
     if (save) {
       const at = await this.resumeFrom(save);
@@ -75,10 +97,10 @@ export class Story {
     let h = null; try { h = JSON.parse(sessionStorage.getItem('mtf.next') || 'null'); sessionStorage.removeItem('mtf.next'); } catch (e) { h = null; }
     let act = h && h.act, carry = null;
     const m = /(?:^|[#&])return=(\d)(?:&v=([A-Za-z0-9-]+))?/.exec(typeof location !== 'undefined' ? location.hash || '' : '');
-    if (m) { act = act || +m[1]; if (m[2]) { const d = SAVE.decodeVisit(m[2]); if (d.carry) carry = d.carry; } try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { /* the hash stays; harmless */ } }
+    if (m) { act = act || +m[1]; if (m[2]) { const d = SAVE.decodeVisit(m[2]); if (d.carry) carry = d.carry; } try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { try { location.hash = ''; } catch (e2) { /* nothing more to do */ } } }
     if (!act || act < 2 || act > 3) return null;
     carry = carry || this.carryFor(act - 1);
-    return carry ? { act, carry, name: h && h.name } : null;
+    return carry ? { act, carry, name: h && h.name, link: !h } : null;
   }
   carryFor(act) { const r = SAVE.readCarry(); return (r.carry && r.carry.acts && r.carry.acts[String(act)]) || null; }
   // the title offers the next visit when the last one you finished has one after it
@@ -90,9 +112,10 @@ export class Story {
   }
   async startReturn(act, carry, name, dflt) {
     const G = this.G;
-    const S = stateFromCarry(carry, act, ((this.S && this.S.seed) || 1) + act * 7919);
-    if (dflt) S.carryDefault = dflt;
-    G.S = S; G.texts = [];
+    // "Play this visit again" with one thing set differently: that default replaces the carry's own
+    const S = stateFromCarry(dflt ? Object.assign({}, carry, { default: dflt }) : carry, act, ((this.S && this.S.seed) || 1) + act * 7919);
+    S.startCarry = carry; // so this visit can be played again, whichever way it was started
+    G.mode = 'cine'; G.S = S; G.texts = [];
     S.name = name || (await G.menus.askName(''));
     this.applyWorld();
     if (!G.settings.comfortDone && (!G.test || params.get('comfort') === '1')) await G.menus.comfort();
@@ -153,7 +176,7 @@ export class Story {
   }
   // a save from storage or a code: rebuild the state, then everything in the world that the state implies
   async resumeFrom(save) {
-    const G = this.G; let S;
+    const G = this.G; let S; G.mode = 'cine';
     try { S = SAVE.restoreState(save, SIM.newState); } catch (e) { console.error(e); this.ui.toast('That save could not be opened.'); return null; }
     this.sanitize(S);
     G.S = S;
@@ -292,7 +315,7 @@ export class Story {
     this.fieldNote('social');
   }
   // for automated tests: run any task on its own
-  testGame(name, arg) { const map = { sort: SortGame, stamp: StampGame, blueprint: Blueprint, plain: PlainNote, pond: PondGame, paint: PaintGame }; const g = name === 'blueprint' ? new Blueprint(this.G, arg || 'quiet') : new map[name](this.G); this.G.run(() => g.run()); return true; }
+  testGame(name, arg) { const map = { sort: SortGame, stamp: StampGame, blueprint: Blueprint, plain: PlainNote, pond: PondGame, paint: PaintGame, teach: TeachUnit, mail: FestivalMail }; const g = name === 'blueprint' ? new Blueprint(this.G, arg || 'quiet') : new map[name](this.G); this.G.run(() => g.run()); return true; }
   // ---------- knowing people ----------
   know(id, slot) {
     const S = this.S; if (!PEOPLE[id]) return; S.know = S.know || {}; const k = S.know[id] = S.know[id] || {};
@@ -438,7 +461,8 @@ export class Story {
     G.stage.orbit(new THREE.Vector3(30, 2, 24), 36, 17, 0.03, true);
     G.S.min = 18.4 * 60; G.player.root.visible = false;
     const pick = await this.ui.title({ save: o.save, storage: G.storage, ret: o.ret });
-    G.S.min = keepMin;
+    // leave the title's evening behind: the world clock is pinned at dusk only while the title shows
+    G.mode = 'cine'; G.S.min = keepMin;
     G.audio.unlock(); G.audio.setScene('title');
     return pick;
   }
@@ -725,13 +749,14 @@ export class Story {
         { key: 'bend', who: 'You', label: 'Push through', sub: 'You stay, and nobody notices. −4 energy; the pinch stays, hidden.', hold: true },
         gearKey ? (S.gear[gearKey] && !S.wearing[gearKey] ? { key: 'gear', who: 'Your gear', label: 'Put on your ' + gearKey, sub: 'You stay. ' + (gearKey === 'headphones' ? 'Sound' : 'Glare') + ' only; people may notice.' } : { key: 'gear', who: 'Your gear', label: 'Use gear', disabled: true, reason: S.wearing[gearKey] ? 'already on, and still not enough' : 'nothing for this yet. Moss sells some.' }) : { key: 'gear', who: 'Your gear', label: 'Use gear', disabled: true, reason: 'nothing you own helps with this' },
         ownerHere && !o.noAsk ? { key: 'ask', who: 'Them', label: 'Ask ' + name + ' to change it', sub: gw >= 1 ? 'It may change for you now. Uses goodwill ' + this.dots(gw) + '; ' + name + ' may ask a favour later.' : shared ? 'It pinches ' + name + ' too, and you know it. ' + name + ' may ask a favour later.' : name + ' doesn\'t know you well yet. They\'ll probably say no.' } : { key: 'ask', who: 'Them', label: 'Ask someone', disabled: true, reason: o.noAsk ? 'you asked. The answer was no.' : owner ? 'nobody in charge is here right now' : 'nobody here is in charge of it' },
-        fixId && !noted && SIM.fixState(S, fixId) === 'none' ? (noticed || S.flags['told_' + fixId] ? { key: 'fix', who: 'The place', label: 'Note it for the Fix-It Shed', sub: 'Could change it for everyone, later. Slow; two a season; someone loses something.' } : { key: 'fix', who: 'The place', label: 'Note it', disabled: true, reason: 'you are not sure what is causing it' }) : { key: 'fix', who: 'The place', label: 'Fix it', disabled: true, reason: fixId && SIM.fixState(S, fixId) !== 'none' ? 'already in your notes' : 'nothing obvious to change here' },
+        // (in a later visit there's no time to sketch it: it goes straight to tonight's meeting, if it finds two backers)
+        fixId && !noted && (SIM.fixState(S, fixId) === 'none' || (this.ret && SIM.fixState(S, fixId) === 'onfile')) ? (noticed || S.flags['told_' + fixId] ? (this.ret ? { key: 'fix', who: 'The place', label: 'Propose it for tonight', sub: 'Two backers by six, then the meeting. Two fixes a year; someone loses something.' } : { key: 'fix', who: 'The place', label: 'Note it for the Fix-It Shed', sub: 'Could change it for everyone, later. Slow; two a season; someone loses something.' }) : { key: 'fix', who: 'The place', label: 'Note it', disabled: true, reason: 'you are not sure what is causing it' }) : { key: 'fix', who: 'The place', label: 'Fix it', disabled: true, reason: fixId && SIM.fixState(S, fixId) !== 'none' ? (['built', 'approved'].includes(SIM.fixState(S, fixId)) ? 'it\'s already built' : 'already in your notes') : 'nothing obvious to change here' },
         { key: 'leave', who: 'Nobody', label: exitWord, sub: 'You rest. You miss what you came for.' },
       ];
       const off = options.filter((x) => x.disabled).length;
       const choice = await this.ui.barrier({ options, title: B.title, text, gut: noted || !gutList.length ? '' : pick(gutList), notice: noticed && !noted ? NOTICE[zone][top] : '', noticeLabel: DIM_LABEL[top], coach: noted ? '' : coach });
       const row = { z: zone, dim: top, dir, f: { off, owner: ownerHere ? owner : '' } };
-      if (choice === 'fix') { noted = true; this.addIdea(fixId); S.stats.fix++; this.log('barrier', Object.assign({ v: 'fix', pay: [] }, row)); continue; }
+      if (choice === 'fix') { noted = true; if (this.ret) this.ret.propose(fixId, null); else this.addIdea(fixId); S.stats.fix++; this.log('barrier', Object.assign({ v: 'fix', pay: [] }, row)); continue; }
       this.ui.hideBarrier(); G.focusPinch(false);
       if (choice === 'bend') { S.masking = true; S.maskZone = zone; SIM.bendCost(S, false); S.stats.bend++; G.player.setExpression('neutral'); this.log('barrier', Object.assign({ v: 'bend', pay: ['you'] }, row)); }
       else if (choice === 'gear') {
@@ -909,7 +934,7 @@ export class Story {
     // inside, the time is yours: the shift starts when you sit down at your desk
     if (this.shiftOpen()) this.ui.toast(S.day === 1 ? 'Your desk is the one by the plant. Sit down when you are ready to start.' : 'The sync happens at your desk. Sit down when you are ready.', '', 4200);
   }
-  shiftOpen() { const S = this.S; return S.day >= 1 && S.day < 3 && !S.flags['shift' + S.day] && !S.flags['missed' + S.day] && S.min < 690; }
+  shiftOpen() { const S = this.S; return !this.ret && S.day >= 1 && S.day < 3 && !S.flags['shift' + S.day] && !S.flags['missed' + S.day] && S.min < 690; }
   async startShift() {
     const G = this.G, S = this.S; const day = S.day;
     if (day === 1 && S.min > 550) S.flags.late1 = true;
@@ -961,7 +986,7 @@ export class Story {
     }
   }
   async talkTo(id) {
-    const G = this.G, S = this.S; const T = TALK[id]; const firstMeet = !S.met[id];
+    const G = this.G, S = this.S; const T = TALK[id] || {}; const firstMeet = !S.met[id];
     G.talkFrame(id); this.ui.letterbox(true);
     if (S.flags.festival) { await this.festivalLine(id); }
     else {
@@ -992,7 +1017,7 @@ export class Story {
     const k = (S.know || {})[id] || {}; return !!(k.over || k.under) && (SIM.FIXES[f].helps || []).includes(id);
   }
   async askBacker(f, id) {
-    const S = this.S, T = TALK[id];
+    const S = this.S, T = TALK[id] || {}; if (!T.back || !T.back[f]) return;
     if (this.backerTold(f, id)) { await this.say(id, 'This one\'s for me too.'); await this.run(T.back[f], { npc: id, back: true }); return; }
     if (this.gwOf(id) >= 1) { S.gw[id] = this.gwOf(id) - 1; await this.run(T.back[f], { npc: id, back: true }); return; }
     await this.say(id, 'Ask me again when I know you better.');
@@ -1309,6 +1334,7 @@ export class Story {
       if (yes >= 2) { this.approve(f, 'meeting'); if (this.ret) { S.fixes[f] = 'built'; G.applyFix(f); } news.passed.push(f); this.log('vote', { z: SIM.FIXES[f].zone, v: 'passed', by: 'meeting', pay: (S.stakes || {})[f] === 'listened' ? [] : [STAKES[f].who] }); }
       else { S.fixes[f] = 'onfile'; news.tabled.push(f); this.log('vote', { z: SIM.FIXES[f].zone, v: 'failed', by: 'meeting', pay: ['you'] }); }
     }
+    if (this.ret && this.ret.A.council) { const r = await this.ret.A.council(this.ret, { away: true }); if (r) { for (const f of r.passed || []) { news.passed.push(f); news.by[f] = r.by || 'hollis'; } for (const f of r.tabled || []) news.tabled.push(f); } }
     S.flags.councilDone = 1; S.cloverNews = news; S.cloverAt = S.min + 20;
     await G.exitRoom(true);
     this.saveNow('meeting', S.day);

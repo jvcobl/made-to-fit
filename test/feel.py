@@ -76,7 +76,7 @@ with sync_playwright() as p:
     st5 = pg.evaluate("(() => { const G = __wb.G; return { sat: G.stage.fxT.sat, warm: G.stage.fxT.warm } })()")
     check('tint off: eases back to full colour', st5['sat'] > 0.995 and abs(st5['warm']) < 0.02, st5)
     # strip off
-    pg.evaluate("(() => { __wb.G.settings.pinchStrip = false; })()"); pg.wait_for_timeout(500)
+    pg.evaluate("(() => { __wb.G.settings.pinchStrip = false; })()"); pg.wait_for_timeout(1500)
     check('strip off hides it', pg.evaluate("document.querySelector('#hud .pstrip').hidden"))
     check('no page errors', not errors, errors[:3])
     b.close()

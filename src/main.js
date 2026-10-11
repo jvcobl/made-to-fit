@@ -17,7 +17,7 @@ import { Feed } from './games/feed.js';
 import { sampleCarry } from './returns.js';
 import * as SAVE from './save.js';
 import { Menus, actionOf, DEFAULT_KEYS, keyLabel } from './menus.js';
-import { params, FAST, FIXED, STEP, clock, keyName, clamp, lerp, damp, makeRng, pick, sleep } from './util.js';
+import { params, FAST, FIXED, NODRAW, STEP, clock, keyName, clamp, lerp, damp, makeRng, pick, sleep } from './util.js';
 
 const LEAVE_TO = { market: [30, 36.5], transit: [46, 24], commons: [38, 14.5], farend: [36, 41.5], homerow: [30, 30], street: [30, 30], festival: [30, 38] };
 const FEST = { bea: [26.2, 28.6], wren: [33.6, 28.8], rue: [35.6, 26.2], gil: [24.8, 25.2], moss: [25.4, 29.4], hollis: [30, 28.2], pip: [34.6, 21.8], clover: [27.0, 21.4], dot: [28.2, 30.6], fen: [32.2, 30.4], pomeroy: [25.4, 22.6] };
@@ -66,7 +66,7 @@ class Game {
     this.last = performance.now();
     this.frameN = 0;
     // in fixed-step test mode the loop never runs by itself: window.__wb.step(n) drives stepFrames()
-    const loop = (t) => { const dt = Math.min(FAST ? 0.25 : 0.05, (t - this.last) / 1000); this.last = t; try { this.update(dt); } catch (e) { console.error(e); } requestAnimationFrame(loop); };
+    const loop = (t) => { const dt = Math.max(0, Math.min(FAST ? 0.25 : 0.05, (t - this.last) / 1000)); this.last = Math.max(this.last, t); try { this.update(dt); } catch (e) { console.error(e); } requestAnimationFrame(loop); };
     if (!FIXED) requestAnimationFrame(loop);
     const ld = document.getElementById('loading'); if (ld) { ld.style.opacity = '0'; setTimeout(() => ld.remove(), 700); }
     this.story.start().catch((e) => console.error(e));
@@ -196,7 +196,15 @@ class Game {
     if (n.place !== 'town' || this.loc !== 'town') return false;
     const p = this.player.root.position, q = n.c.root.position; return Math.hypot(p.x - q.x, p.z - q.z) < 14;
   }
-  npcTo(id, pos) { const n = this.npcs[id]; if (n) { n.override = pos; } }
+  // a scene moves someone: to pos, in the place you are (or the one given); null hands them back to their day. Someone
+  // who is elsewhere (in another building, or not out yet) steps into the scene where it happens.
+  npcTo(id, pos, place, from) {
+    const n = this.npcs[id]; if (!n) return; n.override = pos; if (!pos) return;
+    const want = place || this.loc; if (n.place === want) return;
+    const c = n.c; if (c.root.parent) c.root.parent.remove(c.root);
+    n.place = want; n.goal = pos; n.path = from ? [pos] : []; const sc = this.sceneOf(want); if (!sc) return;
+    const at = from || pos; sc.add(c.root); c.root.visible = true; c.root.position.set(at[0], 0, at[1]);
+  }
   npcDots() { return Object.values(this.npcs).filter((n) => n.place === 'town').map((n) => ({ x: n.c.root.position.x, z: n.c.root.position.z, name: CAST[n.id].name, color: CAST[n.id].look.color })); }
   playerDot() { if (this.loc === 'town') return { x: this.player.root.position.x, z: this.player.root.position.z }; const d = { home: [9.5, 37], works: [12, 12], hall: [32, 12] }[this.loc]; return d ? { x: d[0], z: d[1] } : null; }
   routeSvg() { return this.guide ? this.guide.routeSvg() : ''; }
@@ -626,7 +634,7 @@ class Game {
     else st.setOccluder(this.player.root.position, this.loc === 'town' && st.rig.mode === 'follow' && this.player.root.visible);
     this.frameN++;
     // while a task card covers the screen the town behind it barely needs drawing (a fixed step draws every frame)
-    const skipDraw = FIXED ? !!this.noDraw : this.mgActive ? this.frameN % 10 !== 0 : FAST && this.frameN % 4 !== 0;
+    const skipDraw = NODRAW || (FIXED ? !!this.noDraw : this.mgActive ? this.frameN % 10 !== 0 : FAST && this.frameN % 4 !== 0);
     if (!skipDraw || this.forceRender) { st.render(); this.forceRender = false; }
     this.audio.update();
     // interface

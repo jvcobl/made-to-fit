@@ -1,7 +1,7 @@
 // DOM interface: dialogue, the "who adjusts?" card, phone, creator, room setup, settings, title, evening page and ending.
 import { esc, fmtTime, clamp, FAST, now, keyName } from './util.js';
 import { OPTIONS } from './creature.js';
-import { CAST, HINTS, BLEND, SETUP, PEOPLE, SLOT_LABEL, STAKES } from './content.js';
+import { CAST, HINTS, BLEND, SETUP, PEOPLE, SLOT_LABEL, STAKES, roleOf } from './content.js';
 import { FIELD_NOTES, NOTE_SECTIONS, SUPPORT } from './notes.js';
 import { drawFitCard, saveFitCard, cardAltText } from './fitcard.js';
 import { PLAQUE as PLAQUE_TEXT } from './look.js';
@@ -113,7 +113,7 @@ export class UI {
     const p = this.dialog.querySelector('.plate'); const S = this.G.S;
     if (o.kind === 'say' && o.who) {
       const c = CAST[o.who]; const name = o.who === 'you' ? (S.name || 'You') : (c ? c.name : o.who);
-      p.hidden = false; p.innerHTML = esc(name) + (c && !this.G.met(o.who) ? '<small>' + esc(c.role) + '</small>' : '');
+      p.hidden = false; p.innerHTML = esc(name) + (c && !this.G.met(o.who) ? '<small>' + esc(roleOf(o.who, this.G.S.act || 1)) + '</small>' : '');
       p.style.setProperty('--plate', o.who === 'you' ? '#3a3340' : (c ? c.tint : '#3a3340'));
     } else p.hidden = true;
   }
@@ -314,7 +314,7 @@ export class UI {
     const S = this.G.S; const L = Object.assign({}, look);
     const sec = (title, key, opts, cur) => `<h4>${title}</h4><div class="chips" data-k="${key}">` + opts.map(([v, n]) => `<button class="chip ${v === cur ? 'on' : ''}" data-v="${v}">${esc(n)}</button>`).join('') + '</div>';
     const html = `<h2>This is you.</h2><p class="lede">Nobody else in Larkspur looks quite like this. That is the point.</p>
-      <div class="two"><div><h4>Name</h4><input type="text" id="cname" maxlength="14" value="${esc(S.name)}" autocomplete="off"></div><div><h4>Pronouns</h4><div class="chips" data-k="pronoun">${['they', 'she', 'he'].map((v) => `<button class="chip ${v === S.pronoun ? 'on' : ''}" data-v="${v}">${v}</button>`).join('')}</div></div></div>
+      <div class="two"><div><h4><label for="cname">Name</label></h4><input type="text" id="cname" maxlength="14" value="${esc(S.name)}" autocomplete="off"></div><div><h4>Pronouns</h4><div class="chips" data-k="pronoun">${['they', 'she', 'he'].map((v) => `<button class="chip ${v === S.pronoun ? 'on' : ''}" data-v="${v}">${v}</button>`).join('')}</div></div></div>
       ${sec('Shape', 'shape', OPTIONS.shape, L.shape)}
       <h4>Color</h4><div class="chips" data-k="color">${OPTIONS.color.map((c) => `<button class="swatch ${c === L.color ? 'on' : ''}" data-v="${c}" style="background:${c}" aria-label="color ${c}"></button>`).join('')}</div>
       ${sec('Pattern', 'pattern', OPTIONS.pattern, L.pattern)}${sec('On top', 'top', OPTIONS.top, L.top)}${sec('Something you always wear', 'wear', OPTIONS.wear, L.wear)}${sec('Your voice', 'voice', OPTIONS.voice, L.voice)}
@@ -380,7 +380,7 @@ export class UI {
       <h4>Rue, at the festival</h4>${one('rue', [['streak', 'Still on her streak'], ['easing', 'Easing off it']])}
       <h4>Blend, the app</h4>${one('blend', [['never', 'Never installed it'], ['kept', 'Kept it'], ['deleted', 'Deleted it']])}
       <h4>How you left</h4>${one('left', [['yourself', 'Looking like yourself'], ['faded', 'A little faded']])}
-      <h4>One thing you'd set differently next time</h4>${one('dflt', o.defaults.map((d) => [d.id, d.t]))}
+      <h4>One thing you'd set differently next time</h4>${one('dflt', o.defaults.filter((d) => d.id !== 'blend_off' || v.blend === 'kept').map((d) => [d.id, d.t]))}
       <div class="pfoot sticky"><button class="btn" id="rrand">Choose for me</button><button class="btn primary" id="rgo">Ten years later</button></div>`;
     const p = this.openPanel('center recap', html());
     const redraw = (sel) => { const top = p.scrollTop; p.innerHTML = html(); p.scrollTop = top; const f = sel && p.querySelector(sel); if (f) f.focus({ preventScroll: true }); };
@@ -392,7 +392,7 @@ export class UI {
         if (d.fix) { const i = v.built.indexOf(d.fix); if (i >= 0) { v.built.splice(i, 1); delete v.listened[d.fix]; } else if (v.built.length >= 2) { note = { k: 'fix', t: 'Two at most: tap one of yours to let it go.' }; this.announce(note.t); } else v.built.push(d.fix); this.G.audio.sfx('select'); redraw('[data-fix="' + d.fix + '"]'); return; }
         if (d.listen) { v.listened[d.listen] = !v.listened[d.listen]; this.G.audio.sfx('select'); redraw('[data-listen="' + d.listen + '"]'); return; }
         if (d.person) { const i = v.people.indexOf(d.person); if (i >= 0) v.people.splice(i, 1); else if (v.people.length >= 4) { note = { k: 'person', t: 'Four at most: tap one to let them go.' }; this.announce(note.t); } else v.people.push(d.person); this.G.audio.sfx('select'); redraw('[data-person="' + d.person + '"]'); return; }
-        if (d.one) { v[d.one] = d.v; this.G.audio.sfx('select'); redraw('[data-one="' + d.one + '"][data-v="' + d.v + '"]'); }
+        if (d.one) { v[d.one] = d.v; if (v.blend !== 'kept' && v.dflt === 'blend_off') v.dflt = 'as_is'; this.G.audio.sfx('select'); redraw('[data-one="' + d.one + '"][data-v="' + d.v + '"]'); }
       });
       setTimeout(() => { const f = p.querySelector('[data-fix]'); if (f && !this.touch) f.focus({ preventScroll: true }); }, 50);
     });
@@ -568,7 +568,7 @@ export class UI {
     const gw = (S.gw || {})[id] || 0; const dots = '●'.repeat(gw) + '○'.repeat(3 - gw);
     const tr = S.lantern.learned[id] ? `<label class="trrow"><input type="checkbox" id="keeptr" data-who="${id}" ${(S.lantern.off || {})[id] ? '' : 'checked'}> Keep translating for ${esc(CAST[id].name)}</label>` : '';
     const rv = (S.revealed || {})[id] === 'seen';
-    return `${back}<div class="phead"><img src="${this.face(id, S)}" alt=""><div><h4>${esc(CAST[id].name)}</h4><span class="small">${esc(CAST[id].role)}</span><div class="gwrow" aria-label="Goodwill ${gw} of 3">Goodwill <b>${dots}</b></div></div></div>${rows}${tr}${k.love ? `<div class="slot love on"><span>Something they love</span><div>${esc(P.love)}</div></div>` : ''}${rv ? `<div class="revealbox"><span>How ${esc(CAST[id].name)} bends</span><p>${esc(P.reveal)}</p></div>` : `<p class="small">${this.G.story.known(id) >= 3 ? '' : 'Fill three lines to see how ' + esc(CAST[id].name) + ' bends.'}</p>`}`;
+    return `${back}<div class="phead"><img src="${this.face(id, S)}" alt=""><div><h4>${esc(CAST[id].name)}</h4><span class="small">${esc(roleOf(id, S.act || 1))}</span><div class="gwrow" aria-label="Goodwill ${gw} of 3">Goodwill <b>${dots}</b></div></div></div>${rows}${tr}${k.love ? `<div class="slot love on"><span>Something they love</span><div>${esc(P.love)}</div></div>` : ''}${rv ? `<div class="revealbox"><span>How ${esc(CAST[id].name)} bends</span><p>${esc(P.reveal)}</p></div>` : `<p class="small">${this.G.story.known(id) >= 3 ? '' : 'Fill three lines to see how ' + esc(CAST[id].name) + ' bends.'}</p>`}`;
   }
   // field notes by section; a note shows once something in the game has happened to you (the autism section opens
   // whole on your first night); numbers live only here, each with its source and how strong the evidence is
@@ -690,7 +690,7 @@ export class UI {
       <div class="row erow"><button class="btn primary" id="notes">What was this about?</button><button class="btn" id="card">Make your fit card</button>${d.act < 3 && this.G.story.nextAct ? `<button class="btn accent" id="next">${d.act === 1 ? 'Ten years later' : 'Twenty years later'}</button>` : ''}<button class="btn" id="again">Play this visit again</button></div>
       <div class="ecode"><label for="vcode">Your visit code</label><textarea id="vcode" class="codebox" readonly rows="2">${esc(d.code || '')}</textarea><div class="row"><button class="btn" id="copy">Copy</button></div><p class="small">It holds only what carries to the next visit: no name, nothing else. Paste it into "Played before?" on any device.</p></div>
       <div id="cardbox"></div><div id="noteslist"></div></div>`);
-    p.querySelector('#again').onclick = () => { try { sessionStorage.setItem('mtf.again', JSON.stringify({ act: d.act, default: this.G.S.default || 'as_is' })); } catch (e) { /* replay without the default */ } location.reload(); };
+    p.querySelector('#again').onclick = () => { try { sessionStorage.setItem('mtf.again', JSON.stringify({ act: d.act, default: this.G.S.default || 'as_is', name: this.G.S.name, carry: this.G.S.startCarry || null })); } catch (e) { /* replay without the default */ } location.reload(); };
     const nx = p.querySelector('#next'); if (nx) nx.onclick = () => this.G.story.nextAct();
     p.querySelector('#copy').onclick = async () => { const t = p.querySelector('#vcode'); t.select(); let ok = false; try { await navigator.clipboard.writeText(t.value); ok = true; } catch (e) { try { ok = document.execCommand('copy'); } catch (e2) { ok = false; } } this.toast(ok ? 'Copied.' : 'Select the code and copy it.', '', 2000); };
     p.querySelector('#notes').onclick = () => {

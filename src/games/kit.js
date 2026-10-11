@@ -292,7 +292,9 @@ export class MiniGame {
     };
     if (FIXED) return;
     let last = performance.now();
-    const step = (t) => { const dt = Math.min(0.1, (t - last) / 1000); last = t; this.frame(dt); if (this.mode !== 'gone') this.raf = requestAnimationFrame(step); };
+    // a frame's time can come out a hair before the moment the loop started: never step backwards, and an error in
+    // one frame never stops the next one
+    const step = (t) => { if (this.mode === 'gone') return; const dt = Math.max(0, Math.min(0.1, (t - last) / 1000)); last = Math.max(last, t); this.raf = requestAnimationFrame(step); try { this.frame(dt); } catch (e) { console.error(e); } };
     this.raf = requestAnimationFrame(step);
   }
   tickClock(dt) {

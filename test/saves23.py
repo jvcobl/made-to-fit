@@ -108,7 +108,7 @@ with sync_playwright() as p:
     until(pg, "__wb.waiter() === 'barrier'", 60, pick=lambda o: next((k for k, x in enumerate(o) if x['id'] == 'age_keep'), 0))
     pg.evaluate("__wb.choose(__wb.options().findIndex((o) => o.key === 'ask'))")
     s4 = wait_saved(pg, 'shift', 3, 60)
-    check('Act 3 (from the Act 2 ending): saved after Juno', s4 and s4['phase'] == 'shift' and 'juno3' in s4['flags'], s4 and s4['label'])
+    check('Act 3 (from the Act 2 ending): saved after Juno, in the morning', s4 and s4['phase'] == 'shift' and 'juno3' in s4['flags'] and s4['min'] < 600, s4 and [s4['label'], s4['min']])
     label, back = cont(pg)
     jv = pg.evaluate("[__wb.state().junoV, __wb.state().junoFix]")
     check('Act 3: Continue after Juno restores exactly what was saved', same(s4, back, KEYS) and jv[0] == 'ask', [label, jv, s4, back])

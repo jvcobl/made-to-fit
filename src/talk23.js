@@ -14,7 +14,7 @@ export const TALK2 = {
       { t: 'Heart the rye on Blend', sub: 'one tap', if: 'blend', go: 'heart', id: 'rye_heart' },
       { t: 'Who decided the menu?', tag: 'plain', go: 'who', id: 'rye_who' },
     ] },
-    { label: 'buy' }, { who: 'pip', t: 'Off the menu. For you. Come back at three. Don\'t heart it.' }, { do: ['coins-5', 'w.rye_bought', 'flag.rye2', 'note.valuecapture'] }, { end: true },
+    { label: 'buy' }, { who: 'pip', t: 'Off the menu. From under the counter. Don\'t heart it.' }, { do: ['coins-5', 'w.rye_bought', 'flag.rye2', 'note.valuecapture'] }, { end: true },
     { label: 'heart' }, { note: 'You add a heart to the rye. The list doesn\'t move. Somewhere, a number goes up by one.' }, { do: ['blend.score+1', 'flag.rye2', 'note.valuecapture'] }, { end: true },
     { label: 'who' }, { who: 'pip', t: 'Blend\'s top-ten list. I bake to the list now. It\'s easier than guessing.' }, { who: 'pip', t: 'I miss guessing, a bit.' }, { do: ['flag.rye2', 'note.valuecapture', 'know.pip.no'] },
   ],
@@ -36,11 +36,11 @@ export const TALK2 = {
     { label: 'e2' }, { who: 'rue', t: 'See? It agrees with everything. That\'s the measure working. I\'m writing that down.' },
   ],
   rueAgain: [{ who: 'rue', t: 'Measures don\'t take a festival day off. I\'m trying to.' }],
-  bea: [{ who: 'bea', t: 'Still here, dear. So am I. So is the bench. The bench is doing better than either of us.' }],
+  bea: [{ who: 'bea', t: 'Still here, dear. So am I. So is the bench. It got new slats. I got new glasses.' }],
   wren: [
     { who: 'wren', t: 'You came back. Good. This is Ines. She fixes the frames. We do not waste words.' },
     { who: 'ines', t: 'Hello. I\'m Ines. Wren said you were plain-spoken. Good.' },
-    { who: 'wren', t: 'My apprentice says "maybe" when she means yes. I have learned to ask: is that a yes? It works. She likes it.' },
+    { who: 'wren', t: 'My new apprentice says "maybe" when she means yes. I have learned to ask: is that a yes? It works. She likes it.' },
     { if: 'w.wren_paid', go: 'paid' },
     { who: 'wren', t: 'I made thirty porch lanterns for free. Then I stopped.' }, { end: true },
     { label: 'paid' }, { who: 'wren', t: 'The porch lanterns paid for a new sign. It says the prices. People still ask for free. I point at the sign.' },
@@ -59,11 +59,11 @@ export const TALK2 = {
 
 // what Juno brings: your fix, where it is, what pinches, and what Juno says
 export const JUNO_CARD = {
-  quiet: { zone: 'market', dim: 'sound', at: [23.5, 31.2], says: 'The quiet corner. Your corner, they say. I play drums. I need noise like you need quiet, and the only bench in the shade is in your corner.', rule: 'Fridays, the corner can be loud', redesign: 'A loud corner too, at the other end of the square, by the apples' },
-  dim: { zone: 'works', dim: 'light', at: [-3.0, 2.2], loc: 'works', says: 'I started at the Works on Monday. It\'s so dim. I can\'t read my own handwriting. They say the soft lights were yours.', rule: 'Panels up at the new desks', redesign: 'A bright row by the windows, and the soft lights everywhere else' },
-  lanterns: { zone: 'homerow', dim: 'people', at: [9.5, 37.4], says: 'Everyone\'s porch light on Home Row is amber. I moved in next door to you. I\'d like company, and I can\'t tell who else would. They say the lanterns were yours.', rule: 'Teal unless you say otherwise', redesign: 'A third colour: knock, I\'m happy to be asked' },
-  plain: { zone: 'works', dim: 'talk', at: [-7.0, 1.2], loc: 'works', says: 'The Works notes say exactly who does what by when. It feels like being told off, every Monday. They say the plain notes were yours.', rule: 'A friendlier line at the top of each note', redesign: 'Plain notes, and a chat after, for anyone who likes one' },
-  bench: { zone: 'market', dim: 'people', at: [30, 26.8], says: 'The benches round the statue are the Standard\'s height. My feet don\'t touch the ground. Nobody ever changed them. You keep the Shed now.', rule: 'One lower bench, by the statue', ruleSub: 'The Shed\'s own budget pays, so the roof waits another year', tag: 'the Shed decides now', redesign: 'Benches at three heights, round the statue' },
+  quiet: { zone: 'market', dim: 'sound', at: [23.5, 31.2], says: 'The quiet corner. Your corner, they say. I play drums. I need noise like you need quiet, and the only bench in the shade is in your corner.', rule: 'Fridays, the corner can be loud', redesign: 'A loud corner too, at the other end of the square, by the apples', fixCost: 'The apple end gets loud on Fridays, and Bao\'s stall is there' },
+  dim: { zone: 'works', dim: 'light', at: [-3.0, 2.2], loc: 'works', says: 'I started at the Works on Monday. It\'s so dim. I can\'t read my own handwriting. They say the soft lights were yours.', rule: 'Panels up at the new desks', redesign: 'A bright row by the windows, and the soft lights everywhere else', fixCost: 'Two desks by the windows move, and one of them is Ada\'s' },
+  lanterns: { zone: 'homerow', dim: 'people', at: [9.5, 37.4], says: 'Everyone\'s porch light on Home Row is amber. I moved in next door to you. I\'d like company, and I can\'t tell who else would. They say the lanterns were yours.', rule: 'Teal unless you say otherwise', redesign: 'A third colour: knock, I\'m happy to be asked', fixCost: 'Wren makes the new lanterns, at the price on her sign, and the Shed pays' },
+  plain: { zone: 'works', dim: 'talk', at: [-7.0, 1.2], loc: 'works', says: 'The Works notes say exactly who does what by when. It feels like being told off, every Monday. They say the plain notes were yours.', rule: 'A friendlier line at the top of each note', redesign: 'Plain notes, and a chat after, for anyone who likes one', fixCost: 'Monday meetings run longer, for everyone' },
+  bench: { zone: 'market', dim: 'people', at: [30, 26.8], says: 'The benches round the statue are the Standard\'s height. My feet don\'t touch the ground. Nobody ever changed them. You keep the Shed now.', rule: 'One lower bench, by the statue', ruleSub: 'The Shed\'s budget pays, so the roof waits a month', askLabel: 'Put in a lower bench', tag: 'the Shed decides now', redesign: 'Benches at three heights, round the statue', fixCost: 'The Shed\'s budget pays, so the roof waits a year' },
 };
 
 export const TALK3 = {
@@ -72,12 +72,12 @@ export const TALK3 = {
   rue: [{ if: 'rue=easing', go: 'e' }, { who: 'rue', t: 'They made me head of measures at Blend. Then I measured myself. I quit in the spring.' }, { who: 'rue', t: 'I run plain-notes workshops now. People come in scared of a pen. They leave with a list.' }, { do: ['note.recovery'] }, { end: true },
     { label: 'e' }, { who: 'rue', t: 'I\'m drawing again. Mornings are mornings. Some are bad. That\'s allowed.' }, { who: 'rue', t: 'I run plain-notes workshops, and I\'m on the council now. Somebody has to ask who it costs.' }, { do: ['note.recovery'] }],
   ines: [{ who: 'ines', t: 'The hinges are in the second drawer. Clover told you that. She tells everyone that.' }],
-  pip: [{ who: 'pip', t: 'Twenty years of buns! Want one? It\'s a festival bun. It\'s the same bun with a flag in it.' }, { if: 'w.rye_bought', go: 'rye' }, { end: true }, { label: 'rye' }, { who: 'pip', t: 'The rye is back, by the way. You bought the last one, ten years ago. I thought about that.' }],
+  pip: [{ who: 'pip', t: 'Twenty years of buns! Want one? It\'s a festival bun. It\'s the same bun with a flag in it.' }, { if: 'w.rye_bought', go: 'rye' }, { end: true }, { label: 'rye' }, { who: 'pip', t: 'The rye is back, by the way. You asked for one when nobody hearted it. I thought about that.' }],
   moss: [{ who: 'moss', t: 'Still pouring. Sit, if you like. The stool remembers you.' }, { do: ['energy+8', 'self+2'] }],
   bea: [{ who: 'bea', t: 'Festival soup for three hundred. I\'m in charge of the ladle. Nobody argues with the ladle.' }],
   wren: [{ who: 'wren', t: 'One hundred and twelve lanterns. Twenty years. I still count. Counting is not the same as worrying. Mostly.' }],
   hollis: [{ who: 'hollis', t: 'Still mayor! Nobody else would take the hat.' }],
-  juno: [{ who: 'juno', t: 'Hi again. Larkspur\'s growing on me. Slowly. Like the benches.' }],
+  juno: [{ who: 'juno', t: 'Hi again. Larkspur\'s growing on me. Slowly.' }],
   hester: [{ who: 'hester', t: 'Hester, of the Founders\' Fund. Lovely festival. I\'m told my great-great-grandfather would have hated the noise.' }],
   bao: [{ who: 'bao', t: 'Dumplings! Lin steams, I sell. Fourteenth on the waiting list, first in your heart.' }, { do: ['energy+4'] }],
 };

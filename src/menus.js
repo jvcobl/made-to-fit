@@ -52,6 +52,8 @@ export class Menus {
     const top = this.stack[this.stack.length - 1]; if (!top) { this.el.hidden = true; this.el.innerHTML = ''; return; }
     this.el.hidden = false; this.el.className = 'ov ' + top.name;
     this.el.innerHTML = `<div class="ovcard" tabindex="-1">${top.render()}</div>`;
+    // the dialog is named by its heading, for screen readers
+    const h = this.el.querySelector('.ovcard h2'); if (h) { h.id = 'ovtitle'; this.el.setAttribute('aria-labelledby', 'ovtitle'); this.el.removeAttribute('aria-label'); } else { this.el.removeAttribute('aria-labelledby'); this.el.setAttribute('aria-label', top.name); }
     if (top.bind) top.bind(this.el);
     const back = this.el.querySelector('[data-back]'); if (back) back.onclick = () => this.back();
     const first = this.el.querySelector(top.focus || '.ovcard button, .ovcard textarea, .ovcard input'); if (first && !this.ui.touch) first.focus(); else this.el.querySelector('.ovcard').focus();

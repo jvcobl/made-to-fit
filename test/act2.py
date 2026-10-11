@@ -76,6 +76,7 @@ with sync_playwright() as p:
     ok = until(pg, "!__wb.busy() && !__wb.waiter() && !__wb.mg() && !!__wb.state().flags.mail2", 90, pick=by_key('leave'))
     S = pg.evaluate("(() => { const S = __wb.state(); return { taught: S.w.unit_taught, quirks: S.unitQuirks, mail: S.flags.mail2, log: S.log.filter((r) => r.v === 'teach').length } })()")
     check('taught Unit, then festival mail', ok and S['taught'] and S['mail'] == 'done' and S['log'] == 1 and S['quirks'], S)
+    check('your old desk offers no first-visit shift ten years on', not pg.evaluate('__wb.G.story.shiftOpen()'))
     # out of the Works: Tomas at the ramp (the ramp was built)
     pg.evaluate("__wb.G.run(() => __wb.G.exitRoom())")
     ok = until(pg, "__wb.waiter() === 'choice' && __wb.options().some((o) => o.id === 'ramp_bay')", 30)
@@ -117,8 +118,19 @@ with sync_playwright() as p:
     if ok: pg.evaluate("__wb.choose(__wb.options().findIndex((o) => o.id === 'rye_buy'))")
     until(pg, "!__wb.busy() && !__wb.waiter()", 20, pick=first)
     check('rye bought, carried', pg.evaluate("!!__wb.state().w.rye_bought"))
-    # the meeting: give the open proposals their second backer, then six o'clock
-    pg.evaluate("(() => { const S = __wb.state(); for (const f of ['crossing', 'counter', 'bay']) if (S.fixes[f] === 'proposal') { S.support[f] = (S.support[f] || []).concat(['pip', 'gil', 'bea'].filter((x) => !(S.support[f] || []).includes(x))).slice(0, 2); S.fixes[f] = 'ready'; } S.stakes.crossing = 'listened'; S.stakes.counter = 'listened'; S.stakeDue = {}; S.min = 1079; })()")
+    # Tomas only lives in this visit: talking to him must end cleanly
+    pg.evaluate("__wb.G.run(() => __wb.G.story.talkTo('tomas'))")
+    ok = until(pg, "!__wb.busy() && !__wb.waiter()", 20, pick=first)
+    check('talking to Tomas (who only lives in this visit) ends cleanly', ok and not errors, errors[:3])
+    # the meeting: second backers, found by asking (the stakeholders already listened to, so nobody walks up mid-test)
+    pg.evaluate("(() => { const S = __wb.state(); S.stakes.crossing = 'listened'; S.stakes.counter = 'listened'; S.stakeDue = {}; for (const id of ['gil', 'bea', 'pip']) S.gw[id] = Math.max(1, S.gw[id] || 0); })()")
+    for who, f in [('gil', 'counter'), ('bea', 'bay'), ('pip', 'crossing')]:
+        if pg.evaluate("__wb.state().fixes.%s" % f) != 'proposal': continue
+        pg.evaluate("__wb.G.run(() => __wb.G.story.talkTo('%s'))" % who)
+        until(pg, "!__wb.busy() && !__wb.waiter()", 30, pick=by_id('back_' + f))
+    S = pg.evaluate("(() => { const S = __wb.state(); return { fixes: { crossing: S.fixes.crossing, counter: S.fixes.counter, bay: S.fixes.bay }, support: S.support } })()")
+    check('second backers, found by asking them', all(S['fixes'][f] == 'ready' for f in ['crossing', 'counter', 'bay']), S)
+    pg.evaluate("__wb.state().min = 1079")
     ok = until(pg, "!!__wb.state().flags.councilDone && !__wb.busy()", 120, pick=first)
     S = pg.evaluate("(() => { const S = __wb.state(); return { fixes: S.fixes, act: S.act } })()")
     check('the meeting: two at most, built tonight', ok and sum(1 for f in ['crossing', 'counter', 'bay', 'lanterns'] if S['fixes'].get(f) == 'built') <= 2, S)

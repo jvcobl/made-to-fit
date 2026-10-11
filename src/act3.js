@@ -8,6 +8,7 @@ import * as SIM from './sim.js';
 import { CAST } from './content.js';
 import { clamp, FAST } from './util.js';
 import { TALK3, JUNO_CARD } from './talk23.js';
+import { crossingState } from './layers.js';
 
 const T = { shed: [52, 12.4], square: [30, 30], hall: [32, 14.2], farend: [46, 41.5], steps: [34.6, 15.6] };
 const ob = (t, at, label, extra) => Object.assign({ t, at: at || null, label: label || '' }, extra || {});
@@ -15,14 +16,17 @@ const DIMS = ['sound', 'light', 'people', 'talk', 'time', 'change'];
 // which of your fixes change which dials (what Juno is built against)
 const FIX_DIM = { quiet: ['sound', 'people'], dim: ['light'], lanterns: ['people'], plain: ['talk'], board: ['change'], crossing: ['time'], counter: ['talk'] };
 
-// Juno, built from your fixes: for each dial your fixes changed, at least 0.35 from you on the far side; elsewhere
-// your opposite. And a look that isn't yours.
+// Juno, built against your fixes: everywhere your fixes softened things, Juno wants it louder, brighter, busier and
+// less blunt (the drums, the door that says KNOCK LOUD); on the other dials Juno is your opposite, and at least 0.35
+// away wherever your fixes changed them. And a look that isn't yours.
+const LIVELY = { sound: 0.85, light: 0.8, people: 0.85, talk: 0.8 };
 export function junoProfile(S) {
   const P = S.profile; const out = {}; const changed = new Set();
   for (const f of Object.keys(FIX_DIM)) if (S.fixes[f] === 'built') for (const d of FIX_DIM[f]) changed.add(d);
   for (const d of DIMS) {
+    if (LIVELY[d] != null) { out[d] = LIVELY[d]; continue; }
     const v = P[d]; let j = 1 - v;
-    if (changed.has(d)) { const far = v < 0.5 ? Math.min(0.95, Math.max(j, v + 0.35)) : Math.max(0.05, Math.min(j, v - 0.35)); j = far; }
+    if (changed.has(d)) j = v < 0.5 ? Math.min(0.95, Math.max(j, v + 0.35)) : Math.max(0.05, Math.min(j, v - 0.35));
     out[d] = clamp(j, 0.05, 0.95);
   }
   return out;
@@ -60,21 +64,21 @@ async function arrival(R) {
   await st.say('clover', 'I\'ll visit. I\'ll pretend I\'m not checking.');
   st.keep('shedkey', 'The key to the Fix-It Shed', '#cde38f');
   await st.say('gil', 'Retired, and here anyway. Fridays I\'m yours. Today\'s a Friday. I checked twice.');
-  await st.run(TALK3.rue, { npc: 'rue' });
+  await st.run(TALK3.rue, { npc: 'rue' }); S.talked.rue = true;
   await st.say('ines', 'Ines. Best fixer you\'ve got, Wren says. We have a question before you open up.');
   await st.say('gil', 'We want the Shed to be a co-op. Everyone who works here votes. Pay evens out.');
   const k = await st.choose([
     { t: 'Yes: make it a co-op', sub: 'everyone votes, pay evens out, decisions take longer; Ines leaves for better pay in the city', id: 'coop_yes' },
     { t: 'No: keep it as it is', sub: 'decisions stay quick, and you can pay Ines what the city offers; Gil and Rue stay volunteers without a vote', id: 'coop_no' },
   ], { text: 'The Shed as a co-op?', kind: 'note' });
-  if (k === 0) { S.w.coop_yes = 1; await st.say('ines', 'Then I\'ll take the job in the city. I\'ll miss it. I won\'t miss the money.'); await st.say('rue', 'Our first vote, then. Who wants tea? That\'s a joke. Mostly.'); if (G.town.coopSign) { G.town.coopSign.visible = true; G.town.shedSign.visible = false; } st.log('choice', { z: 'commons', v: 'coop', by: 'you', pay: ['ines'] }); }
+  if (k === 0) { S.w.coop_yes = 1; await st.say('ines', 'Then I\'ll take the job in the city. I\'ll miss this. I need the city\'s pay more.'); await st.say('rue', 'Our first vote, then. Who wants tea? That\'s a joke. Mostly.'); if (G.town.coopSign) { G.town.coopSign.visible = true; G.town.shedSign.visible = false; } st.log('choice', { z: 'commons', v: 'coop', by: 'you', pay: ['ines'] }); }
   else { await st.say('gil', 'Fair enough. You know where the kettle is.'); await st.say('ines', 'And I know where the hinges are. I\'ll stay.'); st.log('choice', { z: 'commons', v: 'nocoop', by: 'you', pay: ['gil', 'rue'] }); }
   st.fieldNote('coops');
   ui.hideDialog(); ui.letterbox(false); G.endTalk();
   await R.st.changeAnything();
   S.min = Math.max(S.min, S.carryDefault === 'leave_early' ? 485 : 505);
   const carried = S.carryDefault && S.carryDefault !== 'as_is' ? 'You set this last time: ' + R.st.defaultText(S.carryDefault) + '.' : '';
-  await ui.today({ day: 'Twenty years on', title: 'Festival day', items: [{ t: 'Open the Shed, 9:00', sub: 'You keep it now. Somebody always brings something.' }, { t: 'The council wants the Shed\'s view on a proposal, by six', sub: 'Hollis will come and find you.' }, { t: 'Town meeting, 6 PM', sub: 'Two items at most. They go up tonight.' }, { t: 'The Lantern Festival, 8 PM', sub: 'Market Square.' }], note: 'Sometimes you\'re the one who decides.', carried });
+  await ui.today({ day: 'Twenty years on', title: 'Festival day', items: [{ t: 'Open the Shed', sub: 'You keep it now. Somebody always brings something.' }, { t: 'The council wants the Shed\'s view on a proposal, by six', sub: 'Hollis will come and find you.' }, { t: 'Town meeting, 6 PM', sub: 'Two items at most. They go up tonight.' }, { t: 'The Lantern Festival, 8 PM', sub: 'Market Square.' }], note: 'Sometimes you\'re the one who decides.', carried });
   R.st.applyDefault();
   G.busy = Math.max(0, G.busy - 1);
   await juno(R);
@@ -92,19 +96,20 @@ function showBenches(R, which) {
 async function juno(R) {
   const G = R.G, S = R.S, st = R.st, ui = st.ui;
   const f = S.junoFix; const C = JUNO_CARD[f];
-  G.npcTo('juno', [51.2, 13.6]); await R.beat(500);
+  G.npcTo('juno', [51.2, 13.6], 'town', [55.4, 16.6]); await R.beat(1400);
   await st.note('Your first visitor. Somebody new, with a very specific face on.');
   G.talkFrame('juno'); ui.letterbox(true);
   await st.say('juno', 'Hi. Juno. New in town. Is this where you bring things that pinch?');
   await st.say('juno', C.says);
   ui.hideDialog(); ui.letterbox(false); G.endTalk();
   const me = G.portraitOf(S.look, { bg: '#efe6d6', w: 120, h: 120 }); const jf = G.portraitOf(CAST.juno.look, { bg: '#efe6d6', w: 160, h: 160 });
-  const gear = S.gear.headphones ? 'headphones' : S.gear.shades ? 'shades' : null;
+  // your bag only helps with noise: headphones let Juno drum along to something, and nobody else hears it
+  const gear = f === 'quiet' && S.gear.headphones ? 'headphones' : null;
   const options = [
     { key: 'bend', who: 'Juno', label: 'Ask Juno to push through', sub: 'Nothing changes for you. Juno carries it, quietly.' },
-    gear ? { key: 'gear', who: 'Your gear', label: 'Lend Juno your ' + gear, sub: 'They\'re Juno\'s for the day. You go without.' } : { key: 'gear', who: 'Your gear', label: 'Lend your gear', disabled: true, reason: 'you have nothing to lend today' },
-    { key: 'ask', who: 'You', img: me, tag: C.tag || 'you own this fix now', label: 'Change your own rule', sub: C.rule + '. ' + (C.ruleSub ? C.ruleSub + '.' : 'It costs you a little of the place you made.') },
-    { key: 'fix', who: 'The place', label: 'Redesign it with Juno', sub: C.redesign + '. An hour of your day; the Shed can do this one itself.' },
+    gear ? { key: 'gear', who: 'Your gear', label: 'Lend Juno your headphones', sub: 'Juno drums along in your headphones. You go without.' } : { key: 'gear', who: 'Your gear', label: 'Lend your gear', disabled: true, reason: S.gear.headphones || S.gear.shades ? 'nothing in your bag helps with this one' : 'you have nothing to lend today' },
+    { key: 'ask', who: 'You', img: me, tag: C.tag || 'you own this fix now', label: C.askLabel || 'Change your own rule', sub: C.rule + '. ' + (C.ruleSub ? C.ruleSub + '.' : 'It costs you a little of the place you made.') },
+    { key: 'fix', who: 'The place', label: 'Redesign it with Juno', sub: C.redesign + '. An hour of your day. ' + C.fixCost + '.' },
     { key: 'leave', who: 'Nobody', label: 'Do nothing', sub: 'Juno goes. Larkspur stays as you left it.' },
   ];
   const choice = await ui.barrier({ options, title: 'Twenty years on', text: 'Juno has a card, and it is about you.', face: { img: jf, name: 'Juno', sub: 'Goodwill with you ○○○' }, gut: 'Twenty years ago you stood where Juno is standing.', notice: '', noticeLabel: '', coach: '' });
@@ -112,16 +117,21 @@ async function juno(R) {
   const row = { z: C.zone === 'works' ? 'works' : C.zone, dim: C.dim, dir: 'over', turn: 1 };
   G.talkFrame('juno'); ui.letterbox(true);
   if (choice === 'bend') { S.junoAnswer = 'I asked Juno to push through.'; st.log('barrier', Object.assign({ v: 'bend', by: 'you', pay: ['juno'] }, row)); await st.say('juno', 'Okay. I\'ll manage. I usually do.'); S.junoDim = 1; }
-  else if (choice === 'gear') { S.junoAnswer = 'I lent Juno my ' + gear + '.'; S.gear[gear] = false; S.wearing[gear] = false; G.player.setGear(gear, false); S.lentGear = gear; st.log('barrier', Object.assign({ v: 'gear', by: 'you', pay: ['you'] }, row)); await st.say('juno', 'Really? Thank you. I\'ll bring them back tomorrow. I\'ll probably bring them back tomorrow.'); }
+  else if (choice === 'gear') { S.junoAnswer = 'I lent Juno my ' + gear + '.'; S.gear[gear] = false; S.wearing[gear] = false; G.player.setGear(gear, false); S.lentGear = gear; st.log('barrier', Object.assign({ v: 'gear', by: 'you', pay: ['you'] }, row)); await st.say('juno', 'Really? Thank you. I\'ll bring them back tomorrow. I\'ll probably bring them back tomorrow.'); st.keep('juno_gear', 'Your headphones, on loan to Juno', CAST.juno.look.color); }
   else if (choice === 'ask') {
     if (f === 'bench') { S.junoAnswer = 'I put in a lower bench for Juno.'; showBenches(R, 'low'); }
-    else { S.junoAnswer = 'I changed my own rule for Juno.'; S.mods[C.zone] = Object.assign(S.mods[C.zone] || {}, C.dim === 'light' ? { light: 0.25 } : C.dim === 'sound' ? { sound: 0.25 } : { people: 0.2 }); }
+    else {
+      // your rule bends toward Juno: that place moves a little away from what you set it to (and adds to any change)
+      S.junoAnswer = 'I changed my own rule for Juno.'; const m = S.mods[C.zone] = Object.assign({}, S.mods[C.zone] || {});
+      const toward = (S.junoProfile[C.dim] || 0.5) >= (S.profile[C.dim] || 0.5) ? 1 : -1; m[C.dim] = (m[C.dim] || 0) + toward * (C.dim === 'people' || C.dim === 'talk' ? 0.2 : 0.25);
+    }
     st.log('barrier', Object.assign({ v: 'ask', by: 'you', pay: ['you'] }, row)); await st.say('juno', f === 'bench' ? 'A lower bench? For me? Huh. Thank you.' : 'You\'d change your own rule? For me? Huh. Thank you.'); st.addBond('juno', 1);
+    st.keep('juno_ask', f === 'bench' ? 'A lower bench, for Juno' : 'A rule you changed for Juno', CAST.juno.look.color);
   }
   else if (choice === 'fix') {
     S.junoAnswer = 'I redesigned it with Juno.'; S.w.juno_redesign = 1; G.advance(60); st.log('barrier', Object.assign({ v: 'fix', by: 'you', pay: ['you'] }, row));
     await st.note('You sketch it together on Clover\'s graph paper. Juno draws faster than you. Juno also draws a drum on it.');
-    if (f === 'bench') { showBenches(R, 'three'); await st.note('Within the hour, Gil and ' + (S.w.coop_yes ? 'Rue' : 'Ines') + ' have two new benches round the statue: a low one, and a higher one with arms. The old ones stay.'); }
+    if (f === 'bench') { showBenches(R, 'three'); S.flags.shedRoofWaits = 1; await st.note('Within the hour, Gil and ' + (S.w.coop_yes ? 'Rue' : 'Ines') + ' have two new benches round the statue: a low one, and a higher one with arms. The old ones stay.'); }
     await st.say('juno', 'Both, then. Your way and mine. I didn\'t know you could do both.'); st.addBond('juno', 1); st.keep('juno', 'A redesign, with Juno', CAST.juno.look.color);
   }
   else { S.junoAnswer = 'I did nothing, and Juno went.'; S.junoLeft = 1; st.log('barrier', Object.assign({ v: 'leave', by: 'you', pay: ['juno'] }, row)); await st.say('juno', 'Right. Okay. I\'ll find somewhere.'); }
@@ -148,14 +158,15 @@ async function square(R) {
   const what = { crossing: 'for Bea\'s crossing to be lengthened', benches: 'for benches at three heights round the statue' }[gift];
   await st.say('hester', 'The Fund would like to pay for the Shed\'s repairs' + (what ? ', and ' + what : '') + '. The council says it\'s the Shed\'s call.');
   const k = await st.choose([
-    { t: 'Accept the Fund\'s offer', sub: 'strings: projects on Founders\' Row come first, and any project there needs the Fund\'s sign-off. The council audits every gift.', id: 'fund_yes' },
+    { t: 'Accept the Fund\'s offer', sub: 'strings: anything on Founders\' Row needs the Fund\'s sign-off, and its name goes on the plinth. The council audits every gift.', id: 'fund_yes' },
     { t: 'Decline, with thanks', sub: 'the Shed\'s repairs wait a year' + (gift === 'crossing' ? ', and so does Bea\'s crossing' : gift === 'benches' ? ', and so do the benches' : ''), id: 'fund_no' },
   ], { text: 'The Founders\' Fund\'s offer, with its strings.', kind: 'note' });
   if (k === 0) {
     S.w.benefactor_yes = 1; if (G.town.fundPlate) G.town.fundPlate.visible = true;
     await st.say('hester', 'Thank you. The council will see the accounts. All of them.'); st.log('choice', { z: 'market', v: 'fund_yes', by: 'you', pay: [] });
-    if (gift === 'crossing') { S.fixes.crossing = 'built'; S.fixAct.crossing = 3; S.flags.fundGift = 'crossing'; G.applyFix('crossing'); await st.note('Within the hour, the crossing light has a new button: HOLD FOR MORE TIME.'); }
-    else if (gift === 'benches') { S.flags.fundGift = 'benches'; showBenches(R, 'three'); await st.note('Within the hour, there are two new benches round the statue: a low one, and a higher one with arms. The old ones stay.'); }
+    // the Fund's own crews build it: it doesn't use one of the season's two fixes
+    if (gift === 'crossing') { S.fixes.crossing = 'built'; S.fixAct.crossing = 3; S.fixVia = S.fixVia || {}; S.fixVia.crossing = 'fund'; S.flags.fundGift = 'crossing'; G.applyFix('crossing'); await st.note('Within the hour, the crossing light waits for anyone still in the street.'); }
+    else if (gift === 'benches') { const had = S.w.benches3 === 'low'; S.flags.fundGift = 'benches'; showBenches(R, 'three'); await st.note(had ? 'Within the hour, a higher bench with arms joins the low one by the statue. The old ones stay.' : 'Within the hour, there are two new benches round the statue: a low one, and a higher one with arms. The old ones stay.'); }
   } else { await st.say('hester', 'That\'s fair. The offer stands, if you change your mind next year.'); st.log('choice', { z: 'market', v: 'fund_no', by: 'you', pay: gift === 'crossing' ? ['you', 'bea'] : ['you'] }); }
   st.fieldNote('wealth'); st.fieldNote('audits');
   // Moss: four ways, each costing someone
@@ -163,10 +174,10 @@ async function square(R) {
   const m = await st.choose([
     { t: 'Ask the council to cap rents for long-time stallholders', sub: 'a proposal for tonight; the waiting list pays', id: 'moss_cap' },
     { t: 'Open stalls at the Far End, through the Shed', sub: 'a proposal for tonight; the Far End\'s quiet pays' + (S.w.benefactor_yes ? '. It\'s on Founders\' Row.' : ''), id: 'moss_far' },
-    { t: 'Help Moss move to the Far End today', sub: 'an hour of your day', id: 'moss_move' },
+    { t: 'Help Moss move to the Far End today', sub: 'an hour of your day; Moss gives up her corner', id: 'moss_move' },
     { t: 'Nothing', sub: 'Moss bids like everyone else', id: 'moss_none' },
   ], { text: 'Moss\'s lease.', kind: 'note' });
-  if (m === 0) { R.propose('rentcap', 'moss'); await st.say('moss', 'A cap. For the old ones. I\'ll take it, if they will.'); }
+  if (m === 0) { R.propose('rentcap', 'moss'); await st.say('moss', 'A cap. For the long-timers. I\'ll take it, if they will.'); }
   else if (m === 1) { R.propose('farstalls', 'moss'); await st.say('moss', 'The Far End? It\'s quiet there. I\'d like a bit of quiet.'); }
   else if (m === 2) {
     S.w.moss_moved = 1; G.advance(60); await G.stage.fadeTo(1, 500);
@@ -174,7 +185,7 @@ async function square(R) {
     await st.note('An hour of boxes, teacups and a very heavy kettle. By noon, Moss has a little cart at the Far End, under Wren\'s lanterns.');
     await G.stage.fadeTo(0, 500); await st.say('moss', 'Quieter out here. I\'ll miss the shouting. I won\'t tell anyone that.');
     st.log('choice', { z: 'market', v: 'moved', by: 'you', pay: ['you', 'moss'] }); st.keep('moss_moved', 'You helped Moss move', CAST.moss.look.color);
-  } else { await st.say('moss', 'I\'ll bid like everyone else. I\'ve got a few good years of bidding in me.'); st.log('choice', { z: 'market', v: 'mossbid', by: 'you', pay: ['moss'] }); }
+  } else { await st.say('moss', 'I\'ll bid like everyone else. I\'ve haggled on this square since before it had bunting.'); st.log('choice', { z: 'market', v: 'mossbid', by: 'you', pay: ['moss'] }); }
   st.fieldNote('money'); st.fieldNote('experiences');
   ui.hideDialog(); ui.letterbox(false); G.endTalk(); G.npcTo('hester', null);
 }
@@ -184,12 +195,12 @@ async function conflict(R) {
   const G = R.G, S = R.S, st = R.st, ui = st.ui; S.flags.conflict3 = 1;
   G.talkFrame('hollis'); ui.letterbox(true);
   await st.say('hollis', 'A word, keeper of the Shed. The council asks the Shed\'s view on a proposal: extend the quiet zone the length of Home Row.');
-  await st.note('Home Row is your street. A quiet zone would make your house quieter, and worth more. It would also close Juno\'s lively shortcut to the square.');
+  await st.note('Home Row is your street. A quiet zone would make your house quieter, and worth more. It would also hush Juno\'s shortcut to the square: no speaker, no bike.');
   await st.note('Larkspur\'s rule, on the council notice: if you have a stake, say so. Then you may still judge.');
   const k = await st.choose([
-    { t: 'Say you live there, then judge it: for it', sub: 'the rule followed; the council hears your stake and your view', id: 'cf_disclose' },
+    { t: 'Say you live there, then back it', sub: 'the rule followed; Juno loses the shortcut; one of this year\'s two fixes', id: 'cf_disclose' },
     { t: 'Step back and let Gil judge it', sub: 'he\'s careful, and slow: next season', id: 'cf_recuse' },
-    { t: 'Judge it, and say nothing about your house: for it', sub: 'quick, and nobody asks', id: 'cf_quiet' },
+    { t: 'Back it, and don\'t mention your house', sub: 'quick, and nobody asks; Juno loses the shortcut; one of this year\'s two fixes', id: 'cf_quiet' },
     { t: 'Recommend against it', sub: 'Home Row stays as it is, loud on festival nights', id: 'cf_decline' },
   ], { text: 'The Shed\'s view.', kind: 'note' });
   const row = { z: 'homerow', dim: 'sound', dir: 'over' };
@@ -227,7 +238,7 @@ export const ACT3 = {
   tick(R) {
     const G = R.G, S = R.S, st = R.st, m = S.min;
     // the square, once Moss and Hester are both there
-    if (!S.flags.square3 && m >= 670 && m < 1000 && G.loc === 'town' && G.zone === 'market' && G.npcs.hester.place === 'town' && G.npcNear('moss', 'market')) { G.run(() => square(R)); return true; }
+    if (!S.flags.square3 && m >= 670 && m < 1020 && G.loc === 'town' && G.zone === 'market' && G.npcs.hester.place === 'town' && G.npcNear('moss', 'market')) { G.run(() => square(R)); return true; }
     // Hollis comes to find you about Home Row
     if (!S.flags.conflict3 && m >= 870 && m < 1060 && G.loc === 'town' && G.npcs.hollis.place === 'town') {
       const p = G.player.root.position; const n = G.npcs.hollis; n.c.root.position.set(p.x + 1.6, 0, p.z + 0.8); n.override = [p.x + 1.6, p.z + 0.8];
@@ -240,7 +251,7 @@ export const ACT3 = {
   },
   npcWant(R, id) {
     const S = R.S;
-    if (id === 'juno') { if (!S.flags.juno3) return { place: 'away' }; const T2 = R.G.town.spots; return { place: 'town', pos: S.junoLeft ? T2.junoFar : S.flags.festival ? null : T2.junoSquare }; }
+    if (id === 'juno') { if (!S.flags.juno3) return { place: 'away' }; const T2 = R.G.town.spots; return { place: 'town', pos: S.junoLeft ? T2.junoFar : S.flags.festival ? ACT3.festival.juno : T2.junoSquare }; }
     if (id === 'moss' && S.w.moss_moved && !S.flags.festival) return { place: 'town', pos: R.G.town.spots.cartFar };
     return null;
   },
@@ -277,8 +288,15 @@ export const ACT3 = {
     return [{ t: 'Open the Shed', done: !!S.flags.juno3 }, { t: 'Moss\'s lease', done: !!S.flags.square3 }, { t: 'The Shed\'s view on Home Row', done: !!S.flags.conflict3 }, { t: 'Town meeting, 6 PM', done: !!S.flags.councilDone }, { t: 'The Lantern Festival, 8 PM', done: !!S.flags.released }];
   },
   // the meeting's first item: the Shed's view on the quiet zone along Home Row (your view decides it)
-  async council(R) {
-    const S = R.S, st = R.st, G = R.G; if (!S.flags.conflict3) { await st.say('hollis', 'The Shed sent no view on Home Row. Next season, then.'); return; }
+  async council(R, o = {}) {
+    const S = R.S, st = R.st, G = R.G;
+    if (o.away) {
+      if (!S.flags.conflict3 || S.quietrowView !== 'for') return { passed: [], tabled: S.flags.conflict3 && S.quietrowView === 'against' ? ['quietrow'] : [] };
+      S.fixes.quietrow = 'built'; S.fixAct.quietrow = 3; S.fixVia = S.fixVia || {}; S.fixVia.quietrow = 'meeting'; G.applyFix('quietrow');
+      st.log('vote', { z: 'homerow', v: 'passed', by: S.quietrowQuiet ? 'you' : 'meeting', pay: ['juno'] });
+      return { passed: ['quietrow'], tabled: [], by: 'hollis' };
+    }
+    if (!S.flags.conflict3) { await st.say('hollis', 'The Shed sent no view on Home Row. Next season, then.'); return; }
     await st.say('hollis', 'Item one: the quiet zone along Home Row. The Shed\'s view?');
     const v = S.quietrowView;
     if (v === 'for') {
@@ -293,23 +311,23 @@ export const ACT3 = {
   applyFix(R, f) {
     const T2 = R.G.town;
     if (f === 'farstalls' && T2.farStalls) T2.farStalls.visible = true;
-    if (f === 'crossing' && T2.crossButton) { T2.crossButton.visible = false; }
+    if (f === 'crossing' && T2.setCrossing) T2.setCrossing(crossingState(R.S));
   },
   festivalLine(R, id) {
     const S = R.S;
     const L = {
-      bea: 'Soup for three hundred, and the ladle never left my hand. Twenty years on, still in charge of something.',
-      pip: S.w.rye_bought ? 'The rye is back. You bought the last one, ten years ago. I thought about that.' : 'Twenty years of buns. I hid a rye under the counter, for old times\' sake.',
+      bea: 'Soup for three hundred, and the ladle never left my hand. Next year I\'m after the bunting.',
+      pip: S.w.rye_bought ? 'The rye is back. You asked for one when nobody hearted it. I thought about that.' : 'Twenty years of buns. I hid a rye under the counter, for old times\' sake.',
       moss: S.w.moss_moved ? 'Quieter out at the Far End. Come for tea. Bring nobody.' : 'Still on the corner. Still pouring. Nobody outbid me tonight.',
       rue: S.rue === 'easing' ? 'I drew the festival. Badly. On purpose.' : 'No streak, no score, no app. Just me and a lot of lanterns.',
       wren: 'One hundred and twelve. I counted twice. Ines would have counted three times.',
       gil: 'Retired! I volunteer. It\'s like working, with more tea and fewer panels.',
       hollis: 'Still mayor. Next year, perhaps, a statue of a committee.',
-      clover: 'Look at it. Every one of those fixes was somebody\'s idea. Tonight, some of them were yours.',
+      clover: 'Look at it. Every one of those fixes was somebody\'s idea.' + (Object.values(S.fixes).some((v) => v === 'built') ? ' Some of them were yours.' : ' Next year, one could be yours.'),
       juno: S.junoLeft ? null : S.w.juno_redesign ? 'Both ways! My way and yours. See you on Friday. Loudly.' : S.lentGear ? 'Your ' + S.lentGear + ' are great. I\'ll give them back. Tomorrow.' : S.junoDim ? 'I managed. I always manage.' : S.junoV === 'ask' ? (S.junoFix === 'bench' ? 'My feet touch the ground now. On one bench, anyway.' : 'You changed your own rule. For me. Huh.') : null,
       hester: S.w.benefactor_yes ? 'The name means a little more tonight, I hope. The accounts are on the notice board.' : 'Next year, maybe. The offer stands.',
-      bao: S.fixes.rentcap === 'built' ? 'Half the stalls that come free go to the list. We\'re ninth now!' : 'Fourteenth on the list, first with the dumplings.',
-      ines: S.w.coop_yes ? 'I came back for the festival. The city pays better. The city doesn\'t have this.' : 'Best fixer in Larkspur, tonight off duty.',
+      bao: S.fixes.rentcap === 'built' ? ((S.stakes || {}).rentcap === 'listened' ? 'Half the stalls that come free go to the list now. Fourteenth feels shorter already.' : 'Capped stalls never come free. Fourteenth it is. The dumplings are still good.') : 'Fourteenth on the list, first with the dumplings.',
+      ines: S.w.coop_yes ? 'I start in the city on Monday. It pays better. It doesn\'t have this.' : 'Best fixer in Larkspur, tonight off duty.',
     }[id];
     return L ? { who: id, t: L } : null;
   },
@@ -319,19 +337,21 @@ export const ACT3 = {
   },
   remember(R) {
     const S = R.S, out = [];
-    out.push(S.w.coop_yes ? 'The Shed is a co-op. Everyone votes. Ines works in the city.' : 'The Shed is yours. Ines stayed.');
+    out.push(S.w.coop_yes ? 'The Shed is a co-op. Everyone votes. Ines works in the city.' : 'The Shed is yours. Ines stayed. Gil and Rue help without a vote.');
     const bench = S.junoFix === 'bench';
     const jv = { bend: 'you asked Juno to push through', gear: 'you lent Juno your ' + (S.lentGear || 'gear'), ask: bench ? 'you put in a lower bench' : 'you changed your own rule', fix: bench ? 'the two of you redesigned the benches together' : 'the two of you redesigned your fix together', leave: 'you did nothing, and Juno went' }[S.junoV];
     if (jv) out.push('When Juno came to you, ' + jv + '.');
     if (S.w.benefactor_yes) out.push('The Founders\' Fund paid for the Shed\'s repairs' + ({ crossing: ', and for Bea\'s longer crossing', benches: ', and for benches at three heights' }[S.flags.fundGift] || '') + '. Its name is on the plinth.');
+    else if (S.flags.square3) out.push('You turned down the Founders\' Fund. The Shed\'s roof waits a year.');
+    else if (S.flags.shedRoofWaits) out.push('The benches came out of the Shed\'s budget. The roof waits a year.');
     out.push(S.w.moss_moved ? 'Moss pours tea at the Far End now.' : S.fixes.rentcap === 'built' ? 'Moss keeps her corner, at last year\'s rent.' : 'Moss is bidding for her corner.');
     if (S.fixes.quietrow === 'built') out.push(S.w.conflict_disclosed ? 'Home Row is a quiet zone. You said you lived there.' : 'Home Row is a quiet zone. You didn\'t say you lived there.');
     return out;
   },
   sights: [
-    { id: 'myfix', name: 'Your fix', loc: 'town', at: [23.5, 2.6, 31.2], ghost: [23.5, 30.4], ghostYou: true, dial: null, place: 'town', line: 'Made to fit you. Juno doesn\'t.' },
+    { id: 'myfix', name: 'Your fix', loc: 'town', at: [23.5, 2.6, 31.2], ghost: [23.5, 30.4], ghostYou: true, dial: null, place: 'town', line: 'Made to fit you. It doesn\'t fit Juno.' },
     { id: 'foundersrow', name: 'Founders\' Row', loc: 'town', at: [44.6, 2.4, 39.05], ghost: null, dial: null, place: 'the Far End', line: 'The founders\' name on a lot.' },
-    { id: 'rentboard', name: 'The leases board', loc: 'town', at: [34.0, 1.6, 27.45], ghost: [34.0, 28.4], dial: null, place: 'the square', line: 'Leases to the highest bid. The highest bid was never Moss.' },
+    { id: 'rentboard', name: 'The leases board', loc: 'town', at: [34.0, 1.6, 27.45], ghost: [34.0, 28.4], dial: null, place: 'the square', line: 'Made for whoever bids highest. Fourteen names are waiting for a turn.' },
     { id: 'coopsign', name: 'The Shed\'s sign', loc: 'town', at: [52, 2.4, 9.95], ghost: null, dial: null, place: 'the Commons', line: 'A sign that says who decides here.' },
     { id: 'plinth', name: 'The plinth', loc: 'town', at: [30, 0.6, 25.34], ghost: null, dial: null, place: 'the square', line: 'A new plate. The statue didn\'t change.', if: (S) => !!(S.w || {}).benefactor_yes },
     { id: 'crossing3', name: 'The crossing', loc: 'town', at: [45.5, 2.6, 22.0], ghost: [46.6, 24.0], dial: null, place: 'the bus stop', line: 'Twenty years on, still the first thing Bea checks.' },

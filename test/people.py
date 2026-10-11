@@ -25,7 +25,7 @@ with sync_playwright() as p:
     pg.evaluate("(() => { const S = __wb.state(); ['pip','moss','bea','gil','wren'].forEach(k => S.met[k] = true); const st = __wb.G.story; st.know('pip','love'); st.know('pip','over'); st.know('pip','no'); st.know('moss','over'); st.know('gil','over'); st.fieldNote('fit'); })()")
     pg.wait_for_timeout(500)
     pg.evaluate("__wb.G.togglePhone()"); pg.wait_for_timeout(300)
-    pg.evaluate("document.querySelector('[data-tab=lantern]').click()"); pg.wait_for_timeout(1200); pg.screenshot(path='%s/%s-people.png' % (out, tag))
+    pg.evaluate("document.querySelector('[data-tab=notebook]').click()"); pg.wait_for_timeout(1200); pg.screenshot(path='%s/%s-people.png' % (out, tag))
     pg.evaluate("document.querySelector('[data-person=pip]').click()"); pg.wait_for_timeout(600); pg.screenshot(path='%s/%s-person.png' % (out, tag))
     pg.evaluate("document.querySelector('[data-person]') ; document.querySelector('#pback').click()"); pg.wait_for_timeout(300)
     pg.evaluate("document.querySelector('[data-person=you]').click()"); pg.wait_for_timeout(600); pg.screenshot(path='%s/%s-you.png' % (out, tag))

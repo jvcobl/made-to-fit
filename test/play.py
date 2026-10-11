@@ -17,7 +17,7 @@ def run(policy, seed, prof, wheels=False, shots=None, mobile=False, budget=420):
         pg = b.new_page(viewport=vp, device_scale_factor=1)
         pg.on('console', lambda m: errors.append(m.type + ': ' + m.text[:300]) if m.type == 'error' else None)
         pg.on('pageerror', lambda e: errors.append('PAGEERROR ' + str(e)[:600]))
-        pg.goto('file:///home/claude/wb4/dist/who-bends.html?test=1&fast=1&mute=1&seed=%d' % seed)
+        pg.goto('file:///home/claude/wb4/dist/who-bends.html?test=1&fast=1&mute=1&seed=%d%s' % (seed, '' if shots else '&nodraw=1'))
         pg.wait_for_function('window.__wb && __wb.panel() !== null', timeout=60000)
         def snap(name, force=False):
             if shots and (name not in taken or force):
@@ -67,8 +67,10 @@ def run(policy, seed, prof, wheels=False, shots=None, mobile=False, budget=420):
                 if policy == 'blender':
                     for i, t in enumerate(texts):
                         if 'Install' in t or 'Blend suggests' in t: pick = i; break
-                elif policy in ('fixer', 'asker'):
+                elif policy in ('fixer', 'asker', 'engaged'):
                     pri = ['to back the', 'Show Gil', 'Change the design', 'Present the', 'Yes, I can do that', 'Ask what they mean', 'Yes. I would like', 'Do you ever turn it off', 'I will find you', 'What helps', 'It helps more people', 'Can I see', 'Can I help', 'They give me one too', 'I like specific', 'Does it fit you', 'He did not say', 'How do I get', 'Note it', 'What if the market']
+                    # engaged: says yes to people first (favours, invitations, asking how someone is), then the fixes
+                    if policy == 'engaged': pri = ['Yes, I can do that', 'Yes. I would like', 'I will find you', 'Can I fold', 'How are you, though, really', 'Can I help', 'That sounds lonely', 'Ask what they mean', 'What helps'] + pri
                     found = False
                     for key in pri:
                         for i, t in enumerate(texts):
@@ -80,7 +82,7 @@ def run(policy, seed, prof, wheels=False, shots=None, mobile=False, budget=420):
             if w == 'barrier':
                 opts = pg.evaluate('__wb.options()'); snap('11-barrier')
                 keys = [o['key'] for o in opts]; en = [o['key'] for o in opts if not o['disabled']]
-                order = {'fixer': ['fix', 'gear', 'ask', 'bend'], 'blender': ['bend'], 'leaver': ['leave'], 'asker': ['ask', 'gear', 'leave']}.get(policy, None)
+                order = {'fixer': ['fix', 'gear', 'ask', 'bend'], 'blender': ['bend'], 'leaver': ['leave'], 'asker': ['ask', 'gear', 'leave'], 'pusher': ['bend'], 'engaged': rnd.sample(['ask', 'fix', 'gear'], 3) + ['bend']}.get(policy, None)
                 choice = None
                 if order:
                     for k in order:
@@ -137,7 +139,7 @@ def run(policy, seed, prof, wheels=False, shots=None, mobile=False, budget=420):
             pg.evaluate("__wb.tp(%s)" % json.dumps(spots[plan['step'] % len(spots)])); plan['step'] += 1
             pg.wait_for_timeout(500); pg.evaluate('__wb.skip(20)')
         out['last'] = pg.evaluate("(() => [__wb.mode(), __wb.busy(), __wb.waiter(), __wb.panel(), __wb.loc(), __wb.zone(), __wb.target()])()")
-        S = pg.evaluate("(() => { const s = __wb.state(); return { day: s.day, min: Math.round(s.min), self: Math.round(s.self), energy: Math.round(s.energy), blend: s.blend.score, fixes: s.fixes, support: s.support, stats: s.stats, burnout: s.burnoutDays, coins: s.coins, bonds: s.bonds, flags: Object.keys(s.flags).filter(k => /shift|missed|late|statue|hollis|wren_inv|rue_/.test(k)), lantern: Object.fromEntries(Object.entries(s.lantern.entries).map(([k, e]) => [k, e.result || e.pending])) } })()")
+        S = pg.evaluate("(() => { const s = __wb.state(); return { day: s.day, min: Math.round(s.min), self: Math.round(s.self), energy: Math.round(s.energy), blend: s.blend.score, fixes: s.fixes, support: s.support, stats: s.stats, burnout: s.burnoutDays, coins: s.coins, bonds: s.bonds, flags: Object.keys(s.flags).filter(k => /shift|missed|late|statue|hollis|wren_inv|rue_/.test(k)), lantern: Object.fromEntries(Object.entries(s.lantern.entries).map(([k, e]) => [k, e.result || e.pending])), mine: s.fixMine || {}, stakes: s.stakes || {}, favours: s.favours || {}, unasked: Object.keys(s.kept || {}).filter(k => k.startsWith('unasked_')).length, showed: [!!s.flags.rue_pond, !!(s.flags.wren_invited || s.flags.foldHour)], dep: s.blend.dep || 0, smooth: !!s.blend.smooth } })()")
         out.update(S); out['secs'] = round(time.time() - t0); out['errors'] = errors[:6]
         b.close()
     return out

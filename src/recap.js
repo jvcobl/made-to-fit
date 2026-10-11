@@ -16,10 +16,13 @@ const pickN = (list, n, rnd) => { const a = list.slice(); for (let i = a.length 
 export function randomPast(rnd = Math.random) {
   const built = pickN(RECAP_FIXES, rnd() < 0.25 ? 1 : 2, rnd);
   const listened = {}; for (const f of built) listened[f] = rnd() < 0.6;
+  const blend = ['never', 'kept', 'deleted'][Math.floor(rnd() * 3)];
+  // "Start without Blend" only makes sense if Blend is still on your phone
+  const dflts = Object.keys(DEFAULTS).filter((d) => d !== 'blend_off' || blend === 'kept');
   return {
     built, listened, people: pickN(RECAP_PEOPLE, 3 + (rnd() < 0.5 ? 1 : 0), rnd),
-    rue: rnd() < 0.55 ? 'easing' : 'streak', blend: ['never', 'kept', 'deleted'][Math.floor(rnd() * 3)],
-    left: rnd() < 0.75 ? 'yourself' : 'faded', dflt: Object.keys(DEFAULTS)[Math.floor(rnd() * Object.keys(DEFAULTS).length)],
+    rue: rnd() < 0.55 ? 'easing' : 'streak', blend,
+    left: rnd() < 0.75 ? 'yourself' : 'faded', dflt: dflts[Math.floor(rnd() * dflts.length)],
   };
 }
 
@@ -32,7 +35,8 @@ export function recapCarry(look, pronoun, profile, past) {
   }
   const people = {};
   for (const id of SAVE.RESIDENTS) { const k = past.people.includes(id); people[id] = { bond: k ? 2 : 1, gw: k ? 2 : 1, revealed: false, met: true }; }
-  const w = { recap: 1 }; if (past.rue === 'easing') w.rue_festival = 1;
+  // as in a real first visit: Rue at the festival if she was easing off, and Wren paid for the lanterns at her price
+  const w = { recap: 1 }; if (past.rue === 'easing') w.rue_festival = 1; if (past.built.includes('lanterns')) w.wren_paid = 1;
   return SAVE.normalizeCarry({
     act: 1, look, look0: look, comfort: look.comfort || 'hum', pronoun, profile, fixes, people,
     rue: past.rue, blend: past.blend, dep: past.blend === 'kept' ? 3 : past.blend === 'deleted' ? 1 : 0,
@@ -42,10 +46,12 @@ export function recapCarry(look, pronoun, profile, past) {
 }
 
 // the whole recap, from the title: resolves with { carry, name }, or null if you went back
-export async function recap(story) {
+export async function recap(story, live) {
   const G = story.G, S = story.S, ui = story.ui;
-  const had = SAVE.readCarry().carry; const acts = (had && had.acts) || {};
-  if (Object.keys(acts).length && !(await G.menus.confirm('Start from a recap?', 'This replaces the finished visits this browser remembers. Your settings stay.', 'Start from a recap', 'Go back'))) return null;
+  const had = SAVE.readCarry().carry; const done = Object.keys((had && had.acts) || {}).length > 0;
+  // a recap replaces what this browser remembers: a visit in progress, and the finished ones
+  const what = live && done ? 'your saved visit (' + (live.label || 'in progress') + ') and the finished visits this browser remembers' : live ? 'your saved visit (' + (live.label || 'in progress') + ')' : done ? 'the finished visits this browser remembers' : '';
+  if (what && !(await G.menus.confirm('Start from a recap?', 'This replaces ' + what + '. Your settings stay.', 'Start from a recap', 'Go back'))) return null;
   // you: the mirror in your room, as on the first night
   G.mode = 'cine'; await G.stage.fadeTo(1, 500);
   G.setLoc('home'); G.player.root.visible = true; G.place([0.6, 0.2]); G.player.heading = 0.25;

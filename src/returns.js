@@ -91,6 +91,8 @@ export class Return {
   tick() {
     const G = this.G, S = this.S, st = this.st, m = S.min;
     if (this.A.tick && this.A.tick(this)) return true;
+    // the push-through habit you brought from last time fires once, the first time you are back in that place
+    if (S.carryHabit && S.carryHabit !== 'none' && !S.flags.habitCarried && G.zone === S.carryHabit && !S.flags.festival) { G.run(() => this.carriedHabit(S.carryHabit)); return true; }
     if (S.cloverAt != null && m >= S.cloverAt && !G.ui.waiter) { G.run(() => st.cloverAfter()); return true; }
     if (m >= 1065 && !S.flags.remind) { S.flags.remind = 1; st.text('Hollis', 'Town meeting in 15 minutes! Town Hall.'); }
     if (m >= 1080 && !S.flags.council) { S.flags.council = 1; G.run(() => st.council()); return true; }
@@ -98,6 +100,16 @@ export class Return {
     if (m >= 1200 && !S.flags.festival) { G.run(() => st.festival()); return true; }
     if (S.flags.festival && m >= 1290 && !S.flags.released) { G.run(() => st.finale()); return true; }
     return false;
+  }
+  // your body braces before you notice: keep it (it's what you do here) or let it go
+  async carriedHabit(zone) {
+    const G = this.G, S = this.S, st = this.st; if (S.flags.habitCarried || S.carryHabit !== zone) return;
+    S.flags.habitCarried = 1;
+    const dimNote = zone === 'works' && S.fixes.dim === 'built' ? ' The room is dim now.' : '';
+    const k = await st.choose([{ t: 'OK', sub: 'it is what you do here', id: 'habit_ok' }, { t: 'Not today', sub: 'notice it, and let it go', id: 'habit_no' }], { text: 'You braced before you noticed.' + dimNote, kind: 'gut' });
+    if (k === 0) { SIM.bendCost(S, false); S.stats.bend++; S.masking = true; S.maskZone = zone; st.log('habit', { z: zone, v: 'bend', by: 'habit', pay: ['you'], dir: 'over' }); st.fieldNote('habits'); }
+    else { S.carryHabit = 'none'; S.pushHabit = 'none'; await st.gut('You let your shoulders drop. ' + (this.act === 3 ? 'Twenty' : 'Ten') + ' years is a long time to brace for something.'); }
+    st.ui.hideDialog();
   }
   // a day spent: you sleep it off at home, and the evening still happens
   async exhausted() {

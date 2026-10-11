@@ -66,10 +66,17 @@ with sync_playwright() as p:
     answer_lines(pg, "!__wb.busy() && !__wb.waiter()")
     S = pg.evaluate("(() => { const s = __wb.state(); return { gw: s.gw.moss, fav: s.favours.moss, min: s.min, jar: (s.jar || []).map((j) => j.t) } })()")
     check('favour yes: goodwill back, half an hour, a moment kept', S['gw'] == gw0 + 1 and S['fav'] == 'yes' and S['min'] - m0 >= 29 and any('cart' in j for j in S['jar']), S)
-    # 4) a stakeholder walks up after Clover's sketch
+    # 4) a stakeholder walks up after Clover's sketch (first, close any card the last step's walk opened)
+    t0 = time.time()
+    while time.time() - t0 < 20 and pg.evaluate("__wb.busy() || !!__wb.waiter()"):
+        w = pg.evaluate('__wb.waiter()')
+        if w == 'barrier': pg.evaluate("__wb.choose(__wb.options().findIndex((o) => o.key === 'bend'))")
+        elif w == 'line': pg.evaluate('__wb.adv()')
+        elif w == 'choice': pg.evaluate('__wb.choose(0)')
+        pg.wait_for_timeout(100)
     pg.evaluate("(() => { const S = __wb.state(); S.day = 2; S.min = 800; S.flags.shift2 = 1; S.flags.afternoon = 1; S.handled['2:market'] = 1; S.handled['2:street'] = 1; S.fixes.quiet = 'proposal'; S.stakes = {}; S.stakeDue = { quiet: 2 * 1440 + 790 }; __wb.tp([30, 27.5]); })()")
     ok = answer_lines(pg, "__wb.waiter() === 'choice' && __wb.options().some((o) => o.id === 'stake_change')", 60)
-    check('stakeholder: Pomeroy walks up and asks', ok, pg.evaluate("__wb.G.npcs.pomeroy.visit"))
+    check('stakeholder: Pomeroy walks up and asks', ok, pg.evaluate("(() => { const S = __wb.state(), n = __wb.G.npcs.pomeroy; return { visit: n.visit || null, place: n.place, loc: __wb.loc(), energy: Math.round(S.energy), min: Math.round(S.min), day: S.day, busy: __wb.busy(), waiter: __wb.waiter(), panel: __wb.panel(), mode: __wb.mode(), others: Object.keys(__wb.G.npcs).filter((k) => __wb.G.npcs[k].visit), due: S.stakeDue, fix: S.fixes.quiet } })()"))
     if ok:
         pg.evaluate("__wb.choose(0)"); answer_lines(pg, "!__wb.busy() && !__wb.waiter()")
     check('stakeholder: listened', pg.evaluate("__wb.state().stakes.quiet") == 'listened')

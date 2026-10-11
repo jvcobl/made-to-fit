@@ -42,6 +42,8 @@ export function fmtTime(min) {
 export const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 export const params = new URLSearchParams(typeof location !== 'undefined' ? location.search : '');
 export const FAST = params.get('fast') === '1';
+// tests that only need the game's logic (?test=1&nodraw=1) skip drawing the 3D scene, except when asked for a screenshot
+export const NODRAW = params.get('test') === '1' && params.get('nodraw') === '1';
 export const sleep = (ms) => new Promise((r) => setTimeout(r, FAST ? Math.min(ms, 30) : ms));
 
 // Fixed-step test mode (?fixedstep=1): nothing advances by itself, and window.__wb.step(n) moves the whole game

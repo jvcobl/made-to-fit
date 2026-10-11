@@ -87,7 +87,7 @@ export function pickMoments(S, n) {
 function faced(S, r) {
   const out = [];
   const z = ZONES.find((q) => q.id === r.z); const place = z ? z.name : { works: 'The Works', hall: 'Town Hall', home: 'Home', street: 'The street', festival: 'The festival' }[r.z] || 'Larkspur';
-  out.push(place + ', ' + ['', 'Monday', 'Tuesday', 'Wednesday'][r.d] + ' ' + fmtTime(r.m) + '.');
+  out.push(place + ', ' + ((S.act || 1) > 1 ? 'festival day,' : ['', 'Monday', 'Tuesday', 'Wednesday'][r.d]) + ' ' + fmtTime(r.m) + '.');
   if (r.dim && DIM_WORD[r.dim]) out.push('It was ' + DIM_WORD[r.dim][r.dir === 'under' ? 1 : 0] + ' for you.');
   const f = r.f || {};
   if (f.e != null) out.push(f.e < 25 ? 'You were running on empty.' : f.e < 50 ? 'You were low on energy.' : 'You had energy to spare.');

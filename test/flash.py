@@ -15,7 +15,9 @@ def opt(name, default):
     if name in argv: i = argv.index(name); v = argv[i + 1]; del argv[i:i + 2]; return v
     return default
 FRAMES = int(opt('--frames', 240)); SEED = int(opt('--seed', 9)); SHOTS = opt('--shots', None)
-SCENARIOS = [a for a in argv if not a.startswith('-')] or ['sort', 'stamp', 'works', 'outdoor']
+ALL = ['sort', 'stamp', 'works', 'outdoor', 'pond', 'blueprint', 'paint', 'teach', 'mail', 'look', 'festival', 'release', 'act2fest']
+SCENARIOS = [a for a in argv if not a.startswith('-')] or ALL
+if 'act2fest' in SCENARIOS: SCENARIOS = [x for x in SCENARIOS if x != 'act2fest'] + ['act2fest']  # it reloads the page: last
 URL = 'file:///home/claude/wb4/dist/who-bends.html?test=1&fast=1&mgslow=1&mute=1&seed=%d&fixedstep=1' % SEED
 
 # sRGB 8-bit -> linear, then relative luminance Y = 0.2126 R + 0.7152 G + 0.0722 B
@@ -154,6 +156,44 @@ with sync_playwright() as p:
             pg.evaluate("(() => { const S = __wb.state(); S.flags.escort = 1; S.flags.escort_done = 1; __wb.tp([36, 41.5]); })()")
             step(60, False)
             capture('outdoor')
+        elif sc in ('pond', 'blueprint', 'paint', 'teach', 'mail'): task(sc)
+        elif sc == 'look':
+            # Look again: the lantern raised in the square, halos on what was made for someone (and the card it opens)
+            settings()
+            until("!__wb.busy() && __wb.mode() === 'play' && !__wb.mg()")
+            pg.evaluate("(() => { const S = __wb.state(); S.flags.lantern = 1; S.flags.lanternMeta = 1; S.handled[S.day + ':market'] = 1; S.handled[S.day + ':street'] = 1; __wb.tp([30, 27.4]); })()")
+            step(30, False)
+            capture('look', lambda i: (i == 10 and pg.evaluate("__wb.G.look.raise()")) or (i == 120 and pg.evaluate("__wb.G.look.near && __wb.G.look.near.length && __wb.G.look.pickIndex(0)")))
+        elif sc == 'festival':
+            # the festival at night: string lights, stalls, the crowd, standing in the square
+            settings()
+            until("!__wb.busy() && __wb.mode() === 'play' && !__wb.mg()")
+            pg.evaluate("(() => { const S = __wb.state(); S.day = 3; S.min = 1199; S.flags.decided = 1; S.flags.shift1 = 1; S.flags.escort = 1; S.flags.escort_done = 1; for (const z of ['market', 'street', 'festival', 'homerow', 'transit', 'commons', 'farend']) S.handled['3:' + z] = 1; S.handled['3:festival:f'] = 1; S.energy = 100; __wb.G.run(() => __wb.G.story.festival()); })()")
+            until("!!__wb.state().flags.festival && __wb.mode() === 'play' && !__wb.busy()", 120, 6)
+            step(30, False)
+            capture('festival')
+        elif sc == 'release':
+            # the lantern release at the end of the festival (the note is read, then the lanterns go up)
+            settings()
+            until("!!__wb.state().flags.festival && !__wb.busy()", 60, 2)
+            pg.evaluate("__wb.G.run(() => __wb.G.story.finale())")
+            capture('release', lambda i: pg.evaluate("__wb.waiter() === 'line' && __wb.adv()"))
+        elif sc == 'act2fest':
+            # ten years on, the festival: the drone with its lantern over the square
+            pg.evaluate("__wb.gotoAct(2, { built: ['quiet', 'dim'] })")
+            pg.wait_for_timeout(1500); pg.wait_for_function('window.__wb && __wb.G && __wb.ret && __wb.ret()', timeout=90000)
+            t0 = time.time()
+            while time.time() - t0 < 240:
+                if pg.evaluate("__wb.waiter() === 'choice' && __wb.options().some((o) => o.id === 'age_keep')"): pg.evaluate("__wb.choose(__wb.options().findIndex((o) => o.id === 'age_keep'))")
+                if pg.evaluate("__wb.mode() === 'play' && !__wb.busy() && !__wb.waiter() && !__wb.panel()"): break
+                pg.evaluate("__wb.waiter() === 'line' && __wb.adv()")
+                if pg.evaluate("!!(__wb.panel() && __wb.panel().includes('today'))"): pg.evaluate("document.querySelector('#tgo').click()")
+                step(6, False); pg.wait_for_timeout(30)
+            settings()
+            pg.evaluate("(() => { const S = __wb.state(); S.flags.decided = 1; S.flags.council = 1; S.flags.councilDone = 1; S.flags.remind = 1; S.min = 1200; for (const z of ['market', 'street', 'festival']) S.handled['1:' + z] = 1; S.handled['1:festival:f'] = 1; S.energy = 100; })()")
+            until("!!__wb.state().flags.festival && __wb.mode() === 'play' && !__wb.busy()", 180, 6)
+            step(30, False)
+            capture('act2fest')
     print('errors', errs[:6])
     b.close()
 

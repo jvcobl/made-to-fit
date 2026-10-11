@@ -64,10 +64,16 @@ with sync_playwright() as p:
     ok = until(pg, "__wb.mode() === 'play' && !__wb.busy() && !__wb.waiter() && !__wb.panel()", 60, pick=first)
     S = pg.evaluate("(() => { const S = __wb.state(); return { coop: S.w.coop_yes, redesign: S.w.juno_redesign, answer: S.junoAnswer, jfix: S.junoFix, jp: S.junoProfile, prof: S.profile, row: S.log.filter((r) => r.turn).length } })()")
     check('co-op yes, redesign with Juno, the turned row logged', ok and S['coop'] and S['redesign'] and S['answer'] and S['row'] == 1, S)
-    # Juno is built against your fixes: on each dial your fixes changed, at least 0.35 away
-    far = all(abs(S['jp'][d] - S['prof'][d]) >= 0.34 for d in ['sound', 'people', 'light', 'time'])
-    check('Juno: at least 0.35 from you where your fixes changed things', far, [S['jp'], S['prof']])
+    # Juno is built against your fixes: lively wherever your fixes softened things (the drums, KNOCK LOUD), and at
+    # least 0.35 from you on the other dials your fixes changed (here the crossing's time)
+    lively = all(S['jp'][d] >= 0.75 for d in ['sound', 'people', 'light', 'talk'])
+    far = abs(S['jp']['time'] - S['prof']['time']) >= 0.34
+    check('Juno: lively where your fixes softened things, and far from you on time', lively and far, [S['jp'], S['prof']])
     shot(pg, '03_free')
+    pg.evaluate("(() => { const p = __wb.G.npcs.juno.c.root.position; __wb.tp([p.x + 0.9, p.z + 0.6]); })()")
+    pg.evaluate("__wb.G.run(() => __wb.G.story.talkTo('juno'))")
+    ok = until(pg, "!__wb.busy() && !__wb.waiter() && !document.querySelector('#letterbox.on, .letterbox.on')", 30, pick=first)
+    check('talking to Juno (who only lives in this visit) ends cleanly', ok and not errors, errors[:3])
     # the square: Moss and Hester
     pg.evaluate("(() => { const S = __wb.state(); S.min = 700; __wb.tp([27.4, 27.6]); })()")
     ok = until(pg, "__wb.waiter() === 'choice' && __wb.options().some((o) => o.id === 'fund_yes')", 60, pick=first)

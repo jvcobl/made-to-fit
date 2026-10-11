@@ -3,13 +3,13 @@
 
 // profile: what each resident likes, on the same six dials as yours (from PEOPLE below); their bodies show what pinches
 export const CAST = {
-  gil: { name: 'Gil', role: 'your manager at the Works', look: { shape: 'boxy', color: '#cbb9a2', pattern: 'plain', top: 'ears', wear: 'glasses' }, voice: ['hum', 0.82], tint: '#8a6f4e', profile: { sound: 0.55, light: 0.3, people: 0.65, talk: 0.75, time: 0.45, change: 0.35 } },
+  gil: { name: 'Gil', role: 'your manager at the Works', roles: { 2: 'runs the Works', 3: 'retired, and at the Shed on Fridays' }, look: { shape: 'boxy', color: '#cbb9a2', pattern: 'plain', top: 'ears', wear: 'glasses' }, voice: ['hum', 0.82], tint: '#8a6f4e', profile: { sound: 0.55, light: 0.3, people: 0.65, talk: 0.75, time: 0.45, change: 0.35 } },
   pip: { name: 'Pip', role: 'bakes for the whole town', look: { shape: 'round', color: '#ffc98e', pattern: 'belly', top: 'longears', wear: 'bow' }, voice: ['chime', 1.25], tint: '#c8553d', profile: { sound: 0.45, light: 0.6, people: 0.85, talk: 0.55, time: 0.2, change: 0.5 } },
   moss: { name: 'Moss', role: 'runs the tea cart', look: { shape: 'blobby', color: '#9fd3b0', pattern: 'spots', top: 'ears', wear: 'leaf' }, voice: ['hum', 0.62], tint: '#2b7a5a', profile: { sound: 0.3, light: 0.5, people: 0.4, talk: 0.45, time: 0.4, change: 0.4 } },
-  rue: { name: 'Rue', role: 'works the Blend kiosk', look: { shape: 'tall', color: '#f3a0c2', pattern: 'stripes', top: 'antennae', wear: 'none' }, voice: ['whistle', 1.0], tint: '#d0457f', profile: { sound: 0.6, light: 0.65, people: 0.6, talk: 0.25, time: 0.6, change: 0.75 } },
-  bea: { name: 'Bea', role: 'has lived on Home Row for fifty years', look: { shape: 'round', color: '#e3d2ef', pattern: 'plain', top: 'ears', wear: 'hat' }, voice: ['hum', 1.12], tint: '#6c5c9e', cart: true, profile: { sound: 0.35, light: 0.55, people: 0.55, talk: 0.4, time: 0.25, change: 0.3, aid: true } },
+  rue: { name: 'Rue', role: 'works the Blend kiosk', roles: { 2: 'on Blend\'s measures team', 3: 'runs plain-notes workshops' }, look: { shape: 'tall', color: '#f3a0c2', pattern: 'stripes', top: 'antennae', wear: 'none' }, voice: ['whistle', 1.0], tint: '#d0457f', profile: { sound: 0.6, light: 0.65, people: 0.6, talk: 0.25, time: 0.6, change: 0.75 } },
+  bea: { name: 'Bea', role: 'has lived on Home Row for fifty years', roles: { 2: 'has lived on Home Row longer than anyone', 3: 'has lived on Home Row longer than anyone' }, look: { shape: 'round', color: '#e3d2ef', pattern: 'plain', top: 'ears', wear: 'hat' }, voice: ['hum', 1.12], tint: '#6c5c9e', cart: true, profile: { sound: 0.35, light: 0.55, people: 0.55, talk: 0.4, time: 0.25, change: 0.3, aid: true } },
   wren: { name: 'Wren', role: 'makes lanterns at the Far End', look: { shape: 'spiky', color: '#a99be8', pattern: 'plain', top: 'horns', wear: 'scarf' }, voice: ['click', 1.0], tint: '#4f4aa8', profile: { sound: 0.2, light: 0.35, people: 0.2, talk: 0.15, time: 0.55, change: 0.25 } },
-  clover: { name: 'Clover', role: 'keeps the Fix-It Shed', look: { shape: 'blobby', color: '#cde38f', pattern: 'spots', top: 'tuft', wear: 'flower' }, voice: ['chime', 0.92], tint: '#5f7a2a', profile: { sound: 0.55, light: 0.65, people: 0.5, talk: 0.3, time: 0.3, change: 0.7 } },
+  clover: { name: 'Clover', role: 'keeps the Fix-It Shed', roles: { 3: 'retired from the Fix-It Shed' }, look: { shape: 'blobby', color: '#cde38f', pattern: 'spots', top: 'tuft', wear: 'flower' }, voice: ['chime', 0.92], tint: '#5f7a2a', profile: { sound: 0.55, light: 0.65, people: 0.5, talk: 0.3, time: 0.3, change: 0.7 } },
   hollis: { name: 'Hollis', role: 'is the mayor', look: { shape: 'boxy', color: '#93c2ee', pattern: 'plain', top: 'ears', wear: 'hat' }, voice: ['hum', 0.7], tint: '#3f5a87', profile: { sound: 0.5, light: 0.6, people: 0.5, talk: 0.35, time: 0.35, change: 0.3 } },
   // minor residents: no notebook page of their own, but they live here, they react to places, and fixes cost or help them
   dot: { name: 'Dot', role: 'works at the next desk', minor: true, look: { shape: 'tall', color: '#9edcd6', pattern: 'spots', top: 'tuft', wear: 'glasses' }, voice: ['chime', 1.12], tint: '#2b7a78', profile: { sound: 0.55, light: 0.22, people: 0.45, talk: 0.3, time: 0.5, change: 0.4 } },
@@ -42,6 +42,8 @@ export const ROUTINES = {
   pomeroy: [[0, 480, 'away'], [480, 1140, 'town', 'apples'], [1140, 1500, 'away']],
 };
 // ten and twenty years on: one festival day each. Anyone not listed is away (moved, retired, or never born yet).
+// who someone is, in the visit you're in (some roles move on with the years)
+export const roleOf = (id, act) => { const c = CAST[id]; return c ? (c.roles && c.roles[act]) || c.role : ''; };
 export const ROUTINES_ACT = {
   2: {
     gil: [[0, 480, 'away'], [480, 700, 'works', 'gil'], [700, 1080, 'town', 'cartFront'], [1080, 1500, 'away']],
@@ -69,7 +71,7 @@ export const ROUTINES_ACT = {
     wren: [[0, 420, 'away'], [420, 1200, 'town', 'workshop'], [1200, 1500, 'away']],
     hollis: [[0, 540, 'away'], [540, 1080, 'town', 'hallSteps'], [1080, 1500, 'away']],
     juno: [[0, 560, 'away'], [560, 1140, 'town', 'junoSpot'], [1140, 1500, 'away']],
-    hester: [[0, 660, 'away'], [660, 900, 'town', 'statueSide'], [900, 1500, 'away']],
+    hester: [[0, 660, 'away'], [660, 1020, 'town', 'statueSide'], [1020, 1500, 'away']],
     bao: [[0, 540, 'away'], [540, 1140, 'town', 'apples'], [1140, 1500, 'away']],
   },
 };
@@ -484,7 +486,7 @@ Object.assign(TALK.bea.back, {
   farstalls: [{ who: 'bea', t: 'Stalls at the Far End? I\'ll bring soup to the first one. Yes.' }, { do: ['back.farstalls'] }],
 });
 Object.assign(TALK.pip.back, {
-  crossing: [{ who: 'pip', t: 'A longer light? My cart thanks you. My knees thank you more.' }, { do: ['back.crossing'] }],
+  crossing: [{ who: 'pip', t: 'A longer light? My cart and I have raced that light for years. Yes.' }, { do: ['back.crossing'] }],
   counter: [{ who: 'pip', t: 'A person at the counter? One who knows rye from ride? Yes. Where do I sign.' }, { do: ['back.counter', 'bond.pip+1'] }],
   rentcap: [{ who: 'pip', t: 'Rents up every year while the queue\'s out the door. Yes. Cap them.' }, { do: ['back.rentcap'] }],
 });

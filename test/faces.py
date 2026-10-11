@@ -24,7 +24,7 @@ with sync_playwright() as p:
     until("__wb.mode() === 'play' && !__wb.busy() && __wb.loc() === 'home'", 90000)
     pg.evaluate("Object.assign(__wb.state().met, { pip: true, moss: true, bea: true, gil: true })")
     pg.evaluate("__wb.G.phoneOpen || __wb.G.togglePhone()"); pg.wait_for_timeout(600)
-    pg.evaluate("document.querySelector('[data-tab=lantern]').click()"); pg.wait_for_timeout(600)
+    pg.evaluate("document.querySelector('[data-tab=notebook]').click()"); pg.wait_for_timeout(600)
     pg.screenshot(path='%s/m-faces-people.png' % out)
     pg.evaluate("__wb.G.togglePhone()"); pg.wait_for_timeout(300)
     pg.evaluate("__wb.mgTest('stamp')"); until("__wb.mg() !== null"); pg.wait_for_timeout(800)
