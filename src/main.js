@@ -12,6 +12,7 @@ import { Story } from './story.js';
 import { Guide } from './guide.js';
 import { updateLOD } from './lod.js';
 import { Feel } from './feel.js';
+import { Look } from './look.js';
 import { Feed } from './games/feed.js';
 import * as SAVE from './save.js';
 import { Menus, actionOf, DEFAULT_KEYS, keyLabel } from './menus.js';
@@ -57,6 +58,7 @@ class Game {
     this.guide = new Guide(this);
     this.feed = new Feed(this);
     this.feel = new Feel(this);
+    this.look = new Look(this); this.look.warm();
     this.applySettings();
     this.bindInput();
     this.setLoc('town');
@@ -335,6 +337,10 @@ class Game {
   placeCouncil() { for (const w of this.audience) w.root.visible = true; }
   applyFix(f) { this.town.setFix(f, true); if (f === 'dim') this.rooms.works.setDim(true); }
   focusPinch(on) { this.barrierFocus = on; }
+  noteWhere() {
+    const p = this.pinchNow; if (!p || !p.top || p.topV < 0.08 || this.zone === 'home' || this.S.day < 1) return;
+    const o = p.dims[p.top]; const key = p.top + (o.over >= o.under ? 0 : 1); const W = this.S.where = this.S.where || {}; const m = W[key] = W[key] || {}; m[this.zone] = (m[this.zone] || 0) + 1;
+  }
   // the corner you are standing in, if any, when asking about the zone you are in
   subFor(zone) { return zone === this.zone ? this.sub || null : null; }
   drift() { return clamp((100 - this.S.self) / 100 * 1.05); }
@@ -390,7 +396,7 @@ class Game {
     if (zone === 'market') this.badge('crowd');
     return true;
   }
-  deleteBlend() { const B = this.S.blend; B.deleted = true; B.smooth = false; this.S.self = clamp(this.S.self + 3, 0, 100); this.ui.toast('Blend deleted. It is very quiet. Then, slowly, there are birds.'); this.audio.sfx('back'); this.story.keep('blend_gone'); this.story.fieldNote('birdsong'); this.story.fieldNote('satiety'); }
+  deleteBlend() { const B = this.S.blend; B.deleted = true; B.smooth = false; this.S.self = clamp(this.S.self + 3, 0, 100); this.ui.toast('Blend deleted. It is very quiet. Then, slowly, there are birds.'); this.audio.sfx('back'); this.story.keep('blend_gone'); this.story.fieldNote('birdsong'); this.story.fieldNote('glp1'); }
   keyOf(action) { return keyLabel((this.settings.keys || {})[action] || DEFAULT_KEYS[action]); }
   onGear(name) { this.ui.toast(`<b>${name === 'headphones' ? 'Headphones' : 'Shades'}</b> are yours. ${this.ui.touch ? 'Tap the button by your energy to put them on or take them off.' : 'Press ' + this.keyOf(name) + ', or click the button by your energy, to put them on or take them off.'}`, 'good', 5200); }
   toggleGear(name) { const S = this.S; if (!S.gear[name]) { this.ui.toast(name === 'headphones' ? 'You do not have headphones yet. Moss sells them at the tea cart.' : 'You do not have shades yet. Moss sells them at the tea cart.', '', 2600); return; } S.wearing[name] = !S.wearing[name]; this.player.setGear(name, S.wearing[name]); this.audio.sfx('select'); }
@@ -403,6 +409,10 @@ class Game {
       // letters and digits by position (e.code), so WASD works on AZERTY and in Hangul mode
       const k = keyName(e).toLowerCase(); this.keys[k] = true;
       const act = actionOf(this.settings.keys, e);
+      if (this.look && this.look.raised && this.mode === 'play' && !this.ui.waiter && !this.phoneOpen) {
+        if (k === 'escape') { e.preventDefault(); if (this.look.open) this.look.closeCard(); else this.look.lower(); return; }
+        if (/^[1-8]$/.test(k)) { e.preventDefault(); this.look.pickIndex(+k - 1); return; }
+      }
       if (k === 'escape') {
         if (this.phoneOpen) { this.togglePhone(); return; }
         if (this.mgActive && this.mg && this.mg.escape) { this.mg.escape(); return; }
@@ -444,12 +454,13 @@ class Game {
     const p = this.player.root.position; let best = null, bd = 1e9;
     for (const n of Object.values(this.npcs)) { if (!n.c.root.visible || n.c.root.parent !== this.player.root.parent) continue; if (n.id === 'bea' && this.beaWay) continue; const d = Math.hypot(n.c.root.position.x - p.x, n.c.root.position.z - p.z); if (d < 2.1 && d < bd) { bd = d; best = { kind: 'npc', id: n.id, label: (this.S.met[n.id] ? 'Talk to ' : 'Say hi to ') + CAST[n.id].name, obj: n.c.root.position }; } }
     const list = this.loc === 'town' ? this.town.inter : this.rooms[this.loc].inter;
-    for (const it of list) { if (it.kind === 'set') continue; const d = Math.hypot(it.x - p.x, it.z - p.z); const prio = it.id === 'statue' && this.S.flags.festival && !this.S.flags.released; if (d < it.r + (prio ? 0.6 : 0) && (d < bd - 0.4 || prio)) { bd = prio ? -1 : d; best = { kind: it.kind, id: it.id, label: this.labelFor(it), obj: new THREE.Vector3(it.x, 0, it.z) }; } }
+    for (const it of list) { if (it.kind === 'set' || it.hidden) continue; const d = Math.hypot(it.x - p.x, it.z - p.z); const prio = it.id === 'statue' && this.S.flags.festival && !this.S.flags.released; if (d < it.r + (prio ? 0.6 : 0) && (d < bd - 0.4 || prio)) { bd = prio ? -1 : d; best = { kind: it.kind, id: it.id, label: this.labelFor(it), obj: new THREE.Vector3(it.x, 0, it.z) }; } }
     return best;
   }
   labelFor(it) {
     const S = this.S;
     if (it.id === 'statue' && S.flags.festival) return 'Release your lantern';
+    if (it.id === 'statue' && S.flags.statue_seen) return S.w && S.w.standard_solved ? 'Read the plaque' : 'Work out the Standard\'s room';
     if (it.id === 'home' && S.min >= 1020 && S.day > 0 && S.day < 3) return 'Go home for the night';
     if (it.id === 'bed') return S.min >= 1020 && S.day < 3 ? 'Go to bed' : 'Rest a while';
     if (it.id === 'mydesk' && this.story.shiftOpen()) return S.day === 1 ? 'Start your shift' : 'Join the weekly sync';
@@ -470,10 +481,16 @@ class Game {
     if (id === 'works' || id === 'dock') return st.enterWorks(id === 'dock' ? 'dock' : 'front');
     if (id === 'hall') { await this.enterRoom('hall'); await st.note(S.day === 2 && S.min >= 1020 && !S.flags.councilDone ? 'People are filing in for the meeting. It starts at six.' : 'The chamber is empty. The founders watch from their portrait.'); this.ui.hideDialog(); return; }
     if (id === 'portrait') { await st.note('The Founders, 1891. Five of them, no two the same shape, all squinting into the sun.'); if (S.flags.statue_seen) await st.gut('The committee that chose whose measurements to take. None of them matches the statue either.'); this.ui.hideDialog(); return; }
-    if (id === 'statue') { if (S.flags.festival) return st.finale(); await st.note('THE STANDARD RESIDENT. Larkspur was built to fit them.'); await st.gut(this.drift() > 0.4 ? 'You are starting to look a little like it.' : 'You do not look like it. Nobody here does.'); this.ui.hideDialog(); return; }
+    if (id === 'statue') {
+      if (S.flags.festival) return st.finale();
+      if (S.flags.statue_seen) { await this.ui.standardRoom(this.look); return; }
+      await st.note('THE STANDARD RESIDENT. Larkspur\'s measure.'); await st.gut(this.drift() > 0.4 ? 'You are starting to look a little like it.' : 'You do not look like it. Nobody here does.'); this.ui.hideDialog(); return;
+    }
+    if (id === 'sill') { await st.note('A small lantern on the windowsill, with a tag: "For No. 2. Raise it to look again. I made it to read people for me. It is not good at it yet. —W."'); this.ui.hideDialog(); this.look.pickUp(); this.rooms.home.setLantern(false); return; }
     if (id === 'kiosk') { if (this.npcNear('rue', 'market') && this.npcs.rue.place === 'town') return st.talkTo('rue'); await st.note('The kiosk hums. The screen says: YOU COULD BE CALMER.'); this.ui.hideDialog(); return; }
     if (id === 'board') { await st.note(S.fixes.board === 'built' ? 'The new board glows: NEXT BUS 5:40. TODAY: VIA ELM ST. Simple as that.' : 'Route 12, forty past the hour. A tiny asterisk: subject to change. The changes are announced over the speaker.'); this.ui.hideDialog(); if (!S.fixes.board) S.flags.told_board = 1; return; }
     if (id === 'cart') { if (this.npcs.moss.place === 'town') return st.talkTo('moss'); await st.note('The tea cart is closed up for the night.'); this.ui.hideDialog(); return; }
+    if (id === 'council_notice') { await st.note('COUNCIL MEETINGS: every first Tuesday, booked a year ahead, in pen. BUS ROUTES: subject to change.'); this.ui.hideDialog(); return; }
     if (id === 'notice') { await st.note('LOST CAT, orange, answers to nothing. CHOIR, Thursdays. FIX-IT SHED: bring us what pinches!'); this.ui.hideDialog(); S.flags.knows_shed = 1; return; }
     if (id === 'shed') { if (this.npcs.clover.place === 'town') return st.talkTo('clover'); await st.note('The shed is locked. A sign says OPEN 8 TO 6.'); this.ui.hideDialog(); return; }
     if (id === 'workshop') { if (this.npcs.wren.place === 'town') return st.talkTo('wren'); await st.note('You knock once. Nobody answers, which is also an answer.'); this.ui.hideDialog(); return; }
@@ -538,6 +555,7 @@ class Game {
     if (tintOn) fx.sat *= lerp(0.8, 1, S.self / 100);
     fx.sat = Math.max(smooth ? 0.4 : 0.75, fx.sat);
     if (this.mode === 'title') fx = { sat: 1.05, contrast: 1.02, vignette: 0.3, aberr: 0, grain: 0.02, tint: 0, bloom: 0.4, exposure: 1, warm: 0.15 };
+    if (this.look && this.look.k > 0.001) { fx.exposure *= 1 - 0.15 * this.look.k; fx.vignette += 0.15 * this.look.k; }
     if (this.mgActive) { fx.vignette = 0.5; fx.sat *= 0.75; } // the town waits, dimmed, behind the task card
     st.setFx(fx);
     const still = this.settings.reduceMotion;
@@ -561,7 +579,7 @@ class Game {
   update(dt) {
     const S = this.S; const st = this.stage;
     const paused = this.mode !== 'play' || this.busy > 0 || this.phoneOpen || this.settingsOpen || this.mgActive;
-    if (!paused) { const dm = dt * this.timeScale; S.min += dm; this.minAcc += dm; while (this.minAcc >= 1) { this.minAcc -= 1; SIM.tick(S, 1, { pinch: this.pinchNow, zone: this.zone, levels: SIM.levels(S, this.zone, S.min, this.sub) }); } }
+    if (!paused) { const dm = dt * this.timeScale; S.min += dm; this.minAcc += dm; while (this.minAcc >= 1) { this.minAcc -= 1; SIM.tick(S, 1, { pinch: this.pinchNow, zone: this.zone, levels: SIM.levels(S, this.zone, S.min, this.sub) }); this.noteWhere(); } }
     // where am I, and how does it fit
     const pos = this.player.root.position;
     let zone = this.loc === 'town' ? this.town.zoneAt(pos.x, pos.z).id : this.loc;
@@ -580,6 +598,7 @@ class Game {
     if (!paused) this.story.tick();
     this.computeFx(dt);
     this.feel.update(dt);
+    this.look.update(dt);
     this.player.setDrift(this.drift() * 0.92);
     this.player.update(dt);
     updateLOD(this);

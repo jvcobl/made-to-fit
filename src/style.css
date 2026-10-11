@@ -492,3 +492,50 @@ body.reduce * { animation-duration: 0.01ms !important; }
 .title .tbanner { background: rgba(251, 246, 238, 0.95); color: var(--ink); border-radius: 14px; padding: 10px 14px; margin: 0 0 14px; max-width: 640px; font-size: 14.5px; line-height: 1.45; }
 .title .links { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: 8px; }
 .linkbtn { border: 0; background: none; color: inherit; text-decoration: underline; font-family: var(--display); font-weight: 500; font-size: 14px; padding: 10px 0; min-height: 44px; cursor: pointer; }
+
+/* ---------- Look again: the list of what is lit, and the card for one sight ---------- */
+#litlist { position: fixed; right: 14px; top: calc(70px + env(safe-area-inset-top, 0px)); width: min(260px, 70vw); background: rgba(251, 246, 238, 0.95); border-radius: 18px; padding: 12px; box-shadow: 0 8px 26px rgba(20, 14, 30, 0.22); z-index: 4; pointer-events: auto; display: flex; flex-direction: column; gap: 6px; }
+#litlist h4 { margin: 0 0 2px; font-family: var(--display); font-size: 15px; color: #6a4a1f; }
+#litlist p { font-size: 13.5px; margin: 2px 0 4px; line-height: 1.4; }
+.litbtn { border: 1.5px solid #e9d6a8; background: #fffaf0; border-radius: 12px; padding: 8px 10px; text-align: left; font-size: 14px; min-height: 44px; display: flex; align-items: center; gap: 8px; color: var(--ink); }
+.litbtn.seen { border-color: #d9cfbf; color: #5b5260; } .litbtn kbd { margin: 0; }
+#sightcard { position: fixed; left: 50%; bottom: calc(112px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); width: min(460px, 92vw); background: #fffaf0; border-radius: 20px; padding: 14px 16px 12px; box-shadow: 0 14px 40px rgba(20, 14, 30, 0.3); z-index: 5; pointer-events: auto; border: 2px solid #f1dfb3; }
+#sightcard .sc-k { font-family: var(--display); font-size: 11.5px; letter-spacing: 0.08em; text-transform: uppercase; color: #8a6a12; }
+#sightcard h4 { margin: 2px 0 4px; font-family: var(--display); font-size: 17px; }
+#sightcard p { margin: 4px 0; font-size: 15px; line-height: 1.45; } #sightcard .sc-2 { color: #5b4630; font-style: italic; }
+#sightcard .btn { margin-top: 6px; min-height: 40px; }
+/* ---------- the Standard's room ---------- */
+.panel.standard { width: min(720px, 96vw); max-height: 92vh; overflow: auto; }
+.srow2 { border-top: 1px solid var(--line); padding: 10px 0; }
+.srow2 .sq { font-family: var(--display); font-weight: 600; font-size: 14.5px; margin-bottom: 6px; }
+.srow2 .chips { align-items: center; } .srow2.locked .chip:not(.on) { opacity: 0.45; }
+.srow2 .tick { color: var(--good); font-size: 20px; font-weight: 700; margin-left: 4px; }
+.srow2 .clue { font-size: 13.5px; color: #5b4630; margin-top: 6px; line-height: 1.4; } .srow2 .clue.felt { color: #3b3440; }
+.smsg { font-family: var(--display); font-weight: 600; min-height: 1.4em; }
+.plaque { background: #efe3cf; border: 2px solid #8a6f4e; color: #5a4630; border-radius: 12px; padding: 12px 14px; font-family: var(--display); font-size: 15px; line-height: 1.45; }
+.tworooms { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; } .tworooms figure { margin: 0; flex: 1 1 230px; max-width: 320px; text-align: center; font-family: var(--display); font-weight: 600; }
+.tworooms svg { width: 100%; height: auto; background: #fbf3e4; border-radius: 12px; }
+/* ---------- notebook additions ---------- */
+.gwrow { font-size: 13px; margin-top: 4px; color: #5b5260; } .gwrow b { letter-spacing: 2px; color: var(--accent); }
+.trrow { display: flex; align-items: center; gap: 8px; font-size: 14px; margin: 10px 0; min-height: 44px; } .trrow input { width: 20px; height: 20px; }
+.slot .read { font-size: 13px; margin-top: 6px; color: #5b5260; } .slot .read .ok { color: var(--good); } .slot .read .no { color: #8a3a26; }
+.nsec { margin-top: 12px; } .nsec h5 { font-family: var(--display); font-size: 15px; margin: 8px 0 4px; }
+.pondguide span.card { outline: 2px dashed rgba(43, 37, 48, 0.25); }
+.tnote.carried { background: #ece7f3; color: #3d3256; }
+/* ---------- Who decided? ---------- */
+.panel.decided { width: min(640px, 94vw); }
+.dverb { font-family: var(--display); font-size: 19px; font-weight: 600; margin: 6px 0 10px; }
+.dcols { display: flex; gap: 16px; flex-wrap: wrap; } .dcols > div { flex: 1 1 220px; background: #fbf3e4; border-radius: 14px; padding: 10px 12px; }
+.dcols h4 { margin: 0 0 6px; } .dcols ul { margin: 0; padding-left: 18px; font-size: 14.5px; line-height: 1.45; }
+.dpay { display: flex; gap: 12px; flex-wrap: wrap; } .dpay figure { margin: 0; text-align: center; font-size: 13px; font-family: var(--display); font-weight: 600; }
+.dpay img, .dpay .vsil { width: 64px; height: 64px; border-radius: 50%; display: block; background: #efe6d6; }
+.panel.decided .list { display: flex; flex-direction: column; gap: 8px; } .panel.decided .choice { text-align: left; }
+/* ---------- the ending page additions ---------- */
+.ending .eline { font-size: 16px; color: #5b4630; max-width: 620px; margin: 6px auto; }
+.ending .eh { font-family: var(--display); margin: 18px 0 6px; }
+.ending .erow { flex-wrap: wrap; justify-content: center; gap: 8px; }
+.ending .ecode { max-width: 560px; margin: 16px auto 0; text-align: left; } .ending .ecode label { font-family: var(--display); font-weight: 600; font-size: 14px; }
+.ending .ecode .codebox { width: 100%; font-family: ui-monospace, monospace; font-size: 14px; }
+.fitfig { margin: 14px auto 4px; max-width: 420px; } .fitfig img { width: 100%; border-radius: 14px; box-shadow: 0 10px 30px rgba(20, 14, 30, 0.25); }
+.nlsec { font-family: var(--display); margin: 18px 0 6px; } .ending .support p { text-align: left; }
+.panel.decided .choice { flex-direction: column; align-items: flex-start; gap: 2px; } .panel.decided .choice .sub { margin-left: 0; padding-left: 0; }

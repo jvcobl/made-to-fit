@@ -1,7 +1,11 @@
 // DOM interface: dialogue, the "who adjusts?" card, phone, creator, room setup, settings, title, evening page and ending.
 import { esc, fmtTime, clamp, FAST, now, keyName } from './util.js';
 import { OPTIONS } from './creature.js';
-import { CAST, HINTS, BLEND, SETUP, FIELD_NOTES, PEOPLE, SLOT_LABEL, STAKES } from './content.js';
+import { CAST, HINTS, BLEND, SETUP, PEOPLE, SLOT_LABEL, STAKES } from './content.js';
+import { FIELD_NOTES, NOTE_SECTIONS, SUPPORT } from './notes.js';
+import { drawFitCard, saveFitCard, cardAltText } from './fitcard.js';
+import { PLAQUE as PLAQUE_TEXT } from './look.js';
+const SETUP_NAMES = { lamp: 'Lamp', radio: 'Radio', sign: 'Door sign', note: 'House rules', clock: 'Clock', calendar: 'Calendar' };
 import { FIXES, pinch, townFit, fixState, supporters, approvedCount, SEASON_CAP } from './sim.js';
 import { ZONES } from './town.js';
 import { FISH } from './games/pond.js';
@@ -17,6 +21,7 @@ export const ICON = {
   shades: '<svg viewBox="0 0 24 24"><path d="M2.5 9h19" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M4 9.5h6.5v3.5a2.6 2.6 0 01-2.6 2.6H6.6A2.6 2.6 0 014 13zM13.5 9.5H20v3.5a2.6 2.6 0 01-2.6 2.6h-1.3a2.6 2.6 0 01-2.6-2.6z" fill="currentColor"/></svg>',
   way: '<svg viewBox="0 0 24 24"><path d="M12 2.5l6.5 17-6.5-4-6.5 4z" fill="currentColor"/></svg>',
   smooth: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M7.5 13.5c2 2.2 7 2.2 9 0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
+  lantern: '<svg viewBox="0 0 24 24"><path d="M9 4h6M10 4v2M14 4v2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><rect x="7" y="6" width="10" height="13" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 10v5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><path d="M9 21h6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
   jar: '<svg viewBox="0 0 24 24"><path d="M8 3.5h8M8.5 3.5v3L6 9.5V19a2 2 0 002 2h8a2 2 0 002-2V9.5l-2.5-3v-3" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>',
 };
 const $ = (h) => { const d = document.createElement('div'); d.innerHTML = h.trim(); return d.firstElementChild; };
@@ -60,7 +65,7 @@ export class UI {
     this.el('#edge').onclick = () => this.G.showWay();
     this.el('#caption').onclick = () => this.skipCaption();
     this.dialog.addEventListener('click', (e) => { if (e.target.closest('.choice')) return; this.advance(); });
-    this.el('.gearbtns').addEventListener('click', (e) => { const b = e.target.closest('[data-g]'); if (!b) return; const g = b.dataset.g; if (g === 'smooth') this.G.setSmooth(!this.G.S.blend.smooth); else this.G.toggleGear(g); this.gearKey = ''; });
+    this.el('.gearbtns').addEventListener('click', (e) => { const b = e.target.closest('[data-g]'); if (!b) return; const g = b.dataset.g; if (g === 'smooth') this.G.setSmooth(!this.G.S.blend.smooth); else if (g === 'look') this.G.look.toggle(); else this.G.toggleGear(g); this.gearKey = ''; });
     window.addEventListener('keydown', (e) => this.key(e));
     window.addEventListener('keyup', (e) => { const k = keyName(e); if (this.holding && this.holding.key && (k === '1' || k === ' ' || k === 'Enter')) this.bendRelease(); });
     if (this.touch) document.body.classList.add('touch');
@@ -230,11 +235,12 @@ export class UI {
     h.querySelector('.energy').classList.toggle('low', e < 0.3);
     // gear you own becomes a button you can press (on phones there are no H and J keys)
     const smoothOk = S.blend.has && !S.blend.deleted;
-    const gk = [S.gear.headphones, S.wearing.headphones, S.gear.shades, S.wearing.shades, smoothOk, S.blend.smooth, JSON.stringify(this.set.keys)].join();
+    const lan = !!S.flags.lantern, up = !!(this.G.look && this.G.look.raised);
+    const gk = [S.gear.headphones, S.wearing.headphones, S.gear.shades, S.wearing.shades, smoothOk, S.blend.smooth, lan, up, JSON.stringify(this.set.keys)].join();
     if (gk !== this.gearKey) {
       this.gearKey = gk;
       const b = (g, on, label, ic) => `<button class="gb ${on ? 'on' : ''} ${g === 'smooth' ? 'sm' : ''}" data-g="${g}" aria-pressed="${on}" title="${label}${this.touch ? '' : ' (' + this.G.keyOf(g) + ')'}">${ic}<span>${label}</span></button>`;
-      h.querySelector('.gearbtns').innerHTML = (S.gear.headphones ? b('headphones', S.wearing.headphones, 'Headphones', ICON.gear) : '') + (S.gear.shades ? b('shades', S.wearing.shades, 'Shades', ICON.shades) : '') + (smoothOk ? b('smooth', S.blend.smooth, 'Smooth Mode', ICON.smooth) : '');
+      h.querySelector('.gearbtns').innerHTML = (lan ? b('look', up, 'Lantern', ICON.lantern) : '') + (S.gear.headphones ? b('headphones', S.wearing.headphones, 'Headphones', ICON.gear) : '') + (S.gear.shades ? b('shades', S.wearing.shades, 'Shades', ICON.shades) : '') + (smoothOk ? b('smooth', S.blend.smooth, 'Smooth Mode', ICON.smooth) : '');
       const kp = h.querySelector('.kphone'); if (kp) kp.textContent = this.G.keyOf('phone');
     }
   }
@@ -386,7 +392,7 @@ export class UI {
   openPhone() { this.phoneEl.hidden = false; this.renderPhone(); this.G.audio.sfx('phone'); }
   closePhone() { this.phoneEl.hidden = true; this.G.audio.sfx('back'); }
   phoneTabs() {
-    const S = this.G.S; const tabs = [['today', 'Today', '☰'], ['map', 'Map', '◉'], ['lantern', 'Lantern', '✦'], ['fix', 'Fix-It', '✎'], ['texts', 'Texts', '✉']];
+    const S = this.G.S; const tabs = [['today', 'Today', '☰'], ['map', 'Map', '◉'], ['notebook', 'Notebook', '✎'], ['fix', 'Fix-It', '⚒'], ['texts', 'Texts', '✉']];
     if (S.blend.has && !S.blend.deleted) tabs.splice(1, 0, ['blend', 'Blend', 'b']);
     return tabs;
   }
@@ -405,6 +411,7 @@ export class UI {
     this.phoneEl.querySelectorAll('[data-sub]').forEach((b) => { b.onclick = () => { this.lanSub = b.dataset.sub; this.personOpen = null; this.G.audio.sfx('select'); this.renderPhone(); }; });
     this.phoneEl.querySelectorAll('[data-person]').forEach((b) => { b.onclick = () => { this.personOpen = b.dataset.person; this.G.audio.sfx('page'); this.renderPhone(); }; });
     on('#pback', () => { this.personOpen = null; this.renderPhone(); });
+    { const kt = this.phoneEl.querySelector('#keeptr'); if (kt) kt.onchange = () => { S.lantern.off = S.lantern.off || {}; if (kt.checked) delete S.lantern.off[kt.dataset.who]; else S.lantern.off[kt.dataset.who] = 1; }; }
     on('#pway', () => { this.G.togglePhone(true); this.G.showWay(); });
     this.phoneEl.querySelectorAll('[data-g]').forEach((b) => { b.onclick = () => { const g = b.dataset.g; if (g === 'smooth') G.setSmooth(!S.blend.smooth); else G.toggleGear(g); this.gearKey = ''; this.renderPhone(); }; });
     if (this.phoneTab === 'blend' && G.feed) G.feed.mount(this.phoneEl.querySelector('.feedmount'));
@@ -439,12 +446,13 @@ export class UI {
     const all = !!this.mapAll;
     return `<h3>Larkspur</h3><svg class="map" viewBox="0 0 320 240">${this.mapSvg(S)}</svg><div class="legend">${all ? 'Share of 1,000 simulated residents, each with a random profile, who get through each place without a struggle.' : `<span><i style="background:#9fd3b0"></i>fits you</span><span><i style="background:#f6cf5b"></i>pinches a little</span><span><i style="background:#f2a99a"></i>pinches a lot</span><span><i style="background:#ffcf7a"></i>your way</span>`}</div><button class="btn" id="maptoggle" style="width:100%">${all ? 'Show how it fits you, right now' : 'Show how it fits a thousand residents'}</button>`;
   }
-  // Lantern: a guide to the people of Larkspur that you fill by asking and listening, plus notes and reads
-  tab_lantern(S) {
+  // The Notebook: people you are getting to know, sights you looked again at, field notes, and the pond
+  tab_notebook(S) {
     const sub = this.lanSub || 'people';
     const n = Object.keys(S.notes || {}).length;
-    const seg = `<div class="seg"><button data-sub="people" class="${sub === 'people' ? 'on' : ''}">People</button><button data-sub="notes" class="${sub === 'notes' ? 'on' : ''}">Notes${n ? ' · ' + n : ''}</button><button data-sub="reads" class="${sub === 'reads' ? 'on' : ''}">Reads</button></div>`;
-    return `<h3>Lantern</h3>${seg}` + (sub === 'people' ? this.peopleHtml(S) : sub === 'notes' ? this.notesHtml(S) : this.readsHtml(S));
+    const seg = `<div class="seg"><button data-sub="people" class="${sub === 'people' ? 'on' : ''}">People</button><button data-sub="sights" class="${sub === 'sights' ? 'on' : ''}">Sights</button><button data-sub="notes" class="${sub === 'notes' ? 'on' : ''}">Notes${n ? ' · ' + n : ''}</button><button data-sub="pond" class="${sub === 'pond' ? 'on' : ''}">Pond</button></div>`;
+    if (sub === 'notes') S.notesNew = 0;
+    return `<h3>Notebook</h3>${seg}` + (sub === 'people' ? this.peopleHtml(S) : sub === 'sights' ? this.sightsHtml(S) : sub === 'notes' ? this.notesHtml(S) : this.pondHtml(S));
   }
   face(id, S) { const look = id === 'you' ? S.look : CAST[id].look; try { return this.G.portraitOf(id === 'you' ? Object.assign({}, look) : look, { bg: '#efe6d6', w: 200, h: 200, drift: id === 'you' ? Math.round(this.G.drift() * 9.2) / 10 : 0 }); } catch (e) { return ''; } }
   peopleHtml(S) {
@@ -466,23 +474,38 @@ export class UI {
     }
     const k = (S.know || {})[id] || {}; const P = PEOPLE[id]; const met = !!S.met[id];
     if (!met) return `${back}<div class="phead"><div class="sil big">?</div><div><h4>Someone you have not met</h4><span class="small">Say hi first.</span></div></div>`;
-    const rows = ['over', 'under', 'no', 'helps'].map((sl) => `<div class="slot ${k[sl] ? 'on' : ''}"><span>${SLOT_LABEL[sl]}</span><div>${k[sl] ? esc(P[sl]) : '<i>Ask, listen, or notice.</i>'}</div></div>`).join('');
+    const reads = Object.entries(S.lantern.entries).filter(([h]) => HINTS[h].by === id).map(([h, e]) => { const H = HINTS[h]; return `<div class="read">"${esc(H.t)}" <span class="${e.result === 'wrong' ? 'no' : 'ok'}">${e.result ? (e.result === 'wrong' ? 'They meant: ' + esc(H.truth === 'literal' ? H.literal : H.between) : e.result === 'asked' ? 'You asked. ' + esc(H.truth === 'literal' ? H.literal : H.between) : 'You read it right.') : 'Waiting to see.'}</span></div>`; }).join('');
+    const rows = ['over', 'under', 'no', 'helps'].map((sl) => `<div class="slot ${k[sl] ? 'on' : ''}"><span>${SLOT_LABEL[sl]}</span><div>${k[sl] ? esc(P[sl]) : '<i>Ask, listen, or notice.</i>'}${sl === 'no' && reads ? reads : ''}</div></div>`).join('');
+    const gw = (S.gw || {})[id] || 0; const dots = '●'.repeat(gw) + '○'.repeat(3 - gw);
+    const tr = S.lantern.learned[id] ? `<label class="trrow"><input type="checkbox" id="keeptr" data-who="${id}" ${(S.lantern.off || {})[id] ? '' : 'checked'}> Keep translating for ${esc(CAST[id].name)}</label>` : '';
     const rv = (S.revealed || {})[id] === 'seen';
-    return `${back}<div class="phead"><img src="${this.face(id, S)}" alt=""><div><h4>${esc(CAST[id].name)}</h4><span class="small">${esc(CAST[id].role)}</span></div></div>${rows}${k.love ? `<div class="slot love on"><span>Something they love</span><div>${esc(P.love)}</div></div>` : ''}${rv ? `<div class="revealbox"><span>How ${esc(CAST[id].name)} bends</span><p>${esc(P.reveal)}</p></div>` : `<p class="small">${this.G.story.known(id) >= 3 ? '' : 'Fill three lines to see how ' + esc(CAST[id].name) + ' bends.'}</p>`}`;
+    return `${back}<div class="phead"><img src="${this.face(id, S)}" alt=""><div><h4>${esc(CAST[id].name)}</h4><span class="small">${esc(CAST[id].role)}</span><div class="gwrow" aria-label="Goodwill ${gw} of 3">Goodwill <b>${dots}</b></div></div></div>${rows}${tr}${k.love ? `<div class="slot love on"><span>Something they love</span><div>${esc(P.love)}</div></div>` : ''}${rv ? `<div class="revealbox"><span>How ${esc(CAST[id].name)} bends</span><p>${esc(P.reveal)}</p></div>` : `<p class="small">${this.G.story.known(id) >= 3 ? '' : 'Fill three lines to see how ' + esc(CAST[id].name) + ' bends.'}</p>`}`;
   }
+  // field notes by section; a note shows once something in the game has happened to you (the autism section opens
+  // whole on your first night); numbers live only here, each with its source and how strong the evidence is
   notesHtml(S) {
-    const seen = S.notes || {}; const found = FIELD_NOTES.filter((n) => seen[n.id]);
-    const pond = S.pond || {}; const pondHtml = Object.keys(pond).length ? `<div class="pondguide"><b>Pond guide · ${Object.keys(pond).length} of ${FISH.length}</b><div>${FISH.map((f) => `<span class="${pond[f.id] ? 'on' : ''}" style="--c:${f.col}">${pond[f.id] ? esc(f.name) : '??? <i>' + esc(f.hint || '') + '</i>'}</span>`).join('')}</div></div>` : '';
-    return `<p class="small" style="margin-top:6px">Larkspur is made up. The ideas under it are not. Notes appear here after something in the game has happened to you.</p>${pondHtml}` + (found.length ? found.map((n) => `<div class="note sm"><div class="tag">${esc(n.tag)}</div><h5>${esc(n.title)}</h5><p>${esc(n.text)}</p><div class="src">${esc(n.src)}</div></div>`).join('') : '<p>No notes yet.</p>') + `<p class="small">${FIELD_NOTES.length - found.length} more to find.</p>`;
+    const seen = S.notes || {}; const act = S.act || 1;
+    const html = NOTE_SECTIONS.map((sec) => {
+      const all = FIELD_NOTES.filter((n) => n.section === sec.id && n.act <= act); if (!all.length) return '';
+      const found = all.filter((n) => seen[n.id]);
+      if (sec.id === 'autism' && !S.flags.autismOpen) return `<div class="nsec"><h5>${esc(sec.title)}</h5><p class="small">Opens on your first night.</p></div>`;
+      return `<div class="nsec"><h5>${esc(sec.title)}</h5>${sec.intro && found.length ? `<p class="small">${esc(sec.intro)}</p>` : ''}${found.map((n) => this.noteCard(n, seen[n.id] === S.day)).join('')}${all.length > found.length ? `<p class="small">${all.length - found.length} more to find.</p>` : ''}</div>`;
+    }).join('');
+    return `<p class="small" style="margin-top:6px">Larkspur is made up. The ideas under it are not. A note appears here after something in the game has happened to you.</p>${html}`;
   }
-  readsHtml(S) {
-    const rows = Object.entries(S.lantern.entries).map(([k, e]) => { const H = HINTS[k]; const res = e.result ? (e.result === 'right' || e.result === 'asked' ? '<span class="ok">✓</span>' : '<span class="no">✗</span>') : '…'; return `<tr><td><b>${esc(CAST[H.by].name)}</b><br>"${esc(H.t)}"</td><td>${esc(e.reading)}<br>${res} ${e.result ? esc(e.result === 'wrong' ? 'Not quite: ' + (H.truth === 'literal' ? H.literal : H.between) : 'Confirmed') : '<span class="soft">waiting to see</span>'}</td></tr>`; }).join('');
-    const learned = Object.keys(S.lantern.learned).filter((k) => S.lantern.learned[k]).map((k) => CAST[k].name);
-    return `<p class="small" style="margin-top:6px">What people meant, checked against what you guessed. Lantern only learns from what you have actually seen, and it never guesses for you.${learned.length ? ' It has learned how ' + esc(learned.join(' and ')) + ' talk.' : ''}</p>` + (rows ? `<table class="lantable">${rows}</table>` : '<p>No reads yet.</p>');
+  noteCard(n, isNew) { return `<div class="note sm"><div class="tag">${esc(n.tag)}${isNew ? ' · new today' : ''}</div><h5>${esc(n.title)}</h5><p>${esc(n.text)}</p><div class="src">${esc(n.src)}</div></div>`; }
+  sightsHtml(S) {
+    const L = this.G.look; const rows = L && L.sightsList ? L.sightsList() : [];
+    const lantern = S.flags.lantern ? '' : '<p class="small">Wren left something on your windowsill. You might pick it up.</p>';
+    return lantern + (rows.length ? rows.map((r) => `<div class="card"><b>${esc(r.name)}</b><div class="meta">${esc(r.line)}</div>${r.second ? `<div class="meta also">${esc(r.second)}</div>` : ''}</div>`).join('') : '<p class="small">Raise Wren\'s lantern somewhere in town (L, or the lantern button) to look again at what was made for someone.</p>');
+  }
+  pondHtml(S) {
+    const pond = S.pond || {}; const cards = S.cards || {};
+    return `<div class="pondguide"><b>Pond guide · ${Object.keys(pond).length} of ${FISH.length}</b><div>${FISH.map((f) => `<span class="${pond[f.id] ? 'on' : ''}" style="--c:${f.col}">${pond[f.id] ? esc(f.name) : '??? <i>' + esc(f.hint || '') + '</i>'}</span>`).join('')}</div></div>${Object.keys(cards).length ? `<div class="pondguide"><b>Pond cards</b><div>${FISH.filter((f) => cards[f.id]).map((f) => `<span class="on card" style="--c:${f.col}">${esc(f.name)}${cards[f.id] > 1 ? ' × ' + cards[f.id] : ''}</span>`).join('')}</div><p class="small">Cards count toward nothing. They are just cards.</p></div>` : ''}`;
   }
   // a reveal: how someone you got to know bends too
   postcard(d) {
-    const p = this.openPanel('center postcard', `<div class="pc"><img src="${d.img}" alt=""><div class="pct"><div class="tday">A moment with ${esc(d.name)}</div><p>${esc(d.text)}</p>${d.first ? '<p class="pcfirst">Everyone bends somewhere. Even the people who look like they fit.</p>' : ''}</div></div><div class="pfoot"><button class="btn primary" id="pck">Keep this</button></div>`);
+    const p = this.openPanel('center postcard', `<div class="pc"><img src="${d.img}" alt=""><div class="pct"><div class="tday">A moment with ${esc(d.name)}</div><p>${esc(d.text)}</p></div></div><div class="pfoot"><button class="btn primary" id="pck">Keep this</button></div>`);
     this.G.audio.sfx('page');
     return new Promise((r) => { const go = () => { window.removeEventListener('keydown', kh); this.closePanel(); r(); }; const kh = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } }; p.querySelector('#pck').onclick = go; setTimeout(() => window.addEventListener('keydown', kh), 300); if (FAST) setTimeout(go, 30); });
   }
@@ -497,6 +520,58 @@ export class UI {
       <div class="bl-h">BADGES</div>${B.badges.map((b) => `<span class="badge">${esc(b)}</span>`).join('') || '<span style="font-size:13px;color:#9a6a86">None yet! Smooth something to earn one.</span>'}
       <div class="bl-h">LEADERBOARD</div>${board.map(([n, v]) => `<div class="lb-row ${n.includes('(you)') ? 'me' : ''}"><span>${esc(n)}</span><span>${v}</span></div>`).join('')}
       <div style="margin-top:18px;text-align:center"><button class="btn" id="del" style="font-size:13px">Delete Blend</button><p id="delwarn" hidden style="font-size:13px;color:#9a6a86">${esc(BLEND.delete)}</p></div></div>`;
+  }
+  // ---------- the Standard's room (the puzzle at the statue) ----------
+  // Six rows, the same six objects as your own room. Check as often as you like: once three or more are right, the
+  // right ones lock in. All six, and the plaque tells you what the Standard was. Resolves when closed.
+  standardRoom(L) {
+    const G = this.G, S = G.S; S.stdPick = S.stdPick || {}; S.stdLock = S.stdLock || {};
+    const rows = L.rows(); let msg = '';
+    const solvedView = () => {
+      const { mine, its } = L.roomValues(); const W = 210, rowH = 34;
+      const dial = (vals, other) => `<svg class="rooms" viewBox="0 0 ${W} ${rowH * 6 + 8}" role="img" aria-label="${other ? 'Its room' : 'Your room'}">${rows.map((r, i) => { const y = 8 + i * rowH; const diff = Math.abs(mine[i] - its[i]) > 0.25; return `<g><text x="4" y="${y + 9}" font-size="10" fill="#5b5260">${esc(SETUP_NAMES[r.key])}</text><rect x="4" y="${y + 14}" width="${W - 8}" height="8" rx="4" fill="#e9dfd0" ${diff ? 'stroke="#c8553d" stroke-width="2"' : ''}/><circle cx="${8 + vals[i] * (W - 16)}" cy="${y + 18}" r="6" fill="${other ? '#c9b8a6' : S.look.color}" stroke="#2b2530" stroke-width="1.5"/></g>`; }).join('')}</svg>`;
+      return `<h2>The Standard's room</h2><p class="plaque">${esc(PLAQUE_TEXT)}</p><div class="tworooms"><figure>${dial(mine, false)}<figcaption>Your room</figcaption></figure><figure>${dial(its, true)}<figcaption>Its room</figcaption></figure></div><div class="pfoot"><button class="btn primary" id="sdone">Close</button></div>`;
+    };
+    const view = () => {
+      if (S.w && S.w.standard_solved) return solvedView();
+      return `<h2>The Standard's room</h2><p class="lede">THE STANDARD RESIDENT. Larkspur's measure. How did it like its room?</p>${rows.map((r, i) => `<div class="srow2 ${S.stdLock[r.key] ? 'locked' : ''}"><div class="sq">${esc(r.q)}</div><div class="chips" data-k="${r.key}" role="radiogroup">${r.opts.map((o, j) => `<button class="chip ${S.stdPick[r.key] === j ? 'on' : ''}" data-v="${j}" role="radio" aria-checked="${S.stdPick[r.key] === j}" ${S.stdLock[r.key] ? 'aria-disabled="true"' : ''}>${esc(o)}</button>`).join('')}${S.stdLock[r.key] ? '<span class="tick" aria-label="right">✓</span>' : ''}</div><div class="clue">${esc(r.clue)}</div><div class="clue felt">Where you felt it: ${esc(r.felt)}</div></div>`).join('')}<p class="smsg" role="status">${esc(msg)}</p><div class="pfoot"><button class="btn" id="sdone">Not now</button><button class="btn primary" id="scheck">Check</button></div>`;
+    };
+    const p = this.openPanel('center standard', view());
+    return new Promise((resolve) => {
+      const bind = () => {
+        p.querySelectorAll('.chips [data-v]').forEach((b) => { b.onclick = () => { const k = b.parentElement.dataset.k; if (S.stdLock[k]) return; S.stdPick[k] = +b.dataset.v; this.G.audio.sfx('select'); p.innerHTML = view(); bind(); }; });
+        const done = p.querySelector('#sdone'); if (done) done.onclick = () => { this.closePanel(); resolve(); };
+        const chk = p.querySelector('#scheck'); if (chk) chk.onclick = () => {
+          const right = rows.filter((r) => S.stdPick[r.key] === r.answer);
+          if (right.length >= 3) { for (const r of right) S.stdLock[r.key] = 1; }
+          if (right.length === 6) { G.story.solveStandard(); this.G.audio.sfx('good'); }
+          else { msg = right.length >= 3 ? ['', '', '', 'Three are right.', 'Four are right.', 'Five are right.'][right.length] : 'Not yet. Fewer than three are right.'; this.G.audio.sfx(right.length >= 3 ? 'page' : 'back'); }
+          p.innerHTML = view(); bind(); this.announce(S.w && S.w.standard_solved ? PLAQUE_TEXT : msg);
+        };
+      };
+      bind();
+    });
+  }
+  // ---------- Who decided? ----------
+  decidedCard(d) {
+    const pay = d.pay.length ? d.pay.map((p) => `<figure>${p.img ? `<img src="${p.img}" alt="">` : '<i class="vsil"></i>'}<figcaption>${esc(p.name)}</figcaption></figure>`).join('') : '<p class="small">Nobody else, this time.</p>';
+    const p = this.openPanel('center decided', `<div class="tday">Who decided? · ${d.n} of ${d.of}</div><p class="dverb">${esc(d.verb)}</p><div class="dcols"><div><h4>What you faced</h4><ul>${d.faced.map((x) => `<li>${esc(x)}</li>`).join('')}</ul></div><div><h4>Also true</h4><ul>${d.also.map((x) => `<li>${esc(x)}</li>`).join('')}</ul></div></div><h4>Who paid</h4><div class="dpay">${pay}</div><div class="pfoot">${d.first ? '<button class="btn" id="dskip">Skip to the festival</button>' : ''}<button class="btn primary" id="dnext">Next</button></div>`);
+    this.announce('Who decided? ' + d.verb + ' What you faced: ' + d.faced.join(' ') + ' Also true: ' + d.also.join(' ') + ' Who paid: ' + (d.pay.map((x) => x.name).join(', ') || 'nobody else'));
+    return new Promise((r) => {
+      const go = (v) => { window.removeEventListener('keydown', kh); this.closePanel(); r(v); };
+      const kh = (e) => { if (e.key === 'Enter') { e.preventDefault(); go('next'); } };
+      p.querySelector('#dnext').onclick = () => go('next'); const sk = p.querySelector('#dskip'); if (sk) sk.onclick = () => go('skip');
+      setTimeout(() => window.addEventListener('keydown', kh), 300); if (FAST) setTimeout(() => go('next'), 40);
+      setTimeout(() => { const b = p.querySelector('#dnext'); if (b && !this.touch) b.focus(); }, 60);
+    });
+  }
+  defaultCard(opts) {
+    const p = this.openPanel('center decided', `<div class="tday">Who decided?</div><h2>One thing to set differently next time</h2><div class="list">${opts.map((o) => `<button class="choice" data-id="${o.id}"><span class="t">${esc(o.t)}</span><span class="sub">${esc(o.sub)}</span></button>`).join('')}</div><p class="small">It carries to your next visit, if you make one. You can change it then.</p>`);
+    this.announce('One thing to set differently next time. ' + opts.map((o, i) => (i + 1) + '. ' + o.t + ': ' + o.sub).join(' '));
+    return new Promise((r) => {
+      p.querySelectorAll('[data-id]').forEach((b) => { b.onclick = () => { this.closePanel(); this.G.audio.sfx('confirm'); r(b.dataset.id); }; });
+      if (FAST) setTimeout(() => { this.closePanel(); r(opts[opts.length - 1].id); }, 40);
+    });
   }
   // ---------- the morning card ----------
   today(d) {
@@ -513,21 +588,35 @@ export class UI {
       <h4>Kept moments</h4><div class="jarrow"><div class="jar">${marbles}</div><div class="jt">${d.jarText}</div></div>
       ${d.news.length ? `<h4>Around town</h4><ul class="ev-news">${d.news.map((n) => `<li>${esc(n)}</li>`).join('')}</ul>` : ''}
       ${d.open ? `<h4>Still open</h4><p class="ev-open">${esc(d.open)}</p>` : ''}
+      ${d.notebook ? `<p class="ev-open">${esc(d.notebook)} It's in your phone, under Notebook.</p>` : ''}
       ${d.tomorrow.length ? `<h4>Tomorrow</h4><ul class="ev-news">${d.tomorrow.map((n) => `<li>${esc(n)}</li>`).join('')}</ul>` : ''}
       <div class="pfoot"><button class="btn primary" id="sleep">Sleep</button></div>`);
     return new Promise((r) => { const go = () => { window.removeEventListener('keydown', kh); this.closePanel(); r(); }; const kh = (e) => { if (e.key === 'Enter') { e.preventDefault(); go(); } }; p.querySelector('#sleep').onclick = go; setTimeout(() => window.addEventListener('keydown', kh), 300); });
   }
   ending(d) {
-    const p = this.openPanel('ending', `<div class="wrap"><div class="portraits"><figure><img src="${d.before}" alt="You on day one">You on day one</figure><figure><img src="${d.after}" alt="You tonight">You tonight</figure></div>
-      <h1>${esc(d.title)}</h1><p class="lead">${esc(d.text)}</p><ul class="fates">${d.fates.map((f) => `<li>${esc(f)}</li>`).join('')}</ul>
-      <div class="qs">${d.questions.map(esc).join('<br>')}</div>
-      <div class="row"><button class="btn primary" id="notes">What was this about?</button><button class="btn" id="again">Play again</button></div><div id="noteslist"></div></div>`);
-    p.querySelector('#again').onclick = () => location.reload();
+    const p = this.openPanel('ending', `<div class="wrap"><div class="portraits"><figure><img src="${d.before}" alt="You on your first day">You on your first day</figure><figure><img src="${d.after}" alt="You tonight">You tonight</figure></div>
+      <h1>${esc(d.title)}</h1><p class="lead">${esc(d.text)}</p>${d.line ? `<p class="eline">${esc(d.line)}</p>` : ''}
+      <h4 class="eh">What Larkspur will remember</h4><ul class="fates">${d.remember.map((f) => `<li>${esc(f)}</li>`).join('')}</ul>
+      <div class="row erow"><button class="btn primary" id="notes">What was this about?</button><button class="btn" id="card">Make your fit card</button>${d.act < 3 && this.G.story.nextAct ? `<button class="btn accent" id="next">${d.act === 1 ? 'Ten years later' : 'Twenty years later'}</button>` : ''}<button class="btn" id="again">Play this visit again</button></div>
+      <div class="ecode"><label for="vcode">Your visit code</label><textarea id="vcode" class="codebox" readonly rows="2">${esc(d.code || '')}</textarea><div class="row"><button class="btn" id="copy">Copy</button></div><p class="small">It holds only what carries to the next visit: no name, nothing else. Paste it into "Played before?" on any device.</p></div>
+      <div id="cardbox"></div><div id="noteslist"></div></div>`);
+    p.querySelector('#again').onclick = () => { try { sessionStorage.setItem('mtf.again', JSON.stringify({ act: d.act, default: this.G.S.default || 'as_is' })); } catch (e) { /* replay without the default */ } location.reload(); };
+    const nx = p.querySelector('#next'); if (nx) nx.onclick = () => this.G.story.nextAct();
+    p.querySelector('#copy').onclick = async () => { const t = p.querySelector('#vcode'); t.select(); let ok = false; try { await navigator.clipboard.writeText(t.value); ok = true; } catch (e) { try { ok = document.execCommand('copy'); } catch (e2) { ok = false; } } this.toast(ok ? 'Copied.' : 'Select the code and copy it.', '', 2000); };
     p.querySelector('#notes').onclick = () => {
-      const notes = d.notes || FIELD_NOTES;
-      p.querySelector('#noteslist').innerHTML = `<p class="nl-intro">Larkspur is made up. The ideas under it are not. Here is what the game was built on, with how strong the evidence is.</p>` + notes.map((n) => `<div class="note ${n.seen ? 'seen' : ''}"><div class="tag">${esc(n.tag)}${n.seen ? ' · you found this one' : ''}</div><h5>${esc(n.title)}</h5><p>${esc(n.text)}</p><div class="src">${esc(n.src)}</div></div>`).join('');
+      const S = this.G.S; const seen = S.notes || {}; const act = S.act || 1;
+      p.querySelector('#noteslist').innerHTML = `<p class="nl-intro">Larkspur is made up. The ideas under it are not. Here is what the game was built on, with how strong the evidence is.</p>` + NOTE_SECTIONS.map((sec) => { const ns = FIELD_NOTES.filter((n) => n.section === sec.id && n.act <= act); if (!ns.length) return ''; return `<h3 class="nlsec">${esc(sec.title)}</h3>${sec.intro ? `<p class="small">${esc(sec.intro)}</p>` : ''}` + ns.map((n) => `<div class="note ${seen[n.id] ? 'seen' : ''}"><div class="tag">${esc(n.tag)}${seen[n.id] ? ' · you found this one' : ''}</div><h5>${esc(n.title)}</h5><p>${esc(n.text)}</p><div class="src">${esc(n.src)}</div></div>`).join(''); }).join('') + `<div class="support"><h3 class="nlsec">Support</h3>${SUPPORT.lines.map((l) => `<p><b>${esc(l.where)}</b> ${esc(l.text)}</p>`).join('')}<p class="small">${esc(SUPPORT.footer)}</p></div>`;
       p.querySelector('#notes').hidden = true; p.querySelector('#noteslist').scrollIntoView({ behavior: 'smooth' });
+    };
+    p.querySelector('#card').onclick = async () => {
+      const box = p.querySelector('#cardbox'); box.innerHTML = '<p class="small">Drawing your card…</p>';
+      try {
+        const data = d.card(); const cv = await drawFitCard(data); const alt = cardAltText(data);
+        box.innerHTML = `<figure class="fitfig"><img alt="${esc(alt)}" src="${cv.toDataURL('image/png')}"><figcaption><button class="btn primary" id="savecard">Save the card</button></figcaption></figure><p class="small">Your name is not on it. Saving asks first, and nothing leaves this device unless you send it.</p>`;
+        box.querySelector('#savecard').onclick = async () => { const r = await saveFitCard(cv) || {}; if (r.status === 'saved') this.toast('Saved.', '', 2200); else if (r.status === 'declined') this.toast('Not saved.', '', 2200); else { const n = document.createElement('p'); n.className = 'small'; n.textContent = 'Saving a file isn\'t possible here. Right-click or long-press the card to save the picture.'; box.appendChild(n); } };
+      } catch (e) { box.innerHTML = '<p class="small">The card could not be drawn here.</p>'; }
     };
     return new Promise(() => {});
   }
+
 }

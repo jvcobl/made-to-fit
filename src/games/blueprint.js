@@ -167,7 +167,7 @@ export class Blueprint extends MiniGame {
   }
   results() {
     const S = this.G.S; S.sketch = S.sketch || {}; S.sketch[this.fix] = this.allFit ? 'zoned' : 'plain';
-    if (this.allFit) { this.G.story.fieldNote('zoning'); this.G.story.fieldNote('both'); }
+    if (this.allFit) this.G.story.fieldNote('zoning');
     return { headline: this.allFit ? 'Everyone has somewhere that fits' : 'A sketch, for now', line: 'Clover: "' + (this.allFit ? this.B.win : this.B.lose) + '"', zoned: this.allFit, button: 'Take the sketch' };
   }
   auto(q = 0.9) { if (this.mode === 'demo') { const b = this.over.querySelector('.go'); if (b) b.click(); return true; } if (this.mode === 'play') { if (q > 0.5) { this.allFit = true; } this.end(); return true; } const b = this.over.querySelector('.go'); if (b) { b.click(); return true; } return false; }

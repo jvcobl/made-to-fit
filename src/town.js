@@ -373,7 +373,16 @@ export class Town {
     st.bodyMat.roughness = 0.38; st.bodyMat.metalness = 0.12;
     st.root.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.userData.noOcc = true; } });
     this.scene.add(st.root); this.statue = st;
-    this.addSign('THE STANDARD RESIDENT\nLarkspur was built to fit them.', cx, 0.8, cz + 1.32, 2.2, 0.62, { size: 30, bg: '#efe3cf', border: '#8a6f4e', fg: '#5a4630', h: 160 });
+    this.plaque = this.addSign('THE STANDARD RESIDENT\nLarkspur\'s measure.', cx, 0.8, cz + 1.32, 2.2, 0.62, { size: 30, bg: '#efe3cf', border: '#8a6f4e', fg: '#5a4630', h: 160 });
+    // once you have worked out its room, the plaque says what the Standard was
+    this.plaque2 = this.addSign('THE STANDARD RESIDENT\nA composite from one summer.\nNot a portrait of anyone.', cx, 0.8, cz + 1.32, 2.2, 0.62, { size: 26, bg: '#efe3cf', border: '#8a6f4e', fg: '#5a4630', h: 160 }); this.plaque2.visible = false;
+    // the noon bell, on a post at the north edge of the square (a Look again sight)
+    { const bx = 30, bz = 16.6;
+      this.batch.add(new THREE.CylinderGeometry(0.08, 0.1, 3.0, 8), PAL.woodDark, mtx(bx, 1.5, bz));
+      this.batch.add(new THREE.BoxGeometry(1.0, 0.1, 0.12), PAL.woodDark, mtx(bx, 3.0, bz));
+      this.batch.add(new THREE.CylinderGeometry(0.16, 0.34, 0.42, 14, 1, true), '#c99a3a', mtx(bx + 0.28, 2.7, bz));
+      this.batch.add(new THREE.SphereGeometry(0.07, 8, 6), '#8a6a2a', mtx(bx + 0.28, 2.46, bz));
+      this.block(bx - 0.25, bz - 0.25, bx + 0.25, bz + 0.25); }
     this.block(cx - 1.6, cz - 1.6, cx + 1.6, cz + 1.6);
     this.addInter({ id: 'statue', kind: 'prop', x: cx, z: cz + 2.3, r: 1.5, label: 'Read the plaque' });
     // stalls on the north arc, facing the statue
@@ -450,6 +459,11 @@ export class Town {
     this.addSign('NOTICES\nlost cat · choir · fix-it', 47, 1.55, 13.62, 1.7, 0.95, { size: 34, bg: '#f0e0c0' });
     this.block(46, 13.3, 48, 13.9);
     this.addInter({ id: 'notice', kind: 'prop', x: 47, z: 14.8, r: 1.3, label: 'Read the notice board' });
+    // the council's own notice board, by Town Hall: meetings booked a year ahead
+    this.batch.add(new THREE.CylinderGeometry(0.06, 0.06, 1.7, 6), PAL.woodDark, mtx(34.7, 0.85, 13.85)); this.batch.add(new THREE.CylinderGeometry(0.06, 0.06, 1.7, 6), PAL.woodDark, mtx(36.1, 0.85, 13.85));
+    this.addSign('COUNCIL MEETINGS\nbooked to next spring', 35.4, 1.5, 13.92, 1.5, 0.7, { size: 30, bg: '#efe3cf', fg: '#5a3a2a', border: '#8a6f4e' });
+    this.block(34.6, 13.7, 36.2, 14.0);
+    this.addInter({ id: 'council_notice', kind: 'prop', x: 35.4, z: 14.9, r: 1.2, label: 'Read the council notices' });
     // picnic table + bench
     this.batch.add(new RoundedBoxGeometry(2, 0.1, 0.9, 1, 0.03), PAL.wood, mtx(58, 0.75, 13));
     for (const sz of [-0.75, 0.75]) this.batch.add(new RoundedBoxGeometry(2, 0.08, 0.35, 1, 0.03), PAL.wood, mtx(58, 0.45, 13 + sz));
@@ -608,6 +622,7 @@ export class Town {
       });
     }
   }
+  setPlaque(solved) { if (this.plaque && this.plaque2) { this.plaque.visible = !solved; this.plaque2.visible = !!solved; } }
   setFix(id, on) {
     if (id === 'dim') { this.glassWorks.emissive.set(on ? '#ffd9a0' : '#e9f6ff'); this.glassWorks.color.set(on ? '#e9dcc5' : '#cfe4ef'); this.worksDim = on; return; }
     if (this.fixGroups[id]) this.fixGroups[id].visible = on;

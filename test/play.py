@@ -8,7 +8,7 @@ PROFILES = {
   'lively': {'light': 0.9, 'sound': 0.9, 'people': 0.1, 'talk': 0.9, 'time': 0.1, 'change': 0.9},
 }
 SETUP_DIM = ['light', 'sound', 'people', 'talk', 'time', 'change']
-def run(policy, seed, prof, wheels=False, shots=None, mobile=False, budget=280):
+def run(policy, seed, prof, wheels=False, shots=None, mobile=False, budget=420):
     t0 = time.time(); rnd = random.Random(seed); errors = []; taken = set(); out = {'policy': policy, 'profile': prof + ('+wheels' if wheels else ''), 'seed': seed}
     plan = {'talked': {}, 'step': 0}
     with sync_playwright() as p:

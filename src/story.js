@@ -1,10 +1,13 @@
 // The season: prologue, three days, the council, the festival, the ending. Interprets the scripts in content.js.
 import * as THREE from 'three';
 import * as SIM from './sim.js';
-import { CAST, TALK, HINTS, BARRIER, GUTS, NOTICE, ASK, BYSTANDER, FAVOURS, STAKES, FELT, PROLOGUE, SETUP, TEXTS, COUNCIL, FESTIVAL, ENDINGS, QUESTIONS, BLEND, NIGHT, PEOPLE, LIKED, UNASKED, FIELD_NOTES, SLOT_LABEL } from './content.js';
+import { CAST, TALK, HINTS, BARRIER, GUTS, NOTICE, ASK, BYSTANDER, FAVOURS, STAKES, FELT, PROLOGUE, SETUP, TEXTS, COUNCIL, FESTIVAL, ENDINGS, QUESTIONS, BLEND, NIGHT, PEOPLE, LIKED, UNASKED, SLOT_LABEL } from './content.js';
+import { FIELD_NOTES } from './notes.js';
 import { clamp, pick, sleep, FAST, fmtTime, now, seedRng, params } from './util.js';
 import * as SAVE from './save.js';
 import { escortBea } from './guide.js';
+import { whoDecided, DEFAULTS } from './decided.js';
+import { endingKey, TITLES, specificLine, remember, buildCarry, fitCardData } from './ending.js';
 import { parseCond, parseEffect, compare } from './script.js';
 import { SortGame } from './games/sort.js';
 import { StampGame } from './games/stamp.js';
@@ -36,7 +39,10 @@ export class Story {
   async start() {
     const G = this.G;
     const read = SAVE.readSave();
-    const pick = await this.titleScreen({ save: read.save || null });
+    // "Play this visit again" reloads straight into a new visit, with the one thing you chose to set differently
+    let again = null; try { again = JSON.parse(sessionStorage.getItem('mtf.again') || 'null'); sessionStorage.removeItem('mtf.again'); } catch (e) { again = null; }
+    const pick = again ? { kind: 'new' } : await this.titleScreen({ save: read.save || null });
+    if (again && again.default) this.S.carryDefault = again.default;
     if (pick.kind === 'code' && pick.carry) this.ui.toast('That visit code is for a return visit. Start here first; return visits open once a visit ends.', '', 6000);
     const save = pick.kind === 'continue' ? pick.save : pick.kind === 'code' ? pick.save : null;
     if (save) {
@@ -102,6 +108,8 @@ export class Story {
     home.setLight(P.light); home.setSign(1 - P.people); home.setCalendar(P.change);
     home.objs.clock.group.rotation.y = (P.time - 0.5) * 0.6; home.objs.note.group.rotation.y = 0.2 + P.talk * 0.6;
     if (home.setJar) home.setJar(S.jar || []);
+    home.setLantern(S.day >= 1 && !S.flags.lantern);
+    if (S.w && S.w.standard_solved && G.town.setPlaque) G.town.setPlaque(true);
     this.revealQ = Object.keys(S.revealed || {}).filter((k) => S.revealed[k] === 'pending');
     if (S.look0) S.portrait0 = G.portraitOf(S.look0, {});
     G.player.root.visible = true;
@@ -228,16 +236,20 @@ export class Story {
       S.revealed[id] = 'seen';
       await this.ui.postcard({ img: this.G.portraitOf(CAST[id].look, { bg: '#f3e6cf' }), name: CAST[id].name, text: PEOPLE[id].reveal, first });
       this.keep('reveal_' + id, CAST[id].name + ' bends too', CAST[id].look.color);
-      // the notes about hiding arrive through people you know, not through your own bending
-      if (id === 'bea' || id === 'pip') this.fieldNote('masking'); if (id === 'clover' || id === 'gil') this.fieldNote('hiding');
+      if (id === 'bea') this.fieldNote('listening');
     }
   }
-  // field notes unlock right after the thing they describe has happened to you
+  // Field notes unlock quietly, after the thing they describe has happened to you: a dot on the Notebook, and the
+  // evening page counts them. The autism section is never triggered by a moment; it opens whole on the first night.
   fieldNote(id) {
-    const S = this.S; S.notes = S.notes || {}; if (S.notes[id]) return; const n = FIELD_NOTES.find((x) => x.id === id); if (!n) return;
-    S.notes[id] = S.day || 1;
-    if (this.G.mode === 'title' || S.day === 0) return;
-    this.ui.toast(`<span class="noteicon">✎</span><b>New field note</b> in Lantern<br><span class="tsub">${n.title}</span>`, 'note', 3600); this.ui.ping(true);
+    const S = this.S; S.notes = S.notes || {}; if (S.notes[id]) return;
+    const n = FIELD_NOTES.find((x) => x.id === id); if (!n || n.act > (S.act || 1) || n.section === 'autism') return;
+    S.notes[id] = S.day || 1; S.notesNew = (S.notesNew || 0) + 1;
+    if (this.G.mode !== 'title' && S.day > 0) this.ui.ping(true);
+  }
+  openAutism() {
+    const S = this.S; S.notes = S.notes || {}; if (S.flags.autismOpen) return; S.flags.autismOpen = 1;
+    for (const n of FIELD_NOTES) if (n.section === 'autism' && n.act <= (S.act || 1) && !S.notes[n.id]) { S.notes[n.id] = S.day || 1; S.notesNew = (S.notesNew || 0) + 1; }
   }
   // after a first conversation: how do you think that went? (the answer you overhear later is usually warmer)
   async likingGap(id) {
@@ -308,7 +320,8 @@ export class Story {
   async hint(id, ctx) {
     const H = HINTS[id], S = this.S;
     const learned = S.lantern.learned[H.by];
-    await this.say(H.by, H.t, { kind: 'hint', extra: learned ? `<div class="lantern">Lantern: "${H.truth === 'literal' ? H.literal : H.between}"</div>` : '' });
+    const tr = learned && !(S.lantern.off || {})[H.by] && this.G.settings.lanternVoice !== false;
+    await this.say(H.by, H.t, { kind: 'hint', extra: tr ? `<div class="lantern">Lantern: "${H.truth === 'literal' ? H.literal : H.between}"</div>` : '' });
     const t = S.profile.talk;
     const read = t < 0.38 ? 'literal' : t > 0.62 ? 'between' : null;
     await this.gut(read === 'literal' ? 'Take the words as they come: "' + H.literal + '"' : read === 'between' ? 'Translation: "' + H.between + '"' : 'It could mean two different things. You are not sure which.');
@@ -331,7 +344,7 @@ export class Story {
   }
   learn(who) {
     const S = this.S; const n = Object.values(S.lantern.entries).filter((e) => e.by === who && (e.result === 'right' || e.result === 'asked')).length;
-    if (n >= 2 && !S.lantern.learned[who]) { S.lantern.learned[who] = true; this.ui.toast(`<b>Lantern learned how ${CAST[who].name} talks</b><br>It will quietly translate from now on.`, 'idea', 5000); this.fieldNote('double'); }
+    if (n >= 2 && !S.lantern.learned[who]) { S.lantern.learned[who] = true; this.ui.toast(`<b>Lantern learned how ${CAST[who].name} talks</b><br>It will quietly translate from now on. You can turn that off on ${CAST[who].name}'s page.`, 'idea', 5000); }
   }
 
   // ---------- the title and the prologue ----------
@@ -420,6 +433,11 @@ export class Story {
   async morning(d) {
     const G = this.G, S = this.S;
     S.day = d; S.min = SIM.wakeMin(S); seedRng((S.seed * 31 + d * 7919 + (S.act || 1) * 104729) >>> 0);
+    const dflt = S.carryDefault;
+    if (dflt === 'leave_early') { S.min -= 20; S.energy = clamp(S.energy - 8, 0, S.maxE); }
+    if (dflt === 'text_first') { S.mods.homerow = Object.assign(S.mods.homerow || {}, { people: -0.15 }); }
+    if (dflt === 'headphones_market') S.gear.headphones = true;
+    if (dflt === 'blend_off' && d === 1 && !S.blend.has) { S.blend.deleted = true; }
     G.setLoc('home'); G.place(G.rooms.home.spots.center); G.player.heading = -0.9;
     { const c = G.roomCam('home'); G.stage.shot(c.pos, c.look, c.fov, 3, true); }
     S.dayStats = Object.assign({}, S.stats); S.metAt0 = Object.keys(S.met); S.fixAt0 = Object.assign({}, S.fixes);
@@ -428,6 +446,7 @@ export class Story {
     S.rue = this.rueState();
     for (const id of Object.keys(S.lantern.entries)) this.resolveHint(id, false);
     G.audio.setScene('home');
+    G.rooms.home.setLantern(!S.flags.lantern);
     this.ui.hud(true);
     await G.stage.fadeTo(0, 900);
     await this.ui.caption(['', 'Monday', 'Tuesday', 'Wednesday'][d] + ', ' + fmtTime(S.min), 1800);
@@ -437,7 +456,9 @@ export class Story {
     if (d === 3) { this.text('Gil (work)', 'Festival mail 9 to 11, then we close! :)'); this.text('Hollis', 'The Lantern Festival is tonight at 8, in the square!'); }
     if (S.blend.has && !S.blend.deleted) this.text('Blend', pick(BLEND.drop) + (S.blend.streak ? ' Streak: ' + S.blend.streak + ' days!' : ''));
     await sleep(400);
-    await this.ui.today(this.todayCard(d));
+    const card = this.todayCard(d); if (dflt && DEFAULTS[dflt] && dflt !== 'as_is') card.carried = 'You set this last time: ' + DEFAULTS[dflt].t.toLowerCase() + '.';
+    await this.ui.today(card);
+    if (dflt === 'rest_first') { await this.note('You start the day with half an hour on a bench that fits. Nobody needs anything from you yet.'); this.ui.hideDialog(); G.advance(30); S.energy = clamp(S.energy + 10, 0, S.maxE); S.self = clamp(S.self + 2, 0, 100); }
   }
   todayCard(d) {
     const S = this.S;
@@ -470,7 +491,7 @@ export class Story {
     if (S.jar.length >= 12) { S.flags.jarFull = 1; return; }
     S.jar.push({ t, c }); this.G.audio.sfx('jar');
     this.ui.toast(`<span class="jaricon"></span><b>Kept:</b> ${t}`, 'keep', 2600);
-    if (S.jar.length === 12) { S.flags.jarFull = 1; setTimeout(() => this.ui.toast('Your jar is full. That is what enough looks like.', 'idea', 4800), 900); this.fieldNote('satiety'); }
+    if (S.jar.length === 12) { S.flags.jarFull = 1; setTimeout(() => this.ui.toast('Your jar is full.', 'idea', 4800), 900); this.fieldNote('glp1'); }
     if (this.G.rooms.home.setJar) this.G.rooms.home.setJar(S.jar);
   }
   onOutside(from) {
@@ -567,6 +588,7 @@ export class Story {
     { const fv = this.dueFavour(); if (fv && !G.ui.waiter && G.ui.panel.hidden && !G.phoneOpen) { G.run(() => this.favour(fv)); return; } }
     { const sf = !G.ui.waiter && G.ui.panel.hidden && !G.phoneOpen ? this.stakeVisit() : null; if (sf) { G.run(() => this.stakeTalk(sf)); return; } }
     const z = G.zone; if (z === 'home') return;
+    if (S.carryDefault === 'headphones_market' && z === 'market' && S.gear.headphones && !S.wearing.headphones && !S.flags['hpm' + d]) { S.flags['hpm' + d] = 1; S.wearing.headphones = true; G.player.setGear('headphones', true); S.spot = clamp(S.spot + 0.15, 0, 1); this.ui.toast('You put your headphones on as you reached the market, like you decided last time. People notice.', '', 4200); this.log('default', { z, v: 'headphones', by: 'you', pay: ['you'] }); }
     if (this.unasked(z)) return;
     // barriers: when a place pinches, ask who adjusts
     const key = d + ':' + z + (z === 'festival' ? ':f' : '');
@@ -593,7 +615,7 @@ export class Story {
     }
     G.focusPinch(true); G.lastBarrier = now();
     const coach = !S.flags.coached ? 'Five ways to handle a place that does not fit. None of them is wrong, and each one costs something different.' : ''; S.flags.coached = 1;
-    this.fieldNote('fit'); if (p.dims[top].under > 0) this.fieldNote('both');
+    this.fieldNote('fit');
     const fixId = (SIM.FIX_FOR[zone] || {})[top];
     const noticed = sens(S, top) && NOTICE[zone] && NOTICE[zone][top];
     const gutList = (GUTS[dir] && GUTS[dir][top]) || [];
@@ -607,7 +629,7 @@ export class Story {
       const options = [
         { key: 'bend', who: 'You', label: 'Push through', sub: 'You stay, and nobody notices. −4 energy; the pinch stays, hidden.', hold: true },
         gearKey ? (S.gear[gearKey] && !S.wearing[gearKey] ? { key: 'gear', who: 'Your gear', label: 'Put on your ' + gearKey, sub: 'You stay. ' + (gearKey === 'headphones' ? 'Sound' : 'Glare') + ' only; people may notice.' } : { key: 'gear', who: 'Your gear', label: 'Use gear', disabled: true, reason: S.wearing[gearKey] ? 'already on, and still not enough' : 'nothing for this yet. Moss sells some.' }) : { key: 'gear', who: 'Your gear', label: 'Use gear', disabled: true, reason: 'nothing you own helps with this' },
-        ownerHere && !o.noAsk ? { key: 'ask', who: 'Them', label: 'Ask ' + name + ' to change it', sub: gw >= 1 ? 'It may change for you now. Uses 1 of ' + name + '\'s goodwill ' + this.dots(gw) + '; ' + name + ' may ask you for a hand later.' : shared ? 'It pinches ' + name + ' too, and you know it. ' + name + ' may ask you for a hand later.' : name + ' doesn\'t know you well yet. They\'ll probably say no.' } : { key: 'ask', who: 'Them', label: 'Ask someone', disabled: true, reason: o.noAsk ? 'you asked. The answer was no.' : owner ? 'nobody in charge is here right now' : 'nobody here is in charge of it' },
+        ownerHere && !o.noAsk ? { key: 'ask', who: 'Them', label: 'Ask ' + name + ' to change it', sub: gw >= 1 ? 'It may change for you now. Uses goodwill ' + this.dots(gw) + '; ' + name + ' may ask a favour later.' : shared ? 'It pinches ' + name + ' too, and you know it. ' + name + ' may ask a favour later.' : name + ' doesn\'t know you well yet. They\'ll probably say no.' } : { key: 'ask', who: 'Them', label: 'Ask someone', disabled: true, reason: o.noAsk ? 'you asked. The answer was no.' : owner ? 'nobody in charge is here right now' : 'nobody here is in charge of it' },
         fixId && !noted && SIM.fixState(S, fixId) === 'none' ? (noticed || S.flags['told_' + fixId] ? { key: 'fix', who: 'The place', label: 'Note it for the Fix-It Shed', sub: 'Could change it for everyone, later. Slow; two a season; someone loses something.' } : { key: 'fix', who: 'The place', label: 'Note it', disabled: true, reason: 'you are not sure what is causing it' }) : { key: 'fix', who: 'The place', label: 'Fix it', disabled: true, reason: fixId && SIM.fixState(S, fixId) !== 'none' ? 'already in your notes' : 'nothing obvious to change here' },
         { key: 'leave', who: 'Nobody', label: exitWord, sub: 'You rest. You miss what you came for.' },
       ];
@@ -637,7 +659,7 @@ export class Story {
           this.log('barrier', Object.assign({ v: 'ask', pay: [owner].concat(bn && bn !== owner ? [bn] : []) }, row));
         } else {
           this.ui.hideDialog(); G.advance(5); this.know(owner, 'no');
-          this.log('refused', Object.assign({ v: 'ask', by: owner, pay: ['you'] }, row));
+          this.log('refused', Object.assign({ v: 'ask', by: owner, pay: ['you'] }, row)); this.fieldNote('sludge');
           return await this.barrier(zone, { force: true, noAsk: true });
         }
       }
@@ -710,7 +732,7 @@ export class Story {
       if (pickK === 'leave') { S.stats.leave++; this.log('barrier', { z: 'works', v: 'leave', pay: ['you'], dim: 'wheels', dir: 'over' }); return; }
       if (pickK === 'ask') { S.spot = clamp(S.spot + 0.25, 0, 1); S.self = clamp(S.self - 2, 0, 100); S.stats.ask++; this.log('barrier', { z: 'works', v: 'ask', pay: ['you'], dim: 'wheels', dir: 'over' }); await this.note('Two people from accounting lift the front of your chair. Everyone in the lobby watches. Someone says "there we go" in a voice usually used for toddlers.'); this.ui.hideDialog(); }
       // a separate door sets you apart, and takes longer: that is bending, not gear
-      if (pickK === 'dock') { G.advance(12); S.stats.bend++; this.log('barrier', { z: 'works', v: 'bend', pay: ['you'], dim: 'wheels', dir: 'over' }); await this.note('Around the side, past the dumpsters, through the loading dock. It takes twelve minutes.'); this.ui.hideDialog(); }
+      if (pickK === 'dock') { this.fieldNote('sludge'); G.advance(12); S.stats.bend++; this.log('barrier', { z: 'works', v: 'bend', pay: ['you'], dim: 'wheels', dir: 'over' }); await this.note('Around the side, past the dumpsters, through the loading dock. It takes twelve minutes.'); this.ui.hideDialog(); }
     }
     await G.enterRoom('works');
     if (S.day === 2 && ((S.bonds.gil || 0) >= 1 || (S.know && S.know.gil && S.know.gil.over)) && SIM.pinch(S, 'works', S.min).dims.light.over > 0) {
@@ -768,7 +790,7 @@ export class Story {
       await this.say('you', SIM.FIXES[f].what);
       if ((S.bonds.gil || 0) >= 1 || (f === 'dim' && S.flags.gil_head) || (S.sketch || {})[f] === 'zoned') {
         await this.say('gil', 'Okay. Yes. Let\'s do it. Don\'t tell corporate. Actually, tell corporate.');
-        S.fixes[f] = 'approved'; S.fixAct = S.fixAct || {}; S.fixAct[f] = S.act || 1; S.fixVia = S.fixVia || {}; S.fixVia[f] = 'owner';
+        this.approve(f, 'owner', true);
         this.ui.toast(`<b>Gil approved it</b><br>${SIM.FIXES[f].name}. ${S.day >= 3 ? 'It goes up on Thursday.' : 'Up by tomorrow.'} ${this.capLine()}`, 'good'); this.G.audio.sfx('fix');
         this.log('vote', { z: SIM.FIXES[f].zone, v: 'approved', by: 'gil', pay: [STAKES[f].who].filter((w) => (S.stakes || {})[f] !== 'listened') });
       }
@@ -827,7 +849,7 @@ export class Story {
         this.ui.letterbox(true);
         if (r && r.zoned) await this.say('clover', f === 'plain' ? 'One line. Who, what, by when. I want to frame it.' : 'Everyone fits. I\'m bringing this one to the town meeting myself.');
       }
-      S.fixes[f] = 'proposal'; G.audio.sfx('ink'); this.fieldNote('ud'); this.know('clover', 'helps');
+      S.fixes[f] = 'proposal'; G.audio.sfx('ink'); this.fieldNote('ud'); this.know('clover', 'helps'); if ((S.sketch || {})[f] === 'zoned') this.fieldNote('zoning');
       S.gw.clover = Math.min(3, this.gwOf('clover') + 1);
       // whoever it costs will come and find you; a sketch that already zones has thought of them
       S.stakes = S.stakes || {}; S.stakeDue = S.stakeDue || {};
@@ -851,9 +873,11 @@ export class Story {
       if (nowAbs < S.stakeDue[f] || S.min >= 1260) continue;
       const who = STAKES[f].who; const n = G.npcs[who]; if (!n) continue;
       if (Object.values(G.npcs).some((q) => q.visit && q !== n)) return null; // one at a time
-      if (!n.visit) { n.visit = true; n.visitPos = n.place === 'town' ? [n.c.root.position.x, n.c.root.position.z] : this.visitFrom(who); n.visitFix = f; n.visitT = 0; }
+      if (!n.visit) { n.visit = true; n.visitPos = n.place === 'town' ? [n.c.root.position.x, n.c.root.position.z] : this.visitFrom(who); n.visitFix = f; n.visitT = 0; n.visitAt = now(); }
       const q = n.c.root.position;
       if (n.place === 'town' && Math.hypot(q.x - me.x, q.z - me.z) < 2.3) return f;
+      // still not caught up after a while: they call out, and you stop for them
+      if (n.place === 'town' && now() - (n.visitAt || now()) > (FAST ? 4000 : 14000)) { n.c.root.position.set(me.x + 1.6, 0, me.z + 0.8); n.visitPos = [me.x + 1.6, me.z + 0.8]; this.ui.bubble(who, 'Got a minute? About the ' + SIM.FIXES[f].short + '.', { tint: CAST[who].tint, ms: 2400 }); return f; }
       // follow you at a walk, aiming a step to your side
       if (Math.hypot(n.visitPos[0] - me.x, n.visitPos[1] - me.z) > 1.6 && (n.visitT = (n.visitT || 0) + 1) % 20 === 0) n.visitPos = [me.x + 1.1, me.z + 0.6];
       return null;
@@ -959,7 +983,8 @@ export class Story {
     const n = (S.jar || []).length;
     const title = c.fix + c.ask > c.bend && c.fix + c.ask > 0 ? 'You changed something today.' : c.bend >= 3 ? 'You carried a lot today.' : c.leave >= 2 ? 'You looked after yourself today.' : 'A day in Larkspur.';
     const tomorrow = d === 1 ? ['Weekly sync at the Works, 9:00.', 'Town meeting at 6 PM. Proposals with two backers get a vote.'] : d === 2 ? ['Festival day. The Works opens 9 to 11 for festival mail.', 'The Lantern Festival at 8 PM.'] : [];
-    return { day: ['', 'Monday', 'Tuesday', 'Wednesday'][d], title, counts: c, jar: S.jar || [], jarMax: 12, jarText: n >= 12 ? 'Full, and glowing.' : n + ' of 12. It does not need to be full.', news, open: this.openThread(), tomorrow };
+    const nb = S.notesNew || 0;
+    return { day: ['', 'Monday', 'Tuesday', 'Wednesday'][d], title, counts: c, jar: S.jar || [], jarMax: 12, jarText: n >= 12 ? 'Full, and glowing.' : n + ' of 12. It does not need to be full.', news, open: this.openThread(), tomorrow, notebook: nb ? 'New in your notebook: ' + nb + (d === 1 && S.flags.autismOpen ? ', including a section on autism research and what autistic adults have described.' : '.') : '' };
   }
   // ---------- nights ----------
   async night(d) {
@@ -976,8 +1001,9 @@ export class Story {
     if (d === 1 && S.flags.rue_cracked) S.flags.rue_invite = 1;
     for (const [w, t] of NIGHT[d](S)) { this.text(w, t); await sleep(1100); }
     await sleep(600);
+    this.fieldNote('endings'); if (d === 1) { this.fieldNote('made'); this.openAutism(); }
     await this.ui.evening(this.eveningData(d));
-    this.fieldNote('endings'); if (d === 1) this.fieldNote('made');
+    S.notesNew = 0;
     const r = SIM.nightUpdate(S);
     if (S.blend.has && !S.blend.deleted && S.blend.streak >= 1) this.fieldNote('streaks');
     if (S.blend.has && S.blend.smooth && !S.blend.deleted) S.self = clamp(S.self - 2, 0, 100);
@@ -1072,12 +1098,12 @@ export class Story {
     }
     if (yes >= 2) {
       await this.say('hollis', COUNCIL.passed); await this.say('clover', COUNCIL.passedClover);
-      this.approve(f, 'meeting'); G.audio.sfx('fix'); this.fieldNote('curb'); this.keep('built_' + f, 'The ' + F.short + ', voted through', '#9fd3b0');
+      this.approve(f, 'meeting', !presenter); G.audio.sfx('fix'); this.fieldNote('curb'); this.keep('built_' + f, 'The ' + F.short + ', voted through', '#9fd3b0');
       this.log('vote', { z: F.zone, v: 'passed', by: 'meeting', pay: stake === 'listened' ? [] : [STAKES[f].who] });
     } else { await this.say('hollis', COUNCIL.failed); S.fixes[f] = 'onfile'; this.log('vote', { z: F.zone, v: 'failed', by: 'meeting', pay: ['you'] }); }
     return yes >= 2;
   }
-  approve(f, via) { const S = this.S; S.fixes[f] = 'approved'; S.fixAct = S.fixAct || {}; S.fixAct[f] = S.act || 1; S.fixVia = S.fixVia || {}; S.fixVia[f] = via; }
+  approve(f, via, mine) { const S = this.S; S.fixes[f] = 'approved'; S.fixAct = S.fixAct || {}; S.fixAct[f] = S.act || 1; S.fixVia = S.fixVia || {}; S.fixVia[f] = via; if (mine) { S.fixMine = S.fixMine || {}; S.fixMine[f] = 1; } }
   // Rue speaks at the meeting only if she is easing, and only because she wants to
   async rueTestimony() {
     const S = this.S; S.flags.rueSpoke = 1;
@@ -1114,6 +1140,14 @@ export class Story {
     this.G.npcTo('clover', null);
     await this.say('clover', lines.join(' ')); this.ui.hideDialog();
   }
+  // the Standard's room, solved: the plaque says what the Standard was, and every Look again card gains a line
+  solveStandard() {
+    const S = this.S; S.w = S.w || {}; if (S.w.standard_solved) return; S.w.standard_solved = 1;
+    this.keep('standard', 'You found the Standard\'s room', '#d6c6ad');
+    for (const id of ['misfit', 'reference', 'ranges', 'average']) this.fieldNote(id);
+    this.log('sight', { z: 'market', v: 'standard', by: 'you', pay: [] });
+    if (this.G.town.setPlaque) this.G.town.setPlaque(true);
+  }
   // ---------- festival day ----------
   // a built fix, used by the people it was for, the first time you pass through its place at its time
   feltDue() {
@@ -1149,6 +1183,7 @@ export class Story {
     const near = ['moss', 'wren', 'pip'].filter((id) => (S.bonds[id] || 0) >= 1).length;
     return S.flags.rue_pond || near >= 2 ? 'easing' : 'streak';
   }
+  async whoDecided() { await whoDecided(this); }
   // 7:30 on Wednesday: Who decided?, on the walk over, then the festival
   async toFestival() {
     const S = this.S;
@@ -1207,28 +1242,16 @@ export class Story {
 
   // ---------- the ending ----------
   async ending() {
-    const G = this.G, S = this.S, F = S.fixes;
-    const key = SIM.endingOf(S); const E = ENDINGS[key];
+    const G = this.G, S = this.S;
+    const rue = this.rueState(); const key = endingKey(S); const E = TITLES[key];
     const after = G.portrait();
-    const fates = [];
-    fates.push(F.board === 'built' ? 'Bea\'s daughter made the 7:40, because the bus board said Elm Street in big letters.' : 'Bea waited at the bench for the 7:40. It went down Elm Street again.');
-    fates.push(S.flags.wren_invited ? 'Wren came to the festival, and pointed out which lanterns were theirs. Most of them.' : 'Wren spent the festival in the workshop, finishing lanterns nobody had ordered yet.');
-    fates.push(S.flags.rue_free ? 'Rue came without the app, and said her face was doing things she had not told it to.' : 'Rue spent the festival chasing a four-hundred-and-fourteen-day streak.');
-    { const w = ['ramp', 'dim', 'plain'].filter((f) => F[f] === 'built'); if (w.length) fates.push('The Works is a little different now: ' + LIST(w.map((f) => SIM.FIXES[f].short)) + '. Other people use ' + (w.length > 1 ? 'them' : 'it') + ' more than you do.'); }
-    fates.push(S.flags.hollis_archive ? 'Hollis has started talking about a new statue, with lots of shapes, possibly designed by committee.' : 'The statue of the Standard Resident still stands in the square, fitting no one.');
-    const seenBend = Object.keys(S.revealed || {}).filter((k) => S.revealed[k] === 'seen').map((k) => CAST[k].name);
-    if (seenBend.length) fates.push('You got to know ' + LIST(seenBend) + ' well enough to see how they bend. Everyone bends somewhere. Some people bend all day.');
-    const made = S.lanternsMade || []; const right = made.filter((m) => m.score === 3).map((m) => m.name);
-    if (made.length) fates.push(right.length ? LIST(right) + (right.length > 1 ? ' each' : '') + ' found the lantern you made, and knew it was theirs before reading the name.' : made.length === 1 ? 'One lantern rose for ' + made[0].name + '. It was not quite right. ' + made[0].name + ' watched it all the way up anyway.' : (['', '', 'Two', 'Three'][made.length] || made.length) + ' lanterns rose for people you know. They were not quite right. People watched them all the way up anyway.');
-    const fish = Object.keys(S.pond || {}).length; if (fish) fates.push('You met ' + fish + ' kind' + (fish > 1 ? 's' : '') + ' of fish in the pond, each in its own part of the water, and let every one go.');
-    const jar = (S.jar || []).length; fates.push(jar >= 12 ? 'The jar on your windowsill is full. It does not need anything else. It just glows.' : 'The jar on your windowsill holds ' + jar + ' kept moment' + (jar === 1 ? '' : 's') + '. It never needed to be full.');
-    if (S.blend.deleted) fates.push('Blend sent you three emails asking you to come back. The birds did not send anything. They were just there.');
-    const tf = SIM.townFit(S.fixes, S.stakes).all;
-    if (tf > S.tf0 + 0.001) fates.push('Of a thousand simulated residents, about ' + Math.round((tf - S.tf0) * 1000) + ' more now get by in Larkspur than when you arrived.');
-    G.audio.setScene('title');
-    this.ui.hud(false); this.ui.letterbox(false); this.ui.clearBubbles();
-    this.fieldNote('avatar'); this.fieldNote('nosim');
-    const seen = S.notes || {}; const notes = FIELD_NOTES.map((n) => Object.assign({ seen: !!seen[n.id] }, n)).sort((a, b) => (b.seen ? 1 : 0) - (a.seen ? 1 : 0));
-    await this.ui.ending({ before: S.portrait0, after, title: E.title, text: E.text, fates, questions: QUESTIONS, notes });
+    this.openAutism(); this.fieldNote('avatar'); this.fieldNote('nosim');
+    // proposals that never got a vote wait for next season
+    for (const f of Object.keys(S.fixes)) if (['proposal', 'ready', 'tabled'].includes(S.fixes[f])) S.fixes[f] = 'onfile';
+    const carry = buildCarry(S, key, rue);
+    const prev = SAVE.readCarry(); const acts = Object.assign({}, (prev.carry && prev.carry.acts) || {}); acts[String(S.act || 1)] = carry; SAVE.writeCarry({ acts });
+    this.carry = carry; this.carryCode = SAVE.encodeVisit(carry);
+    G.audio.setScene('title'); this.ui.hud(false); this.ui.letterbox(false); this.ui.clearBubbles();
+    await this.ui.ending({ before: S.portrait0 || after, after, title: E.title, text: E.text, line: specificLine(S, key), remember: remember(S, rue), code: this.carryCode, act: S.act || 1, key, card: () => fitCardData(S, G, key) });
   }
 }

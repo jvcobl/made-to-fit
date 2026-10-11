@@ -101,6 +101,13 @@ export class Home extends Room {
     for (let i = 0; i < 12; i++) { const m = new THREE.Mesh(new THREE.SphereGeometry(0.036, 10, 8), new THREE.MeshStandardMaterial({ color: '#ffcf7a', emissive: '#ffcf7a', emissiveIntensity: 1.2, roughness: 0.4 })); const a = i * 2.4; const r = i < 3 ? 0.05 : 0.07; m.position.set(Math.cos(a) * r, 0.04 + Math.floor(i / 4) * 0.065, Math.sin(a) * r); m.visible = false; jar.add(m); this.marbles.push(m); }
     this.jarGlass = jg; this.jarLight = new THREE.PointLight('#ffcf7a', 0, 2.2, 2); this.jarLight.position.set(0, 0.2, 0.1); jar.add(this.jarLight);
     this.scene.add(jar); this.jar = jar;
+    // Wren's lantern, left on the sill on your first morning (Look again)
+    { const lg = new THREE.Group(); lg.position.set(2.3, 1.13, -2.82);
+      const base = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.1, 0.04, 12), std('#4f4aa8')); base.position.y = 0.02; lg.add(base);
+      const glass = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.075, 0.17, 12), new THREE.MeshStandardMaterial({ color: '#ffe6a8', emissive: '#ffcf7a', emissiveIntensity: 0.9, roughness: 0.3 })); glass.position.y = 0.13; lg.add(glass);
+      const cap = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.07, 12), std('#4f4aa8')); cap.position.y = 0.25; lg.add(cap);
+      const tag = new THREE.Mesh(new THREE.PlaneGeometry(0.1, 0.06), std('#fbf6ee')); tag.position.set(0.1, 0.1, 0.06); tag.rotation.y = -0.4; lg.add(tag);
+      lg.visible = false; this.scene.add(lg); this.lanternObj = lg; }
     // a small plant on the sill too
     B.add(new THREE.CylinderGeometry(0.09, 0.07, 0.14, 10), '#c8553d', mtx(1.75, 1.2, -2.82));
     for (let i = 0; i < 5; i++) B.add(new THREE.SphereGeometry(0.07, 7, 5), '#6fae5b', mtx(1.75 + Math.cos(i * 1.3) * 0.06, 1.33 + (i % 2) * 0.05, -2.82 + Math.sin(i * 1.3) * 0.05));
@@ -135,6 +142,7 @@ export class Home extends Room {
       { id: 'calendar', kind: 'set', x: -1.2, z: -2.0, r: 1.0, label: 'The calendar' }, { id: 'sign', kind: 'set', x: -3.1, z: 1.6, r: 1.1, label: 'The door sign' },
       { id: 'mirror', kind: 'mirror', x: 2.2, z: -0.3, r: 1.1, label: 'The mirror' }, { id: 'bed', kind: 'bed', x: -1.5, z: -0.6, r: 1.2, label: 'Go to bed' },
       { id: 'out', kind: 'exit', x: -3.2, z: 1.6, r: 1.1, label: 'Head out' },
+      { id: 'sill', kind: 'prop', x: 2.3, z: -2.1, r: 1.0, label: 'Pick up the lantern on the sill', hidden: true },
     ];
     this.spawn = [0.4, 1.2];
     this.cam = { pos: new THREE.Vector3(5.6, 6.2, 8.4), look: new THREE.Vector3(-0.3, 0.9, -0.7), fov: 36 };
@@ -142,6 +150,7 @@ export class Home extends Room {
     this.finish();
     this.setSign(0.5); this.setCalendar(0.5); this.prefs = { light: 0.5, sound: 0.5 };
   }
+  setLantern(on) { if (this.lanternObj) this.lanternObj.visible = on; const it = this.inter && this.inter.find((x) => x.id === 'sill'); if (it) it.hidden = !on; }
   group(parts, x, z, ry = 0) {
     const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = ry;
     for (const [geo, c, px, py, pz, o = {}] of parts) { const m = new THREE.Mesh(geo, std(c, { emissive: o.emissive || '#000000', emissiveIntensity: o.emissiveIntensity || 0, side: THREE.DoubleSide })); m.position.set(px, py, pz); if (o.rx) m.rotation.x = o.rx; if (o.rz) m.rotation.z = o.rz; m.castShadow = true; g.add(m); }

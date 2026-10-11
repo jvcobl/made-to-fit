@@ -10,12 +10,13 @@ const src = path.join(here, '..', 'src');
 const C = await import(path.join(src, 'content.js'));
 const SIM = await import(path.join(src, 'sim.js'));
 const SC = await import(path.join(src, 'script.js'));
+const NB = await import(path.join(src, 'notes.js'));
 
 const errors = [], warns = [];
 const err = (m) => errors.push(m), warn = (m) => warns.push(m);
 const SPEAKERS = new Set([...Object.keys(C.CAST), 'you']);
 const SLOTS = new Set(['over', 'under', 'no', 'helps', 'love']);
-const NOTES = new Set(C.FIELD_NOTES.map((n) => n.id));
+const NOTES = new Set(NB.FIELD_NOTES.map((n) => n.id));
 const CALLS = new Set(['shop', 'fold', 'proposals', 'archive', 'paint']);
 const ZONES = new Set(Object.keys(SIM.PLACES).concat(['home']));
 const flagWrites = new Map(), flagReads = new Map();
@@ -85,7 +86,7 @@ for (const d of Object.keys(C.NIGHT)) for (const flags of [{}, { bea_bus: 1, fol
   try { const out = C.NIGHT[d]({ flags, met, fixes: {}, bonds: {}, blend: {} }); if (!Array.isArray(out) || !out.every((x) => Array.isArray(x) && x.length === 2 && x[1])) err('NIGHT[' + d + '] returned a bad list'); } catch (e) { err('NIGHT[' + d + '] threw: ' + e.message); }
 }
 // flags the code reads and writes (keys built at runtime are listed here on purpose)
-const RUNTIME = /^(shift\d|missed\d|low1_\d|low2_\d|dusk\d|asked_\w+|gilasked_\w+|told_\w+|late\d)$/;
+const RUNTIME = /^(shift\d|missed\d|low1_\d|low2_\d|dusk\d|asked_\w+|gilasked_\w+|told_\w+|late\d|hpm\d)$/;
 for (const f of fs.readdirSync(src).concat(fs.readdirSync(path.join(src, 'games')).map((x) => 'games/' + x))) {
   if (!f.endsWith('.js')) continue; const code = fs.readFileSync(path.join(src, f), 'utf8');
   for (const m of code.matchAll(/S\.flags\.(\w+)\b\s*=(?!=)/g)) note(flagWrites, m[1], f);
@@ -93,6 +94,13 @@ for (const f of fs.readdirSync(src).concat(fs.readdirSync(path.join(src, 'games'
   for (const m of code.matchAll(/S\.flags\.(\w+)\b(?!\s*=[^=])/g)) note(flagReads, m[1], f);
   for (const m of code.matchAll(/['"`&|!(\s]flag\.(\w+)\b/g)) if (!f.endsWith('script.js') && !['position', 'rotation', 'scale', 'visible', 'material'].includes(m[1])) note(flagReads, m[1], f);
 }
+for (const f of fs.readdirSync(src).concat(fs.readdirSync(path.join(src, 'games')).map((x) => 'games/' + x))) {
+  if (!f.endsWith('.js')) continue; const code = fs.readFileSync(path.join(src, f), 'utf8');
+  for (const m of code.matchAll(/fieldNote\('(\w+)'\)/g)) if (!NOTES.has(m[1])) err(f + ': fieldNote("' + m[1] + '") is not a note in notes.js');
+}
+// stakeholder talks are scripts too
+for (const [f, T] of Object.entries(C.STAKES || {})) { walk(T.talk, 'STAKES.' + f + '.talk'); if (!C.CAST[T.who]) err('STAKES.' + f + ': unknown person'); if (!SIM.FIXES[f]) err('STAKES.' + f + ': unknown fix'); }
+for (const [f, F] of Object.entries(SIM.FIXES)) if (!(C.STAKES || {})[f]) err('FIXES.' + f + ': no stakeholder in STAKES');
 for (const [k, w] of flagWrites) if (!flagReads.has(k) && !RUNTIME.test(k)) warn('flag "' + k + '" is written (' + w + ') but never read');
 for (const [k, w] of flagReads) if (!flagWrites.has(k) && !RUNTIME.test(k)) err('flag "' + k + '" is read (' + w + ') but never written');
 // words: numbers stay in the notebook, and some phrases are ruled out everywhere
@@ -101,8 +109,9 @@ const BANNED_IN_PLAY = ['limbic capitalism'];
 function strings(o, where, out) { if (typeof o === 'string') out.push([where, o]); else if (Array.isArray(o)) o.forEach((x, i) => strings(x, where + '[' + i + ']', out)); else if (o && typeof o === 'object') for (const [k, v] of Object.entries(o)) strings(v, where + '.' + k, out); return out; }
 const all = [];
 for (const [k, v] of Object.entries(C)) if (typeof v !== 'function') strings(v, k, all);
+for (const [k, v] of Object.entries(NB)) if (typeof v !== 'function') strings(v, k, all);
 for (const [w, s] of all) {
-  const inNotes = w.startsWith('FIELD_NOTES');
+  const inNotes = w.startsWith('FIELD_NOTES') || w.startsWith('NOTE_SECTIONS') || w.startsWith('SUPPORT') || w.startsWith('CONTENT_NOTES') || w.startsWith('INGREDIENTS') || w.startsWith('CREDIT');
   for (const b of BANNED) if (s.toLowerCase().includes(b.toLowerCase())) err(w + ': banned phrase "' + b + '"');
   if (!inNotes) { for (const b of BANNED_IN_PLAY) if (s.toLowerCase().includes(b)) err(w + ': "' + b + '" only belongs in the notebook'); if (/\d\s?%|percent/.test(s)) err(w + ': percentages only belong in the notebook'); }
 }
