@@ -14,6 +14,7 @@ import { updateLOD } from './lod.js';
 import { Feel } from './feel.js';
 import { Look } from './look.js';
 import { Feed } from './games/feed.js';
+import { sampleCarry } from './returns.js';
 import * as SAVE from './save.js';
 import { Menus, actionOf, DEFAULT_KEYS, keyLabel } from './menus.js';
 import { params, FAST, FIXED, STEP, clock, keyName, clamp, lerp, damp, makeRng, pick, sleep } from './util.js';
@@ -100,6 +101,7 @@ class Game {
     this.npcs = {};
     let seed = 400;
     for (const id of Object.keys(CAST)) {
+      if (CAST[id].voiceOnly) continue; // heard, never seen: the call bell, and Unit (drawn by robot.js)
       const c = new Creature(CAST[id].look, { seed: seed++ });
       if (CAST[id].cart) {
         const cart = new THREE.Group(); const m = new THREE.MeshStandardMaterial({ color: '#4f6f8f', roughness: 0.7 });
@@ -122,6 +124,10 @@ class Game {
   npcWant(id) {
     const S = this.S, d = S.day, m = S.min;
     if (d === 0) return { place: 'away' };
+    // some people only live in some visits; the return visits keep their own day (see returns.js)
+    const act = S.act || 1; const C = CAST[id];
+    if (C && C.acts && !C.acts.includes(act)) return { place: 'away' };
+    if (act > 1) return this.story.ret ? this.story.ret.npcWant(id) : { place: 'away' };
     // someone on their way to find you (a fix's stakeholder): they come out into town and walk up
     const me = this.npcs[id]; if (me && me.visit && me.visitPos) return { place: 'town', pos: me.visitPos };
     if (id === 'bea' && this.beaWay) return { place: 'town', pos: this.beaWay };
@@ -335,7 +341,7 @@ class Game {
   }
   placeFestival() { /* residents take their festival spots through npcWant */ }
   placeCouncil() { for (const w of this.audience) w.root.visible = true; }
-  applyFix(f) { this.town.setFix(f, true); if (f === 'dim') this.rooms.works.setDim(true); }
+  applyFix(f) { this.town.setFix(f, true); if (f === 'dim') this.rooms.works.setDim(true); const R = this.story && this.story.ret; if (R && R.A.applyFix) R.A.applyFix(R, f); }
   focusPinch(on) { this.barrierFocus = on; }
   noteWhere() {
     const p = this.pinchNow; if (!p || !p.top || p.topV < 0.08 || this.zone === 'home' || this.S.day < 1) return;
@@ -459,10 +465,11 @@ class Game {
   }
   labelFor(it) {
     const S = this.S;
+    if (this.story.ret) { const l = this.story.ret.label(it); if (l) return l; }
     if (it.id === 'statue' && S.flags.festival) return 'Release your lantern';
     if (it.id === 'statue' && S.flags.statue_seen) return S.w && S.w.standard_solved ? 'Read the plaque' : 'Work out the Standard\'s room';
-    if (it.id === 'home' && S.min >= 1020 && S.day > 0 && S.day < 3) return 'Go home for the night';
-    if (it.id === 'bed') return S.min >= 1020 && S.day < 3 ? 'Go to bed' : 'Rest a while';
+    if (it.id === 'home' && S.min >= 1020 && S.day > 0 && !this.story.finalDay()) return 'Go home for the night';
+    if (it.id === 'bed') return S.min >= 1020 && !this.story.finalDay() ? 'Go to bed' : 'Rest a while';
     if (it.id === 'mydesk' && this.story.shiftOpen()) return S.day === 1 ? 'Start your shift' : 'Join the weekly sync';
     return it.label;
   }
@@ -474,9 +481,10 @@ class Game {
     const S = this.S, st = this.story;
     if (t.kind === 'npc') return st.talkTo(t.id);
     const id = t.id;
-    if (id === 'home') { if (S.min >= 1020 && S.day > 0 && S.day < 3) { await this.stage.fadeTo(1, 600); st.finishDay('sleep'); return; } return this.enterRoom('home'); }
+    if (st.ret && (await st.ret.handle(t))) return;
+    if (id === 'home') { if (S.min >= 1020 && S.day > 0 && !st.finalDay()) { await this.stage.fadeTo(1, 600); st.finishDay('sleep'); return; } return this.enterRoom('home'); }
     if (id === 'out') return this.exitRoom();
-    if (id === 'bed') { if (S.min >= 1020 && S.day < 3) { await this.stage.fadeTo(1, 600); st.finishDay('sleep'); return; } await st.note('You lie down for a while. The room is exactly as you set it.'); this.ui.hideDialog(); this.advance(45); S.energy = clamp(S.energy + 18, 0, S.maxE); S.self = clamp(S.self + 3, 0, 100); return; }
+    if (id === 'bed') { if (S.min >= 1020 && !st.finalDay()) { await this.stage.fadeTo(1, 600); st.finishDay('sleep'); return; } await st.note('You lie down for a while. The room is exactly as you set it.'); this.ui.hideDialog(); this.advance(45); S.energy = clamp(S.energy + 18, 0, S.maxE); S.self = clamp(S.self + 3, 0, 100); return; }
     if (id === 'mirror') { await st.gut(this.drift() > 0.3 ? 'Your reflection looks paler than it did on Sunday.' : 'There you are.'); this.ui.hideDialog(); return; }
     if (id === 'works' || id === 'dock') return st.enterWorks(id === 'dock' ? 'dock' : 'front');
     if (id === 'hall') { await this.enterRoom('hall'); await st.note(S.day === 2 && S.min >= 1020 && !S.flags.councilDone ? 'People are filing in for the meeting. It starts at six.' : 'The chamber is empty. The founders watch from their portrait.'); this.ui.hideDialog(); return; }
@@ -596,6 +604,7 @@ class Game {
     for (const w of this.workers) if (this.loc === 'works') { w.update(dt); }
     if (this.loc === 'hall') for (const a of this.audience) if (a.root.visible) a.update(dt);
     if (!paused) this.story.tick();
+    if (this.story.ret) this.story.ret.update(dt);
     this.computeFx(dt);
     this.feel.update(dt);
     this.look.update(dt);
@@ -662,6 +671,11 @@ window.__wb = {
   mgTest: (n, a) => G.story.testGame(n, a), mg: () => (G.mgActive && G.mg ? G.mg.id : null), mgAuto: (q) => (G.mg && G.mg.auto ? G.mg.auto(q) : false),
   // ?fixedstep=1 only: advance exactly n frames of 1/60 s (see Game.stepFrames); returns the stepped frame count
   step: (n = 1, drawAll = true) => G.stepFrames(Math.max(0, Math.floor(n)), drawAll !== false), fixed: FIXED, frame: () => clock.frame,
+  // start a later visit from a carry (the real path: storage, then a reload), e.g. __wb.gotoAct(2, { built: ['quiet', 'dim', 'ramp'] })
+  gotoAct: (n, o = {}) => { const c = sampleCarry(o); c.act = n - 1; SAVE.writeCarry({ acts: { [String(n - 1)]: c } }); try { sessionStorage.setItem('mtf.next', JSON.stringify({ act: n, name: o.name || 'Sam' })); } catch (e) { /* the address carries it */ } location.hash = 'return=' + n + (o.viaHash ? '&v=' + SAVE.encodeVisit(c) : ''); location.reload(); },
+  ret: () => (G.story.ret ? { act: G.story.ret.act } : null),
+  // a visit code for a sample carry (to test typing a code on the title)
+  visitCode: (n, o = {}) => { const c = sampleCarry(o); c.act = n; return SAVE.encodeVisit(c); },
   G: null,
 };
 boot();

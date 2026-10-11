@@ -10,3 +10,6 @@ test/view.bundle.js
 test/wrapped.html
 feas/
 dist/
+test/shots_a2/
+test/shots_a3/
+test/shots_recap/

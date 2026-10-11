@@ -11,13 +11,14 @@ const C = await import(path.join(src, 'content.js'));
 const SIM = await import(path.join(src, 'sim.js'));
 const SC = await import(path.join(src, 'script.js'));
 const NB = await import(path.join(src, 'notes.js'));
+const T23 = await import(path.join(src, 'talk23.js'));
 
 const errors = [], warns = [];
 const err = (m) => errors.push(m), warn = (m) => warns.push(m);
 const SPEAKERS = new Set([...Object.keys(C.CAST), 'you']);
 const SLOTS = new Set(['over', 'under', 'no', 'helps', 'love']);
 const NOTES = new Set(NB.FIELD_NOTES.map((n) => n.id));
-const CALLS = new Set(['shop', 'fold', 'proposals', 'archive', 'paint']);
+const CALLS = new Set(['shop', 'fold', 'proposals', 'archive', 'paint', 'onfile']);
 const ZONES = new Set(Object.keys(SIM.PLACES).concat(['home']));
 const flagWrites = new Map(), flagReads = new Map();
 const note = (map, k, where) => { if (!map.has(k)) map.set(k, where); };
@@ -76,6 +77,9 @@ for (const [id, T] of Object.entries(C.TALK)) for (const [k, v] of Object.entrie
 }
 for (const k of ['open', 'none']) if (C.COUNCIL[k]) scripts.push(['COUNCIL.' + k, C.COUNCIL[k]]);
 if (C.SCRIPTS) for (const [k, v] of Object.entries(C.SCRIPTS)) scripts.push(['SCRIPTS.' + k, v]);
+// the later visits' talk (src/talk23.js)
+for (const [k, v] of Object.entries(T23.TALK2)) scripts.push(['TALK2.' + k, v]);
+for (const [k, v] of Object.entries(T23.TALK3)) scripts.push(['TALK3.' + k, v]);
 for (const [w, s] of scripts) walk(s, w);
 // backers
 for (const [f, F] of Object.entries(SIM.FIXES)) for (const b of F.backers) if (!((C.TALK[b] || {}).back || {})[f]) err('FIXES.' + f + ': backer ' + b + ' has no back script');
@@ -110,10 +114,22 @@ function strings(o, where, out) { if (typeof o === 'string') out.push([where, o]
 const all = [];
 for (const [k, v] of Object.entries(C)) if (typeof v !== 'function') strings(v, k, all);
 for (const [k, v] of Object.entries(NB)) if (typeof v !== 'function') strings(v, k, all);
+for (const [k, v] of Object.entries(T23)) if (typeof v !== 'function') strings(v, k, all);
 for (const [w, s] of all) {
   const inNotes = w.startsWith('FIELD_NOTES') || w.startsWith('NOTE_SECTIONS') || w.startsWith('SUPPORT') || w.startsWith('CONTENT_NOTES') || w.startsWith('INGREDIENTS') || w.startsWith('CREDIT');
   for (const b of BANNED) if (s.toLowerCase().includes(b.toLowerCase())) err(w + ': banned phrase "' + b + '"');
   if (!inNotes) { for (const b of BANNED_IN_PLAY) if (s.toLowerCase().includes(b)) err(w + ': "' + b + '" only belongs in the notebook'); if (/\d\s?%|percent/.test(s)) err(w + ': percentages only belong in the notebook'); }
+}
+// every string literal in the code, too: banned phrases ("You won" but not "You won't"), and ages given as numbers
+// (residents' ages are never shown as numbers in play)
+const AGE = /\b(?:fifty|sixty|seventy|eighty|ninety)(?:-(?:one|two|three|four|five|six|seven|eight|nine))?(?:,| and still| years old|\b(?= next))/i;
+for (const f of fs.readdirSync(src).concat(fs.readdirSync(path.join(src, 'games')).map((x) => 'games/' + x))) {
+  if (!f.endsWith('.js')) continue; const code = fs.readFileSync(path.join(src, f), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[\s;,{}()])\/\/.*$/gm, '$1');
+  for (const m of code.matchAll(/'((?:[^'\\\n]|\\.)*)'|"((?:[^"\\\n]|\\.)*)"|`((?:[^`\\]|\\.)*)`/g)) {
+    const t = (m[1] ?? m[2] ?? m[3] ?? '').replace(/\\'/g, "'"); if (t.length < 6) continue;
+    for (const b of BANNED) { const re = b === 'You won' ? /\byou won\b(?!['’]t)/i : null; if (re ? re.test(t) : t.toLowerCase().includes(b.toLowerCase())) err(f + ': banned phrase "' + b + '" in "' + t.slice(0, 60) + '"'); }
+    if (AGE.test(t)) err(f + ': an age given as a number in "' + t.slice(0, 70) + '"');
+  }
 }
 console.log(warns.length ? warns.length + ' warnings' + (process.argv.includes('-v') ? ':\n  ' + warns.join('\n  ') : ' (run with -v to list)') : 'no warnings');
 if (errors.length) { console.log(errors.length + ' errors:\n  ' + errors.join('\n  ')); process.exit(1); }

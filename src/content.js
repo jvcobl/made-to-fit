@@ -14,6 +14,16 @@ export const CAST = {
   // minor residents: no notebook page of their own, but they live here, they react to places, and fixes cost or help them
   dot: { name: 'Dot', role: 'works at the next desk', minor: true, look: { shape: 'tall', color: '#9edcd6', pattern: 'spots', top: 'tuft', wear: 'glasses' }, voice: ['chime', 1.12], tint: '#2b7a78', profile: { sound: 0.55, light: 0.22, people: 0.45, talk: 0.3, time: 0.5, change: 0.4 } },
   fen: { name: 'Fen', role: 'works two desks down', minor: true, look: { shape: 'spiky', color: '#f6cf5b', pattern: 'plain', top: 'horns', wear: 'none' }, voice: ['hum', 0.92], tint: '#8a6a12', profile: { sound: 0.6, light: 0.92, people: 0.6, talk: 0.5, time: 0.3, change: 0.4 } },
+  // ten and twenty years on (they appear only in the visits listed in acts)
+  tomas: { name: 'Tomas', role: 'runs the mail room at the Works', minor: true, acts: [2], look: { shape: 'boxy', color: '#7d9fe0', pattern: 'plain', top: 'tuft', wear: 'scarf', wheels: true }, voice: ['hum', 0.88], tint: '#3f5a87', profile: { sound: 0.5, light: 0.5, people: 0.55, talk: 0.4, time: 0.4, change: 0.4 } },
+  ada: { name: 'Ada', role: 'started at the Works this spring', minor: true, acts: [2], look: { shape: 'round', color: '#bfa9f0', pattern: 'spots', top: 'longears', wear: 'hat' }, voice: ['chime', 1.1], tint: '#6c5c9e', profile: { sound: 0.45, light: 0.22, people: 0.5, talk: 0.5, time: 0.5, change: 0.4 } },
+  ines: { name: 'Ines', role: 'fixes lantern frames with Wren', minor: true, acts: [2, 3], look: { shape: 'tall', color: '#9fd3b0', pattern: 'stripes', top: 'antennae', wear: 'glasses' }, voice: ['click', 1.05], tint: '#2b7a5a', profile: { sound: 0.3, light: 0.45, people: 0.3, talk: 0.15, time: 0.5, change: 0.3 } },
+  marta: { name: 'Marta', role: 'drives the van', minor: true, acts: [2], look: { shape: 'blobby', color: '#f6cf5b', pattern: 'belly', top: 'ears', wear: 'hat' }, voice: ['hum', 0.95], tint: '#8a6a12', profile: { sound: 0.6, light: 0.6, people: 0.5, talk: 0.5, time: 0.3, change: 0.5 } },
+  sana: { name: 'Sana', role: 'answers the call bell, for twelve towns', minor: true, voiceOnly: true, acts: [2], voice: ['chime', 1.0], tint: '#4f6f8f' },
+  unit: { name: 'Unit', role: 'sorts the mail now', minor: true, voiceOnly: true, machine: true, acts: [2], voice: ['click', 1.4], tint: '#8a7f70' },
+  juno: { name: 'Juno', role: 'new in town', minor: true, acts: [3], look: { shape: 'spiky', color: '#f2a99a', pattern: 'stripes', top: 'antennae', wear: 'flower' }, voice: ['whistle', 1.15], tint: '#c8553d', profile: { sound: 0.5, light: 0.5, people: 0.5, talk: 0.5, time: 0.5, change: 0.5 } },
+  hester: { name: 'Hester', role: 'of the Founders\' Fund', minor: true, acts: [3], look: { shape: 'tall', color: '#c9b8a6', pattern: 'plain', top: 'ears', wear: 'hat' }, voice: ['hum', 1.02], tint: '#8a6f4e', profile: { sound: 0.5, light: 0.55, people: 0.5, talk: 0.45, time: 0.4, change: 0.35 } },
+  bao: { name: 'Bao', role: 'sells dumplings with Lin, from a cart', minor: true, acts: [3], look: { shape: 'round', color: '#ffc98e', pattern: 'spots', top: 'longears', wear: 'bow' }, voice: ['chime', 1.05], tint: '#9a3a22', profile: { sound: 0.65, light: 0.6, people: 0.75, talk: 0.5, time: 0.4, change: 0.6 } },
   pomeroy: { name: 'Pomeroy', role: 'sells apples on the square, loudly', minor: true, look: { shape: 'round', color: '#e4796a', pattern: 'belly', top: 'ears', wear: 'hat' }, voice: ['hum', 0.78], tint: '#9a3a22', profile: { sound: 0.85, light: 0.6, people: 0.85, talk: 0.4, time: 0.2, change: 0.5 } },
 };
 
@@ -30,6 +40,38 @@ export const ROUTINES = {
   dot: [[0, 500, 'away'], [500, 1020, 'works', 'dot'], [1020, 1500, 'away']],
   fen: [[0, 495, 'away'], [495, 1030, 'works', 'fen'], [1030, 1500, 'away']],
   pomeroy: [[0, 480, 'away'], [480, 1140, 'town', 'apples'], [1140, 1500, 'away']],
+};
+// ten and twenty years on: one festival day each. Anyone not listed is away (moved, retired, or never born yet).
+export const ROUTINES_ACT = {
+  2: {
+    gil: [[0, 480, 'away'], [480, 700, 'works', 'gil'], [700, 1080, 'town', 'cartFront'], [1080, 1500, 'away']],
+    pip: [[0, 420, 'away'], [420, 900, 'town', 'bakery'], [900, 1050, 'town', 'commons'], [1050, 1230, 'town', 'squareW'], [1230, 1500, 'away']],
+    moss: [[0, 480, 'away'], [480, 1170, 'town', 'cart'], [1170, 1500, 'away']],
+    rue: [[0, 540, 'away'], [540, 1080, 'town', 'kiosk'], [1080, 1500, 'away']],
+    bea: [[0, 470, 'away'], [470, 560, 'town', 'busBench'], [560, 760, 'hall', 'kiosk'], [760, 980, 'town', 'crossing'], [980, 1080, 'town', 'squareE'], [1080, 1500, 'away']],
+    wren: [[0, 420, 'away'], [420, 1200, 'town', 'workshop'], [1200, 1500, 'away']],
+    ines: [[0, 540, 'away'], [540, 1140, 'town', 'wrenBench'], [1140, 1500, 'away']],
+    clover: [[0, 480, 'away'], [480, 1080, 'town', 'shed'], [1080, 1500, 'away']],
+    hollis: [[0, 540, 'away'], [540, 1080, 'town', 'hallSteps'], [1080, 1500, 'away']],
+    pomeroy: [[0, 480, 'away'], [480, 1140, 'town', 'apples'], [1140, 1500, 'away']],
+    tomas: [[0, 480, 'away'], [480, 1050, 'works', 'tomas'], [1050, 1500, 'away']],
+    ada: [[0, 495, 'away'], [495, 700, 'works', 'ada'], [700, 1500, 'away']],
+    marta: [[0, 470, 'away'], [470, 1200, 'town', 'van'], [1200, 1500, 'away']],
+  },
+  3: {
+    gil: [[0, 470, 'away'], [470, 1050, 'town', 'shedYard'], [1050, 1500, 'away']],
+    clover: [[0, 470, 'away'], [470, 620, 'town', 'shedYard2'], [620, 900, 'town', 'bench_commons'], [900, 1500, 'away']],
+    rue: [[0, 470, 'away'], [470, 640, 'town', 'shedYard3'], [640, 1080, 'town', 'kiosk'], [1080, 1500, 'away']],
+    ines: [[0, 470, 'away'], [470, 1050, 'town', 'shedYard4'], [1050, 1500, 'away']],
+    pip: [[0, 420, 'away'], [420, 900, 'town', 'bakery'], [900, 1050, 'town', 'commons'], [1050, 1230, 'town', 'squareW'], [1230, 1500, 'away']],
+    moss: [[0, 480, 'away'], [480, 1170, 'town', 'cart'], [1170, 1500, 'away']],
+    bea: [[0, 480, 'away'], [480, 900, 'town', 'house3'], [900, 1140, 'town', 'squareE'], [1140, 1500, 'away']],
+    wren: [[0, 420, 'away'], [420, 1200, 'town', 'workshop'], [1200, 1500, 'away']],
+    hollis: [[0, 540, 'away'], [540, 1080, 'town', 'hallSteps'], [1080, 1500, 'away']],
+    juno: [[0, 560, 'away'], [560, 1140, 'town', 'junoSpot'], [1140, 1500, 'away']],
+    hester: [[0, 660, 'away'], [660, 900, 'town', 'statueSide'], [900, 1500, 'away']],
+    bao: [[0, 540, 'away'], [540, 1140, 'town', 'apples'], [1140, 1500, 'away']],
+  },
 };
 
 export const HINTS = {
@@ -435,6 +477,26 @@ export const TALK = {
   },
 };
 
+// backing the return visits' fixes (Acts 2 and 3): the same shape as the back scripts above
+Object.assign(TALK.bea.back, {
+  crossing: [{ who: 'bea', t: 'My petition, dear? Sign there. And there. I\'ve been very thorough.' }, { do: ['back.crossing', 'bond.bea+1'] }],
+  bay: [{ who: 'bea', t: 'A bay for the bots? My cart and I would like a word with that ramp. Yes.' }, { do: ['back.bay'] }],
+  farstalls: [{ who: 'bea', t: 'Stalls at the Far End? I\'ll bring soup to the first one. Yes.' }, { do: ['back.farstalls'] }],
+});
+Object.assign(TALK.pip.back, {
+  crossing: [{ who: 'pip', t: 'A longer light? My cart thanks you. My knees thank you more.' }, { do: ['back.crossing'] }],
+  counter: [{ who: 'pip', t: 'A person at the counter? One who knows rye from ride? Yes. Where do I sign.' }, { do: ['back.counter', 'bond.pip+1'] }],
+  rentcap: [{ who: 'pip', t: 'Rents up every year while the queue\'s out the door. Yes. Cap them.' }, { do: ['back.rentcap'] }],
+});
+Object.assign(TALK.gil.back, {
+  counter: [{ who: 'gil', t: 'A human at the counter. The kiosk calls me Jill. Every time. Yes.' }, { do: ['back.counter'] }],
+  bay: [{ who: 'gil', t: 'A bay. Paint and a sign. I can do paint and a sign. Yes.' }, { do: ['back.bay'] }],
+});
+Object.assign(TALK.moss.back, {
+  rentcap: [{ who: 'moss', t: 'A cap for the old stalls? Thirty years on that corner. Yes, love.' }, { do: ['back.rentcap'] }],
+  farstalls: [{ who: 'moss', t: 'The Far End? It\'s quiet there. I\'d like a bit of quiet. Yes.' }, { do: ['back.farstalls'] }],
+});
+
 // the one person each fix costs, what they'd change, and what that costs you (every option costs someone something)
 export const STAKES = {
   quiet: { who: 'pomeroy', loses: 'Pomeroy\'s noon trade: he sells apples by shouting.', lessLoss: 'Pomeroy, less: he keeps his side of the square loud.', variantName: 'on the bench side, away from the apple stall', cost: 'For you: the corner is a little less quiet at noon.',
@@ -465,22 +527,55 @@ export const STAKES = {
     listened: { who: 'gil', t: 'Not this quarter. That\'s... actually plain. Huh. Great.' }, overruled: { who: 'gil', t: 'Okay. No means no. Great. Great.' } },
 };
 
+// the people the return visits' fixes cost (Acts 2 and 3); same shape as above
+Object.assign(STAKES, {
+  crossing: { who: 'marta', loses: 'Marta\'s timetable: the van runs a little late at every long crossing.', lessLoss: 'Marta, less: the light only waits when someone holds the button.', variantName: 'with a button to hold for more time', cost: 'For you: you hold the button, or ask someone to.',
+    talk: [{ who: 'marta', t: 'You\'re the one with Bea\'s petition? Marta. I drive the van.' }, { who: 'marta', t: 'Every time I wait at that light, the van runs late, and the app tells everyone it\'s my fault.' }, { who: 'marta', t: 'Could it wait only when someone holds a button? Then I\'m only late when somebody needs it.' }],
+    change: 'A button to hold for more time.', keep: 'The light waits for whoever is crossing.',
+    listened: { who: 'marta', t: 'A button. Fair. The app can blame the button.' }, overruled: { who: 'marta', t: 'Right. I\'ll tell the app it\'s the town. It won\'t listen either.' } },
+  counter: { who: 'sana', call: true, loses: 'Sana\'s team: a counter in Larkspur comes out of the operators\' contract for twelve towns.', lessLoss: 'Sana\'s team, less: volunteers staff the counter, and the operators keep the bell.', variantName: 'with volunteers at the counter and the operators on the bell', cost: 'For you: sometimes the volunteer has to ring the bell too.',
+    talk: [{ who: 'sana', t: 'Hello, this is Sana, on the call bell. Someone put in a note about a counter in Larkspur.' }, { who: 'sana', t: 'Twelve towns, one headset. If Larkspur pays for a counter, it comes out of our contract, and the other eleven wait longer.' }, { who: 'sana', t: 'Could the counter be volunteers, with us on the bell for the hard ones? I\'ll put a note in either way.' }],
+    change: 'Volunteers at the counter, the operators on the bell.', keep: 'A paid person at the counter.',
+    listened: { who: 'sana', t: 'Volunteers and the bell. I can write that up. Thank you for calling it in.' }, overruled: { who: 'sana', t: 'Understood. I\'ll put a note in. It\'ll be a short note.' } },
+  bay: { who: 'pip', loses: 'Pip\'s flour: when the bots wait in the bay, her deliveries wait too.', lessLoss: 'Pip, less: the bots pull in only at shift changes.', variantName: 'with bots pulling in at shift changes only', cost: 'For you: between shift changes, a bot may still be on the ramp.',
+    talk: [{ who: 'pip', t: 'A passing bay for the bots? Good. Mostly good.' }, { who: 'pip', t: 'My flour comes up that ramp on a bot. If it sits in a bay every time someone passes, my bread rises late.' }, { who: 'pip', t: 'Could they pull in only at shift changes? That\'s when the ramp\'s busy anyway.' }],
+    change: 'Only at shift changes.', keep: 'Whenever someone needs the ramp.',
+    listened: { who: 'pip', t: 'Shift changes. Perfect. My dough thanks you.' }, overruled: { who: 'pip', t: 'Fine! My dough will learn patience.' } },
+  rentcap: { who: 'bao', loses: 'Bao and Lin, fourteenth on the waiting list: capped stalls hardly ever come free.', lessLoss: 'Bao and Lin, less: half the stalls that come free go to the waiting list.', variantName: 'with half the free stalls for the waiting list', cost: 'For you: Moss is capped, but her neighbours may change.',
+    talk: [{ who: 'bao', t: 'Bao. And that\'s Lin, with the steamer. The dumpling cart. We\'re fourteenth on the waiting list.' }, { who: 'bao', t: 'If the old stalls are capped, nobody ever gives one up. We\'ll be fourteenth forever.' }, { who: 'bao', t: 'Could half the stalls that come free go to the list? We\'d bid like everyone else for the rest.' }],
+    change: 'Half the free stalls to the waiting list.', keep: 'A cap for the old stalls, and that\'s all.',
+    listened: { who: 'bao', t: 'Half. We can work with half. Have a dumpling.' }, overruled: { who: 'bao', t: 'Fourteenth it is. The dumplings are still good.' } },
+  farstalls: { who: 'wren', loses: 'Wren, and the Far End\'s quiet: stalls on the lane, and people all afternoon.', lessLoss: 'Wren, less: the stalls open in the afternoon only, and the lane is quiet by dusk.', variantName: 'open afternoons only', cost: 'For you: the stalls close at dusk, when people want them most.',
+    talk: [{ who: 'wren', t: 'Stalls on the lane outside my workshop. I am told this is good news.' }, { who: 'wren', t: 'The Far End is the one quiet place left. People come here to not be in the square.' }, { who: 'wren', t: 'Afternoons only. Closed by dusk. Then the lanterns are still the loudest thing here.' }],
+    change: 'Afternoons only.', keep: 'All day, like the square.',
+    listened: { who: 'wren', t: 'Afternoons. Thank you for saying it plainly.' }, overruled: { who: 'wren', t: 'Then I will put a new sign on my door. It will say knock once. It will mean it.' } },
+  quietrow: { who: 'juno', loses: 'Juno\'s lively shortcut: the music and the bikes stop at the corner now.', lessLoss: 'Juno, less: the quiet zone ends at the garden cut.', variantName: 'ending at the garden cut', cost: 'For you: the far end of Home Row stays lively.',
+    talk: [{ who: 'juno', t: 'The quiet zone on Home Row? That\'s my way to the square.' }, { who: 'juno', t: 'I cut through with my speaker on. It\'s the best two minutes of my day.' }, { who: 'juno', t: 'Could it stop at the garden cut? Your end quiet, my end loud.' }],
+    change: 'Stop at the garden cut.', keep: 'The whole row.',
+    listened: { who: 'juno', t: 'Your end quiet, my end loud. Deal.' }, overruled: { who: 'juno', t: 'Okay. I\'ll go the long way. With the speaker.' } },
+});
+
 // ---------- the town meeting ----------
 export const COUNCIL = {
   open: [{ who: 'hollis', t: 'Order! Order. Item one: the Lantern Festival, which is tonight, which is fine. Item two: anything from the floor.' }],
   none: [{ who: 'hollis', t: 'Nothing from the floor? Splendid. To the festival!' }],
-  present: { quiet: 'A quiet corner at the market, by the benches, softer at noon.', board: 'A bus board that shows route changes in writing, not just over the speaker.', lanterns: 'Porch lanterns on Home Row. Teal means come in. Amber means not now.', ramp: 'A ramp beside the Works steps.', dim: 'Softer, dimmable lights at the Works.', plain: 'Every meeting at the Works ends with one plain note: who does what, by when.' },
+  present: { quiet: 'A quiet corner at the market, by the benches, softer at noon.', board: 'A bus board that shows route changes in writing, not just over the speaker.', lanterns: 'Porch lanterns on Home Row. Teal means come in. Amber means not now.', ramp: 'A ramp beside the Works steps.', dim: 'Softer, dimmable lights at the Works.', plain: 'Every meeting at the Works ends with one plain note: who does what, by when.',
+    crossing: 'A crossing light that waits until everyone in the middle of the street is across.', counter: 'A person at the old counter on festival mornings, for anyone the kiosk can\'t hear.', bay: 'A passing bay on the Works ramp. The bots pull in, and people go first.', rentcap: 'A rent cap for stallholders who have been on the square ten years or more.', farstalls: 'Six stalls at the Far End, along Founders\' Row, at the old rent.' },
   frame: [{ t: 'It helps more people than you would think.', key: 'many' }, { t: 'I need this. So do they.', key: 'need' }, { t: 'Let the people it helps speak.', key: 'voices' }],
   blendArg: { who: 'hollis', t: 'But the Smooth Scores say people are coping beautifully! Larkspur is in the county top ten.' },
   rueSpeaks: ['Can I say something? Nobody asked me to.', 'Four hundred and thirteen of those days are mine. Some of those mornings I couldn\'t get out of bed. The score went up anyway.', 'It doesn\'t measure whether we\'re all right. It measures whether we look it.'],
   // each voter says what would move them before you speak, and why they voted after
-  lean: { pip: 'Does it bring people through my door?', hollis: 'I\'d need more than a feeling.', clover: 'Who did you ask about who it costs?' },
+  lean: { pip: 'Does it bring people through my door?', hollis: 'I\'d need more than a feeling.', clover: 'Who did you ask about who it costs?', rue: 'Who did you ask, and who did you count?' },
   votes: {
+    rue: { yes: 'We asked the person it costs, and we changed it. Yes.', no: 'Nobody asked the person it costs. Not yet. No.', overruled: 'We asked, and then we didn\'t listen. Not yet. No.' },
     pip: { yes: 'More people through my door. Yes.', no: 'I don\'t see what it does for the shop. No.', neighbour: 'Pomeroy\'s my neighbour. If he\'s against it, so am I. No.' },
     clover: { yes: 'We asked who it costs, and we changed it. Yes.', no: 'We didn\'t ask who it costs. Not yet. No.', overruled: 'We asked who it costs, and then we didn\'t listen. Not yet. No.' },
     hollis: { yes: 'I have seen the ledger. Yes.', yesPlain: 'For Larkspur. Yes.', no: 'We have always done it this way. No.' },
   },
-  passed: 'Carried. It goes up overnight.', passedClover: 'Already loading the cart.', failed: 'Not carried. It goes on file for next season.',
+  passed: 'Carried. It goes up overnight.', passedTonight: 'Carried. It goes up tonight, in time for the festival.', passedClover: 'Already loading the cart.', failed: 'Not carried. It goes on file for next season.',
+  // the Founders' Fund's clause, read out when it applies (Act 3)
+  clause: { who: 'clover', t: 'Before the vote: the Fund\'s gift came with a clause. Any project on Founders\' Row needs the Fund\'s sign-off. It hasn\'t been signed.' },
+  stalled: { who: 'hollis', t: 'Then it is referred for further study. Next season.' },
   budget1: 'The budget covers one more this season. Choose which.', budget2: 'The budget covers two this season. Choose which.', budget0: 'Two this season already, I am told. These go on file for next year.',
   rule: { who: 'hollis', t: 'Order. Stillness in the chamber, please. It\'s in the rules. Page four.' },
   ruleAsk: [{ t: 'Keep still', sub: 'the rules say so', id: 'rule_still' }, { t: 'Keep moving', sub: 'it helps you think', id: 'rule_move' }],

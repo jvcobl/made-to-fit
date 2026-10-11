@@ -163,14 +163,14 @@ export class UI {
   barrier(b) {
     this.dialog.hidden = true;
     const el = this.barrierEl; el.hidden = false;
-    el.innerHTML = `<h3>${esc(b.title)}</h3><div class="desc">${esc(b.text)}</div>` + (b.notice ? `<div class="noticeline"><b>${esc(b.noticeLabel)}</b>${esc(b.notice)}</div>` : '') + (b.gut ? `<div class="gutline">${esc(b.gut)}</div>` : '') + `<div class="q">Who adjusts?</div>` + (b.coach ? `<div class="coach">${esc(b.coach)}</div>` : '') + `<div class="opts"></div>`;
+    el.innerHTML = (b.face ? `<div class="bface"><img src="${b.face.img}" alt=""><div><b>${esc(b.face.name)}</b><span>${esc(b.face.sub || '')}</span></div></div>` : '') + `<h3>${esc(b.title)}</h3><div class="desc">${esc(b.text)}</div>` + (b.notice ? `<div class="noticeline"><b>${esc(b.noticeLabel)}</b>${esc(b.notice)}</div>` : '') + (b.gut ? `<div class="gutline">${esc(b.gut)}</div>` : '') + `<div class="q">Who adjusts?</div>` + (b.coach ? `<div class="coach">${esc(b.coach)}</div>` : '') + `<div class="opts"></div>`;
     const box = el.querySelector('.opts');
     return new Promise((resolve) => {
       const buttons = b.options.map((o, i) => {
         const btn = document.createElement('button'); btn.className = 'opt ' + o.key + (o.disabled ? ' off' : '');
         if (o.disabled) btn.setAttribute('aria-disabled', 'true');
         const instant = FAST || this.set.holdToBend === false;
-        btn.innerHTML = `<div class="ic">${ICON[o.key]}</div><div class="who">${esc(o.who)}</div><b>${esc(o.label)}</b><span class="sub">${esc(o.disabled ? o.reason : o.sub)}</span>` + (o.hold && !instant ? `<span class="hold">${this.touch ? 'Hold, or tap to start' : 'Hold, or tap to start'}</span>` : '') + `<div class="fill"></div><div class="k">${i + 1}</div>`;
+        btn.innerHTML = (o.img ? `<img class="oimg" src="${o.img}" alt="">` : `<div class="ic">${ICON[o.key]}</div>`) + `<div class="who">${esc(o.who)}</div>${o.tag ? `<span class="otag">${esc(o.tag)}</span>` : ''}<b>${esc(o.label)}</b><span class="sub">${esc(o.disabled ? o.reason : o.sub)}</span>` + (o.hold && !instant ? `<span class="hold">${this.touch ? 'Hold, or tap to start' : 'Hold, or tap to start'}</span>` : '') + `<div class="fill"></div><div class="k">${i + 1}</div>`;
         if (o.hold) {
           btn.dataset.hold = '1';
           btn.onpointerdown = (e) => { if (e.button > 0) return; e.preventDefault(); this.bendPress(btn, false); };
@@ -182,7 +182,7 @@ export class UI {
         box.appendChild(btn); return btn;
       });
       this.waiter = { type: 'barrier', buttons };
-      this.announce(b.title + '. ' + b.text + ' Who adjusts? ' + b.options.map((o, i) => (i + 1) + '. ' + o.who + ': ' + o.label + (o.disabled ? ', not available: ' + o.reason : ', ' + o.sub)).join('. '));
+      this.announce((b.face ? b.face.name + ' is asking. ' : '') + b.title + '. ' + b.text + ' Who adjusts? ' + b.options.map((o, i) => (i + 1) + '. ' + o.who + ': ' + o.label + (o.disabled ? ', not available: ' + o.reason : ', ' + o.sub)).join('. '));
     });
   }
   // Push through: hold it, or tap once and it fills by itself (tap again to stop). Holding is never required.
@@ -228,7 +228,7 @@ export class UI {
   hud(on) { this.el('#hud').hidden = !on; if (!on) { this.edge(null); this.act(null); } }
   updateHud(S, obj) {
     const h = this.el('#hud'); if (h.hidden) return;
-    const day = DAYNAME[S.day] || 'Day ' + S.day;
+    const day = this.G.story && this.G.story.ret ? this.G.story.ret.dayName() : DAYNAME[S.day] || 'Day ' + S.day;
     h.querySelector('.when').textContent = day + ' · ' + fmtTime(S.min);
     const text = obj ? obj.t || '' : '';
     if (this._obj !== text) { this._obj = text; h.querySelector('.obj').textContent = text; }
@@ -289,10 +289,11 @@ export class UI {
   closePanel() { this.panel.hidden = true; this.panel.innerHTML = ''; }
   // the title screen: resolves with { kind: 'new' } or { kind: 'continue', save } or { kind: 'code', save | carry }
   title(o = {}) {
-    const save = o.save;
+    const save = o.save; const ret = o.ret;
+    const back = ret ? `<button class="btn ${save ? '' : 'accent'}" id="tRet">Return to Larkspur<small>${esc(ret.label)}</small></button>` : '';
     const main = save
-      ? `<button class="btn accent" id="tCont">Continue<small>${esc(save.label || '')}</small></button><button class="btn" id="tNew">New game</button>`
-      : '<button class="btn accent" id="tNew">Begin</button>';
+      ? `<button class="btn accent" id="tCont">Continue<small>${esc(save.label || '')}</small></button>${back}<button class="btn" id="tNew">New game</button>`
+      : ret ? `${back}<button class="btn" id="tNew">New game</button>` : '<button class="btn accent" id="tNew">Begin</button>';
     const banner = o.storage && o.storage !== 'ok' ? '<div class="tbanner" role="status">This browser isn\'t keeping saves here (a private window, or storage is blocked). You can still copy a save code from the Menu at any point, and paste it here next time.</div>' : '';
     const p = this.openPanel('title', `<h1>Made to Fit</h1><div class="sub">a town built for someone else</div>${banner}<div class="row">${main}<button class="btn" id="tSet">Settings</button></div>
       <div class="fine">About 40 minutes, then two short return visits if you like. Best with sound. No account, no tracking, nothing to buy. Nothing flashes more than three times a second.<div class="links"><button class="linkbtn" id="tIng">What keeps you playing</button><button class="linkbtn" id="tIn">What's in this game</button><button class="linkbtn" id="tPb">Played before?</button></div></div>`);
@@ -304,8 +305,9 @@ export class UI {
       const done = (v) => { this.closePanel(); resolve(v); };
       p.querySelector('#tNew').onclick = async () => { if (save && !(await M.confirm('Start a new game?', 'This replaces your saved visit. Finished visits stay.', 'Start over', 'Keep my save'))) return; done({ kind: 'new' }); };
       const c = p.querySelector('#tCont'); if (c) c.onclick = () => done({ kind: 'continue', save });
-      p.querySelector('#tPb').onclick = async () => { const r = await M.playedBefore(); if (r) done(Object.assign({ kind: 'code' }, r)); };
-      setTimeout(() => { const b = p.querySelector('#tCont') || p.querySelector('#tNew'); if (b && !this.touch) b.focus(); }, 50);
+      const rb = p.querySelector('#tRet'); if (rb) rb.onclick = () => done({ kind: 'return', act: ret.act });
+      p.querySelector('#tPb').onclick = async () => { const r = await M.playedBefore(); if (r && r.recap) done({ kind: 'recap' }); else if (r) done(Object.assign({ kind: 'code' }, r)); };
+      setTimeout(() => { const b = p.querySelector('#tCont') || p.querySelector('#tRet') || p.querySelector('#tNew'); if (b && !this.touch) b.focus(); }, 50);
     });
   }
   creator(look, onChange) {
@@ -347,6 +349,52 @@ export class UI {
       window.addEventListener('keydown', kh);
       p.querySelector('#next').onclick = () => finish(cur);
       const bk = p.querySelector('#back'); if (bk) bk.onclick = () => { this.G.audio.sfx('back'); finish({ back: true }); };
+    });
+  }
+  // the recap's room: all six dials in one panel. values and the result are dial positions (before any invert)
+  roomDials(values, onChange) {
+    const keys = Object.keys(SETUP); const steps = [0.1, 0.3, 0.5, 0.7, 0.9];
+    const near = (v) => steps.reduce((a, b) => (Math.abs(b - v) < Math.abs(a - v) ? b : a));
+    const cur = {}; for (const k of keys) cur[k] = near(values[k] != null ? values[k] : 0.5);
+    const row = (k) => { const sp = SETUP[k]; return `<div class="dial"><div class="dq" id="dq_${k}">${esc(sp.q)}</div><div class="scale" role="radiogroup" aria-labelledby="dq_${k}" data-k="${k}">${steps.map((v, i) => `<button role="radio" aria-checked="${v === cur[k]}" data-v="${v}" class="${v === cur[k] ? 'on' : ''}" aria-label="${i + 1} of 5${i === 0 ? ', ' + esc(sp.lo) : i === 4 ? ', ' + esc(sp.hi) : ''}"><span class="dot" style="width:${7 + i * 4}px;height:${7 + i * 4}px"></span></button>`).join('')}</div><div class="ends"><span>${esc(sp.lo)}</span><span>${esc(sp.hi)}</span></div></div>`; };
+    const p = this.openPanel('center recap', `<h2>Your room</h2><p class="lede">Set it the way you like it. The town will remember.</p>${keys.map(row).join('')}<div class="pfoot sticky"><button class="btn primary" id="rdone">That's my room</button></div>`);
+    for (const k of keys) onChange(k, cur[k]);
+    p.addEventListener('click', (e) => {
+      const b = e.target.closest('.scale button'); if (!b) return; const k = b.parentElement.dataset.k; cur[k] = +b.dataset.v;
+      b.parentElement.querySelectorAll('button').forEach((x) => { x.classList.toggle('on', x === b); x.setAttribute('aria-checked', x === b ? 'true' : 'false'); });
+      this.G.audio.sfx('select'); onChange(k, cur[k]);
+    });
+    setTimeout(() => { const f = p.querySelector('.scale button.on'); if (f && !this.touch) f.focus({ preventScroll: true }); }, 50);
+    return new Promise((r) => { p.querySelector('#rdone').onclick = () => { this.closePanel(); this.G.audio.sfx('good'); r(Object.assign({}, cur)); }; });
+  }
+  // the recap's six things about the first visit, or "Choose for me" (which fills them in, to look over and change)
+  recapChoices(o) {
+    let v = { built: [], listened: {}, people: [], rue: 'streak', blend: 'never', left: 'yourself', dflt: 'as_is' }; let note = { k: '', t: '' };
+    const chip = (attr, on, t, extra = '') => `<button class="chip ${on ? 'on' : ''}" ${attr} aria-pressed="${on}" ${extra}>${esc(t)}</button>`;
+    const one = (key, list) => `<div class="chips" role="group">${list.map(([id, t]) => chip(`data-one="${key}" data-v="${id}"`, v[key] === id, t)).join('')}</div>`;
+    const msg = (k) => (note.k === k ? `<p class="small rnote" role="status">${esc(note.t)}</p>` : '');
+    const html = () => `<h2>That first week</h2><p class="lede">Six things Larkspur remembers about you. Pick what feels right, or let the game choose.</p>
+      <h4 id="rq1">What got built (two at most)</h4><div class="chips" role="group" aria-labelledby="rq1">${o.fixes.map((f) => chip(`data-fix="${f.id}"`, v.built.includes(f.id), f.t)).join('')}</div>${msg('fix')}
+      ${v.built.map((id) => { const f = o.fixes.find((x) => x.id === id); return `<div class="rsub"><span>${esc(f.t)}:</span>${chip(`data-listen="${id}"`, !!v.listened[id], 'You listened to ' + f.stake)}</div>`; }).join('')}
+      <h4 id="rq2">Who knew you (up to four)</h4><div class="chips" role="group" aria-labelledby="rq2">${o.people.map((x) => chip(`data-person="${x.id}"`, v.people.includes(x.id), x.t)).join('')}</div>${msg('person')}
+      <h4>Rue, at the festival</h4>${one('rue', [['streak', 'Still on her streak'], ['easing', 'Easing off it']])}
+      <h4>Blend, the app</h4>${one('blend', [['never', 'Never installed it'], ['kept', 'Kept it'], ['deleted', 'Deleted it']])}
+      <h4>How you left</h4>${one('left', [['yourself', 'Looking like yourself'], ['faded', 'A little faded']])}
+      <h4>One thing you'd set differently next time</h4>${one('dflt', o.defaults.map((d) => [d.id, d.t]))}
+      <div class="pfoot sticky"><button class="btn" id="rrand">Choose for me</button><button class="btn primary" id="rgo">Ten years later</button></div>`;
+    const p = this.openPanel('center recap', html());
+    const redraw = (sel) => { const top = p.scrollTop; p.innerHTML = html(); p.scrollTop = top; const f = sel && p.querySelector(sel); if (f) f.focus({ preventScroll: true }); };
+    return new Promise((r) => {
+      p.addEventListener('click', (e) => {
+        const b = e.target.closest('button'); if (!b) return; const d = b.dataset; note = { k: '', t: '' };
+        if (b.id === 'rgo') { this.closePanel(); this.G.audio.sfx('good'); r(v); return; }
+        if (b.id === 'rrand') { v = o.random(); this.G.audio.sfx('page'); this.announce('Chosen for you. Look it over, or change anything.'); redraw('#rgo'); return; }
+        if (d.fix) { const i = v.built.indexOf(d.fix); if (i >= 0) { v.built.splice(i, 1); delete v.listened[d.fix]; } else if (v.built.length >= 2) { note = { k: 'fix', t: 'Two at most: tap one of yours to let it go.' }; this.announce(note.t); } else v.built.push(d.fix); this.G.audio.sfx('select'); redraw('[data-fix="' + d.fix + '"]'); return; }
+        if (d.listen) { v.listened[d.listen] = !v.listened[d.listen]; this.G.audio.sfx('select'); redraw('[data-listen="' + d.listen + '"]'); return; }
+        if (d.person) { const i = v.people.indexOf(d.person); if (i >= 0) v.people.splice(i, 1); else if (v.people.length >= 4) { note = { k: 'person', t: 'Four at most: tap one to let them go.' }; this.announce(note.t); } else v.people.push(d.person); this.G.audio.sfx('select'); redraw('[data-person="' + d.person + '"]'); return; }
+        if (d.one) { v[d.one] = d.v; this.G.audio.sfx('select'); redraw('[data-one="' + d.one + '"][data-v="' + d.v + '"]'); }
+      });
+      setTimeout(() => { const f = p.querySelector('[data-fix]'); if (f && !this.touch) f.focus({ preventScroll: true }); }, 50);
     });
   }
   // Moss's cart: gear under the counter, and pond cards on the shelf (sealed packs, and a binder of singles)
@@ -469,7 +517,7 @@ export class UI {
   tab_today(S) {
     const obj = this.G.story.objective();
     const gear = (S.gear.headphones || S.gear.shades) ? `<h4 class="ph4">Your gear</h4><div class="gearrow">${S.gear.headphones ? `<button class="btn gbig ${S.wearing.headphones ? 'on' : ''}" data-g="headphones">${ICON.gear} ${S.wearing.headphones ? 'Take off' : 'Put on'} headphones</button>` : ''}${S.gear.shades ? `<button class="btn gbig ${S.wearing.shades ? 'on' : ''}" data-g="shades">${ICON.shades} ${S.wearing.shades ? 'Take off' : 'Put on'} shades</button>` : ''}</div>` : '';
-    return `<h3>${DAYNAME[S.day] || 'Today'}</h3>${obj && obj.t ? `<div class="nowcard"><div class="nl">Now</div><div>${esc(obj.t)}</div>${obj.at ? `<button class="btn primary" id="pway">${ICON.way} Show me the way</button>` : ''}</div>` : ''}<div class="goals">${this.goalsHtml()}</div>${gear}<p class="small">Energy ${Math.round(S.energy)} of ${S.maxE} today. ${S.coins} coins.${S.burnout ? ' You woke up running on less.' : ''}</p>`;
+    return `<h3>${this.G.story && this.G.story.ret ? this.G.story.ret.dayName() : DAYNAME[S.day] || 'Today'}</h3>${obj && obj.t ? `<div class="nowcard"><div class="nl">Now</div><div>${esc(obj.t)}</div>${obj.at ? `<button class="btn primary" id="pway">${ICON.way} Show me the way</button>` : ''}</div>` : ''}<div class="goals">${this.goalsHtml()}</div>${gear}<p class="small">Energy ${Math.round(S.energy)} of ${S.maxE} today. ${S.coins} coins.${S.burnout ? ' You woke up running on less.' : ''}</p>`;
   }
   mapSvg(S) {
     const all = !!this.mapAll; const tf = all ? townFit(S.fixes, S.stakes) : null;

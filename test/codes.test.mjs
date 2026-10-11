@@ -140,7 +140,7 @@ test('visit code: field offsets match the documented layout', () => {
   Object.assign(c, { act: 3, selfEnd: 100, jar: 12, dep: 9, rue: 'free', default: 'text_first', pushHabit: 'festival', colour: 'grey', comfort: 'charm', pronoun: 'he' });
   c.look.shape = 'boxy'; c.look.color = '#c9b8a6'; c.look.wheels = true; c.look0.shape = 'blobby';
   c.profile.sound = 0.9; c.fixes.quiet = { s: 'built', variant: 'shared', listened: true, via: 'owner' };
-  c.people.gil = { bond: 3, gw: 2, revealed: true, met: false }; c.w = { hall_quiet_row: 1, spare: 1 };
+  c.people.gil = { bond: 3, gw: 2, revealed: true, met: false }; c.w = { hall_quiet_row: 1, recap: 1 };
   c.tally = { bend: 31, gear: 0, ask: 0, fix: 0, leave: 17 }; c.endings = { 1: 'working', 2: '', 3: 'blended' };
   const b = bitsOf(SV.encodeVisit(c));
   assert.equal(readAt(b, AT.act, 2), 3);

@@ -429,7 +429,7 @@ export const BLEND = Object.freeze(['never', 'kept', 'smooth', 'deleted']);
 export const COLOUR = Object.freeze(['yourself', 'faded', 'grey']);
 export const DEFAULTS = Object.freeze(['as_is', 'headphones_market', 'blend_off', 'leave_early', 'rest_first', 'text_first']);
 export const HABIT_ZONES = Object.freeze(['none', 'works', 'market', 'transit', 'hall', 'homerow', 'commons', 'farend', 'street', 'festival']);
-export const WFLAGS = Object.freeze(['hall_quiet_row', 'standard_solved', 'wren_paid', 'bea_soup', 'gil_lamp', 'pomeroy_overruled', 'hollis_archive', 'rue_pond', 'wren_came', 'rue_festival', 'dot_lamp', 'tomato_rail', 'rye_bought', 'unit_taught', 'unit_restored', 'counter_hours', 'bay_marked', 'crossing_long', 'benefactor_yes', 'coop_yes', 'conflict_disclosed', 'juno_redesign', 'moss_moved', 'spare']);
+export const WFLAGS = Object.freeze(['hall_quiet_row', 'standard_solved', 'wren_paid', 'bea_soup', 'gil_lamp', 'pomeroy_overruled', 'hollis_archive', 'rue_pond', 'wren_came', 'rue_festival', 'dot_lamp', 'tomato_rail', 'rye_bought', 'unit_taught', 'unit_restored', 'counter_hours', 'bay_marked', 'crossing_long', 'benefactor_yes', 'coop_yes', 'conflict_disclosed', 'juno_redesign', 'moss_moved', 'recap']);
 export const TALLY = Object.freeze(['bend', 'gear', 'ask', 'fix', 'leave']);
 export const ENDINGS = Object.freeze(['', 'blended', 'carried', 'roommade', 'wider', 'movedon', 'known', 'island', 'working']);
 

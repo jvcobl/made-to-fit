@@ -112,7 +112,7 @@ export class SortGame extends MiniGame {
     // Dot, at the next desk, as she goes
     if (mode === 'play') {
       if (this.dotImg) { ctx.save(); ctx.beginPath(); ctx.arc(30, 72, 12, 0, Math.PI * 2); ctx.clip(); ctx.drawImage(this.dotImg, 18, 60, 24, 24); ctx.restore(); }
-      ctx.font = FONT(600, 13); ctx.fillStyle = C.soft; ctx.textAlign = 'left'; ctx.fillText('Dot: ' + Math.floor(this.dotN), 48, 77);
+      ctx.font = FONT(600, 13); ctx.fillStyle = C.soft; ctx.textAlign = 'left'; ctx.fillText((this.mateName || 'Dot') + ': ' + (this.mateIdle ? 'idle' : Math.floor(this.dotN)), 48, 77);
     }
   }
   drawCubbies(ctx, lit) {

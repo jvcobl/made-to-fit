@@ -716,7 +716,8 @@ export class Town {
     }
   }
   updateBus(dt, min, skip) {
-    const b = this.busState; const m = ((min % 60) + 60) % 60;
+    const b = this.busState; if (this.busOff) { this.bus.visible = false; b.atStop = false; return; }
+    const m = ((min % 60) + 60) % 60;
     const target = m < 34 ? -50 : m < 39 ? lerp(-50, 24, (m - 34) / 5) : m < 42 ? 24 : m < 48 ? lerp(24, 100, (m - 42) / 6) : 100;
     let z = target;
     if (skip && m >= 34 && m < 48) z = lerp(-50, 100, (m - 34) / 14);

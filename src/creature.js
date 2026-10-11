@@ -247,8 +247,9 @@ export class Creature {
     // hands live in their own group (not the face), so they can move anywhere around the body
     this.hands = [new THREE.Mesh(G.hand, this.partMat), new THREE.Mesh(G.hand, this.partMat)];
     for (const h of this.hands) { h.castShadow = false; this.handGroup.add(h); }
-    // the top (ears, horns...) and what you always wear share one merged mesh, scaled together as you drift
-    this.top = this.wear = new THREE.Mesh(EMPTY, PARTS);
+    // the top (ears, horns...) and what you wear share one merged mesh. Drift shrinks the top into the body (its
+    // vertices come first and are scaled in place); what you wear keeps its size: ageing adds, it never fades
+    this.top = new THREE.Mesh(EMPTY, PARTS);
     this.stdTop = new THREE.Mesh(EMPTY, PARTS); this.stdTop.visible = false;
     this.gearParts = { headphones: new THREE.Mesh(EMPTY, PARTS), shades: new THREE.Mesh(EMPTY, PARTS) };
     this.gearParts.headphones.visible = this.gearParts.shades.visible = false; this.gear.add(this.gearParts.headphones, this.gearParts.shades);
@@ -295,7 +296,12 @@ export class Creature {
     if (this.form === 'baked' && this.bakeDirty) this.bake();
   }
   applyLook(L) {
-    this.top.scale.setScalar(Math.max(0.0001, L.partScale)); this.top.visible = L.partScale > 0.01 && this.kit.tw.length > 0;
+    const K = this.kit, k = Math.max(0.0001, L.partScale), g = this.top.geometry, u = g.userData;
+    if (u.rest && u.k !== k) {
+      const a = g.attributes.position.array, r = u.rest; for (let i = 0; i < r.length; i++) a[i] = r[i] * k;
+      g.attributes.position.needsUpdate = true; g.computeBoundingSphere(); u.k = k;
+    }
+    this.top.visible = (L.partScale > 0.01 && K.top.length > 0) || K.wear.length > 0;
     this.stdTop.scale.setScalar(Math.max(0.0001, L.stdScale)); this.stdTop.visible = L.stdScale > 0.01;
     // the Standard's ears are only built once someone starts to grow them
     if (this.stdTop.visible && this.stdBuilt !== this.kit) { this.stdBuilt = this.kit; swap(this.stdTop, mergeKit(this.kit.std)); }
@@ -320,7 +326,7 @@ export class Creature {
   placeParts() {
     const p = this.params, look = this.look, S = this.S;
     for (const g of this.owned) g.dispose(); this.owned.length = 0;
-    const K = this.kit = { eyes: [], arcs: [], tw: [], std: [], hp: [], sh: [] };
+    const K = this.kit = { eyes: [], arcs: [], top: [], wear: [], std: [], hp: [], sh: [] };
     // face: both eyes and their highlights in one mesh, centred between the eyes so a blink can squash it in y
     const ep = this.eyePos = [-1, 1].map((sx) => surf(sx * 0.34, 0.2, 0.92, p, -0.035));
     const ec = this.eyeC = ep[0].clone().lerp(ep[1], 0.5); this.eyeOff = ep[1].clone().sub(ec);
@@ -340,8 +346,8 @@ export class Creature {
     [-1, 1].forEach((sx, i) => { const h = this.hands[i]; h.position.copy(surf(sx, -0.3, 0.12, p, -0.06)); h.userData.base = h.position.clone(); h.userData.ear = surf(sx * 0.95, 0.42, 0.18, p, 0.06); h.userData.flap = surf(sx * 1.05, 0.05, 0.1, p, 0.12); });
     this.charmAt = surf(0.18, -0.18, 1, p, 0.1);
     // top and wear (one mesh), the Standard's ears, gear
-    this.topKit(K.tw, look.top, p, paintOf(this.partMat, true));
-    this.wearKit(K.tw, look.wear, p);
+    this.topKit(K.top, look.top, p, paintOf(this.partMat, true));
+    this.wearKit(K.wear, look.wear, p);
     this.topKit(K.std, 'ears', lookParams(STANDARD), P.std);
     this.gearKit(K, p);
     // feet or chair
@@ -362,7 +368,10 @@ export class Creature {
     const K = this.kit; this.nearDirty = false;
     swap(this.eyes[0], mergeKit(K.eyes)); this.eyes[0].position.copy(this.eyeC);
     swap(this.arcs[0], mergeKit(K.arcs));
-    swap(this.top, K.tw.length ? mergeKit(K.tw) : EMPTY);
+    const tw = K.top.concat(K.wear);
+    swap(this.top, tw.length ? mergeKit(tw) : EMPTY);
+    // the top's vertices come first: keep them at rest, so drift can scale them and leave what you wear alone
+    if (K.top.length) { let n = 0; for (const [g] of K.top) n += g.attributes.position.count; const u = this.top.geometry.userData; u.rest = this.top.geometry.attributes.position.array.slice(0, n * 3); u.k = 1; }
     if (this.wearing.headphones || this.wearing.shades) this.ensureGear();
     this.applyLook(this.effLook()); this.setExpression(this.expr);
   }
@@ -381,7 +390,8 @@ export class Creature {
     list.push([G.mouth, P.eye, mtx(this.mouth.position, 0, 0, Math.PI)]);
     const part = paintOf(this.partMat), foot = paintOf(this.footMat);
     for (const h of this.hands) { const b = h.userData.base; list.push([G.hand, part, at(b.x, b.y, b.z)]); }
-    if (L.partScale > 0.01) { const k = scaled(L.partScale); for (const [g, pt, m] of K.tw) list.push([g, pt, k.clone().multiply(m)]); }
+    if (L.partScale > 0.01) { const k = scaled(L.partScale); for (const [g, pt, m] of K.top) list.push([g, pt, k.clone().multiply(m)]); }
+    for (const e of K.wear) list.push(e);
     if (L.stdScale > 0.01) { const k = scaled(L.stdScale); for (const [g, pt, m] of K.std) list.push([g, pt, k.clone().multiply(m)]); }
     // feet and chair hang from the root: bring them into rig space at rest
     const inv = scaled(1 / S).multiply(at(0, -this.baseY, 0));

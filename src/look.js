@@ -6,6 +6,8 @@ import * as THREE from 'three';
 import { Creature, STANDARD } from './creature.js';
 import { SETUP } from './content.js';
 import { ZONES } from './town.js';
+import { ACT2 } from './act2.js';
+import { ACT3 } from './act3.js';
 import { esc, clamp, damp } from './util.js';
 
 // world sights (at most eight a visit), and your own room. at: [x, y, z] of the glow; ghost: [x, z] where the
@@ -21,6 +23,8 @@ export const SIGHTS = [
   { id: 'podium', name: 'The podium', loc: 'hall', at: [0, 1.35, 0.3], ghost: [1.2, 0.7], dial: null, place: 'Town Hall', line: 'Built to the Standard\'s height. Hollis stands on a box.' },
   { id: 'myroom', name: 'Your room', loc: 'home', at: [0.3, 1.5, -0.8], ghost: null, dial: null, place: 'home', line: 'Made to fit you. You made it.', mine: true },
 ];
+// the later visits' sights (eight each), defined with their scenes; act tells them apart
+for (const [act, A] of [[2, ACT2], [3, ACT3]]) for (const s of A.sights || []) SIGHTS.push(Object.assign({ act }, s));
 export const SECOND = 'Who decided: the founders\' committee, from one summer\'s measurements.';
 const META = { lantern: 'Wren\'s lantern. Made for people who read English and see colour. Wren is working on that.' };
 const RANGE = 14;
@@ -91,6 +95,8 @@ export class Look {
   lower() { this.raised = false; this.list.hidden = true; this.closeCard(); this.G.ui.gearKey = ''; this.G.audio.sfx('back'); }
   inRange(s) {
     const G = this.G; if (s.loc !== G.loc) return false;
+    const act = this.S.act || 1; if ((s.act || 1) !== act && !(s.mine && act > 1 && !s.act)) return false;
+    if (s.if && !s.if(this.S)) return false;
     if (s.loc !== 'town') return true;
     const p = G.player.root.position; return Math.hypot(s.at[0] - p.x, s.at[2] - p.z) < RANGE;
   }
@@ -107,10 +113,28 @@ export class Look {
   pick(s) {
     const S = this.S; S.sights = S.sights || {};
     const first = !S.sights[s.id]; if (first) S.sights[s.id] = S.day || 1;
-    this.showCard({ name: s.name, line: s.line, second: S.w && S.w.standard_solved && !s.mine ? SECOND : '' });
+    this.showCard({ name: s.name, line: s.line, second: S.w && S.w.standard_solved && !s.mine && !s.act ? SECOND : '' });
+    if (s.ghost && s.ghostYou) this.useGhostYou(); else this.useGhostStandard();
     if (s.ghost) { const g = this.ghost; const sc = this.G.player.root.parent; if (g.root.parent !== sc) sc.add(g.root); g.root.position.set(s.ghost[0], 0, s.ghost[1]); const p = this.G.player.root.position; g.faceToward(p.x, p.z); g.root.rotation.y = g.heading; g.root.visible = true; this.ghostOn = true; }
     if (s.mine) this.G.story.keep('myroom', 'Your room, made to fit you', this.S.look.color);
     this.refresh(true);
+  }
+  // the later visits' "your fix" sight: the stand-in is you, not the Standard (built once, when first needed)
+  useGhostYou() {
+    if (!this.ghostYouC) {
+      const g = new Creature(Object.assign({}, this.S.look), { lod: 'low', form: 'baked', seed: 17 });
+      g.root.traverse((o) => { if (o.isMesh) { o.material = o === g.blob ? o.material : this.ghostMat; o.castShadow = false; o.userData.noOcc = true; } });
+      if (g.blob) g.blob.visible = false; g.root.visible = false; g.root.userData.creature = null; g.update(0.016); this.ghostYouC = g;
+    }
+    if (this.ghost !== this.ghostYouC) { this.ghostStd = this.ghostStd || this.ghost; this.ghost.root.visible = false; this.ghost = this.ghostYouC; }
+  }
+  useGhostStandard() { if (this.ghostStd && this.ghost !== this.ghostStd) { this.ghost.root.visible = false; this.ghost = this.ghostStd; } }
+  sight(id) { return SIGHTS.find((s) => s.id === id) || null; }
+  // move a sight (a later visit decides where "your fix" is)
+  relocate(id, loc, at, ghost, extra) {
+    const i = SIGHTS.findIndex((s) => s.id === id); if (i < 0) return; const s = SIGHTS[i];
+    s.loc = loc; s.at = at; s.ghost = ghost; if (extra) Object.assign(s, extra); const h = this.halos[i]; h.position.set(at[0], at[1], at[2]);
+    const G = this.G; const sc = loc === 'town' ? G.town.scene : G.rooms[loc] && G.rooms[loc].scene; if (sc && h.parent !== sc) sc.add(h);
   }
   showCard(c) {
     this.open = c; this.card.hidden = false;
@@ -120,7 +144,7 @@ export class Look {
   }
   closeCard() { this.open = null; this.card.hidden = true; this.ghostOn = false; }
   // the notebook's Sights page
-  sightsList() { const S = this.S; return SIGHTS.filter((s) => (S.sights || {})[s.id]).map((s) => ({ name: s.name, line: s.line, second: S.w && S.w.standard_solved && !s.mine ? SECOND : '' })); }
+  sightsList() { const S = this.S; return SIGHTS.filter((s) => (S.sights || {})[s.id]).map((s) => ({ name: s.name, line: s.line, second: S.w && S.w.standard_solved && !s.mine && !s.act ? SECOND : '' })); }
   update(dt) {
     const G = this.G; this.t += dt;
     if (this.raised && (G.mode !== 'play' || G.mgActive)) this.lower();

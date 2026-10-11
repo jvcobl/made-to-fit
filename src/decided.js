@@ -31,17 +31,30 @@ const DIM_WORD = { light: ['too bright', 'too dim'], sound: ['too loud', 'too qu
 // what you did, said plainly
 function verbLine(r) {
   const who = (id) => (CAST[id] ? CAST[id].name : id);
+  if (r.k === 'barrier' && r.turn) return 'Juno asked you. ' + ({ bend: 'You asked Juno to push through.', gear: 'You lent Juno your gear.', ask: 'You changed your own rule.', fix: 'You redesigned it together.', leave: 'You did nothing, and Juno went.' }[r.v] || '');
+  if (r.k === 'choice') return { coop: 'You made the Shed a co-op. Ines left for the city.', nocoop: 'You kept the Shed as it was. Gil and Rue stayed on without a vote.', fund_yes: 'You took the Founders\' Fund\'s money, with its strings.', fund_no: 'You turned down the Fund\'s money. The repairs wait a year.', moved: 'You helped Moss move to the Far End.', mossbid: 'You let Moss bid like everyone else.', disclosed: 'You said you lived on Home Row, and then you judged it.', recused: 'You stepped back. Gil will judge it next season.', quietly: 'You judged the quiet zone on your own street, and said nothing about your house.', against: 'You recommended against a quiet zone on your own street.' }[r.v] || '';
   if (r.k === 'barrier') {
+    // the later visits' turned cards
+    if (r.v === 'teach') return 'You taught Unit the room, out of your own pay.';
+    if (r.v === 'restore') return r.by === 'gil' ? 'Gil put the room back to the spec, for the machine.' : 'You put the room back to the spec, for the machine.';
+    if (r.v === 'hurry') return 'You took Bea\'s arm and hurried her across.';
+    if (r.v === 'wait') return 'You walked at Bea\'s pace, and the van waited.';
+    if (r.v === 'none') return 'You let Bea be. She went round by the bakery.';
+    if (r.v === 'fit') return 'The kiosk heard you the first time.';
+    if (r.v === 'stand') return 'You stood with Tomas until the bot moved.';
+    if (r.v === 'ring') return 'You rang the bot\'s bell for Tomas.';
+    if (r.v === 'ask' && r.by === 'sana') return 'You rang the call bell. Sana answered, for twelve towns.';
+    if (r.dim === 'bots' && r.v === 'leave') return 'You left Tomas to it.';
     if (r.v === 'bend') return r.by === 'blend' ? 'Blend\'s Smooth Mode pushed you through.' : r.by === 'rules' ? 'You kept still, because the rules said so.' : 'You pushed through, and hid it.';
     if (r.v === 'gear') return 'You put your gear on.';
     if (r.v === 'ask') return r.by !== 'you' && r.by ? who(r.by) + ' changed it before you asked.' : 'You asked ' + who(r.pay[0]) + ' to change it' + (r.pay[1] ? '. ' + who(r.pay[1]) + ' paid for the change.' : '.');
     if (r.v === 'fix') return 'You noted it for the Fix-It Shed.';
     if (r.v === 'leave') return 'You left.';
   }
-  if (r.k === 'refused') return 'You asked ' + who(r.by) + '. The answer was no.';
+  if (r.k === 'refused') return r.by === 'sana' ? 'You rang Unit\'s call bell. A script answered.' : 'You asked ' + who(r.by) + '. The answer was no.';
   if (r.k === 'missed') return r.v === 'shift' ? 'You missed your shift. Gil covered.' : r.v === 'meeting' ? 'You stepped out of the meeting.' : r.v === 'pond' ? 'You didn\'t make it to the pond. Rue waited.' : 'You slept through the afternoon.';
   if (r.k === 'favour') return r.v === 'yes' ? 'You said yes to a favour.' : r.v === 'no' ? 'You said no to a favour.' : 'A favour never came due.';
-  if (r.k === 'vote') return r.v === 'passed' || r.v === 'approved' ? 'A fix went through.' : 'A fix didn\'t pass.';
+  if (r.k === 'vote') return r.v === 'passed' || r.v === 'approved' ? 'A fix went through.' : r.v === 'stalled' ? 'The Fund\'s clause stalled a fix. Referred for further study.' : 'A fix didn\'t pass.';
   if (r.k === 'stake') return r.v === 'listened' ? 'You changed a design for the person it cost.' : 'You kept a design as it was.';
   if (r.k === 'habit') return r.v === 'gear' ? 'You put your gear on before you noticed. It has become what you do there.' : r.v === 'leave' ? 'You were out the door before you noticed. It has become what you do there.' : 'You straightened up before you noticed. It has become what you do there.';
   if (r.k === 'default' && r.by === 'blend') return 'You said what Blend suggested' + (r.line ? ': "' + r.line + '"' : '.');
@@ -49,13 +62,14 @@ function verbLine(r) {
 }
 // the moments worth looking at again
 export function pickMoments(S, n) {
-  const rows = (S.log || []).filter((r) => (['barrier', 'refused', 'missed', 'favour', 'vote', 'stake', 'habit'].includes(r.k) || (r.k === 'default' && r.by === 'blend')) && r.v !== 'lapsed');
+  const rows = (S.log || []).filter((r) => (['barrier', 'refused', 'missed', 'favour', 'vote', 'stake', 'habit', 'choice'].includes(r.k) || (r.k === 'default' && r.by === 'blend')) && r.v !== 'lapsed');
   const score = (r) => {
     let s = 0; const others = (r.pay || []).filter((p) => p !== 'you');
     if (others.length) s += 2;
     if ((r.pay || []).includes('you') && (r.v === 'bend' || r.v === 'said' || r.k === 'missed' || r.k === 'refused')) s += 1;
     if ((r.f || {}).off >= 2) s += 1;
     if (r.by === 'habit' || r.by === 'blend' || r.k === 'habit') s += 1;
+    if (r.turn) s += 2; // the card turned around: always worth looking at again
     return s;
   };
   const picked = [];
@@ -116,7 +130,8 @@ export async function whoDecided(story) {
     else { if (G.loc !== 'town') G.setLoc('town'); const sp = STAND[r.z] || STAND.street; G.place(sp); const sh = SHOTS[r.z] || SHOTS.street; G.stage.shot(new THREE.Vector3(...sh[0]), new THREE.Vector3(...sh[1]), 36, 3, true); }
     await G.stage.fadeTo(0, 500);
     const pay = (r.pay || []).map((id) => ({ id, name: id === 'you' ? 'You' : CAST[id] ? CAST[id].name : id, img: id === 'you' ? G.portraitOf(S.look, { bg: '#efe6d6', w: 120, h: 120 }) : CAST[id] ? G.portraitOf(CAST[id].look, { bg: '#efe6d6', w: 120, h: 120 }) : '' }));
-    const k = await ui.decidedCard({ n: i + 1, of: moments.length, faced: faced(S, r), also: r.k === 'default' ? BLEND_ALSO : CAUSES[r.z] || CAUSES.street, verb: verbLine(r), pay, first: i === 0 });
+    const causes = Object.assign({}, CAUSES, (story.ret && story.ret.causes()) || {});
+    const k = await ui.decidedCard({ n: i + 1, of: moments.length, faced: faced(S, r), also: r.k === 'default' ? BLEND_ALSO : causes[r.z] || CAUSES.street, verb: verbLine(r), pay, first: i === 0 });
     if (k === 'skip') skip = true;
     await G.stage.fadeTo(1, 400);
   }

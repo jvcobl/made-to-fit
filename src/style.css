@@ -176,6 +176,13 @@ body.touch .choice .k { display: none; }
 .setup .foot { display: flex; align-items: center; justify-content: space-between; margin-top: 16px; gap: 10px; }
 .setup .fbtns { display: flex; gap: 8px; }
 .center { left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(560px, 94vw); animation: none; }
+/* the recap: your room in one panel, and six things about your first week */
+.recap .dial { margin: 14px 0 4px; }
+.recap .dq { font-family: var(--display); font-weight: 600; font-size: 16px; margin-bottom: 8px; }
+.recap .rsub { display: flex; align-items: center; gap: 8px; margin: 8px 0 0; font-size: 14px; color: var(--soft); flex-wrap: wrap; }
+.recap .rnote { color: #9a3a22; margin-top: 6px; }
+.recapbox { margin-top: 18px; padding-top: 14px; border-top: 1.5px dashed var(--line); }
+.recapbox p { font-size: 14px; margin: 0 0 10px; }
 .list { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
 .card { background: #fff; border: 1.5px solid var(--line); border-radius: 16px; padding: 12px 14px; }
 .card b { font-family: var(--display); font-weight: 600; }
@@ -564,3 +571,11 @@ body.reduce * { animation-duration: 0.01ms !important; }
 .pcardtile { position: relative; flex-direction: column; justify-content: flex-end; align-items: flex-start; }
 .pcardtile .fishsvg { position: absolute; left: 10%; top: 12%; width: 80%; height: auto; }
 .pkrow .pcardtile .fishsvg { top: 10%; }
+
+/* the card turned around (twenty years on): who is asking, and your own face under "Them" */
+#barrier .bface { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+#barrier .bface img { width: 56px; height: 56px; border-radius: 50%; box-shadow: 0 0 0 3px #fff, 0 3px 10px rgba(43, 37, 48, 0.2); }
+#barrier .bface b { display: block; font-family: var(--display); font-size: 17px; }
+#barrier .bface span { font-size: 13px; color: var(--soft); letter-spacing: 0.08em; }
+#barrier .opt .oimg { width: 34px; height: 34px; border-radius: 50%; box-shadow: 0 0 0 2px #fff; }
+#barrier .opt .otag { display: inline-block; font-size: 11px; font-weight: 600; color: #6c5c9e; background: #ece7f3; border-radius: 999px; padding: 1px 8px; margin: 2px 0 4px; }

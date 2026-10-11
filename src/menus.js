@@ -178,13 +178,17 @@ export class Menus {
   playedBefore() {
     return new Promise((resolve) => {
       let done = false; const fin = (v) => { if (done) return; done = true; resolve(v); };
-      this.push('code', () => `<h2>Played before?</h2><p>Paste a save code (it starts with MTFS) or a visit code (it starts with MTF1).</p><textarea class="codebox" rows="5" aria-label="Your code" placeholder="MTF1-… or MTFS1…"></textarea><p class="codeerr" role="alert"></p><div class="pfoot"><button class="btn" data-back>Back</button><button class="btn primary" id="cUse">Use this code</button></div>`, {
+      this.push('code', () => `<h2>Played before?</h2><p>Paste a save code (it starts with MTFS) or a visit code (it starts with MTF1).</p><textarea class="codebox" rows="5" aria-label="Your code" placeholder="MTF1-… or MTFS1…"></textarea><p class="codeerr" role="alert"></p><div class="pfoot"><button class="btn" data-back>Back</button><button class="btn primary" id="cUse">Use this code</button></div><div class="recapbox"><p><b>No code?</b> Start ten years later from a recap: make your creature, set your room, and choose six things about your first week. About two minutes.</p><button class="btn" id="cRecap">Start from a recap</button></div>`, {
         focus: '.codebox',
         bind: (el) => {
+          el.querySelector('#cRecap').onclick = () => { fin({ recap: true }); this.closeAll(); };
           el.querySelector('#cUse').onclick = async () => {
             const raw = el.querySelector('.codebox').value || ''; const err = el.querySelector('.codeerr');
-            if (/MTFS/i.test(raw)) { const r = await SAVE.readSaveCode(raw); if (r.save) { this.closeAll(); fin({ save: r.save }); return; } err.textContent = { browser: 'This browser can\'t open that kind of code. Recent Chrome, Edge, Firefox or Safari can.', newer: 'That code is from a newer version of the game.' }[r.error] || 'That code doesn\'t look right. Check for a missing letter.'; return; }
-            const v = SAVE.decodeVisit(raw); if (v.carry) { this.closeAll(); fin({ carry: v.carry }); return; }
+            if (/MTFS/i.test(raw)) { const r = await SAVE.readSaveCode(raw); if (r.save) { fin({ save: r.save }); this.closeAll(); return; } err.textContent = { browser: 'This browser can\'t open that kind of code. Recent Chrome, Edge, Firefox or Safari can.', newer: 'That code is from a newer version of the game.' }[r.error] || 'That code doesn\'t look right. Check for a missing letter.'; return; }
+            // a visit code, alone or inside whatever was pasted around it ("my code: MTF1-… thanks")
+            let v = SAVE.decodeVisit(raw.trim());
+            if (!v.carry) { const m = /MTF[0-9A-Z][^\n]*/i.exec(raw); if (m) { const toks = m[0].trim().split(/\s+/); for (let n = toks.length; n >= 1; n--) { const d = SAVE.decodeVisit(toks.slice(0, n).join(' ')); if (d.carry || (d.error === 'version' && n === toks.length)) { v = d; if (d.carry) break; } } } }
+            if (v.carry) { fin({ carry: v.carry }); this.closeAll(); return; }
             err.textContent = v.error === 'version' ? 'That code is from a different version of the game.' : 'That code doesn\'t look right. Check for a missing letter.';
           };
         },

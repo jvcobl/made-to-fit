@@ -56,19 +56,19 @@ export function specificLine(S, key) {
   return '';
 }
 // what Larkspur will remember: one plain sentence per thing that carries
-export function remember(S, rueState) {
-  const out = [];
+export function remember(S, rueState, extra) {
+  const out = (extra || []).slice();
   for (const f of Object.keys(SIM.FIXES)) {
     const st = S.fixes[f]; const F = SIM.FIXES[f]; const T = STAKES[f]; const l = (S.stakes || {})[f] === 'listened';
-    if (st === 'built') out.push('The ' + F.short + ' is up' + (l ? ', ' + T.variantName : '') + '. ' + cap(l ? T.lessLoss : T.loses));
-    else if (st === 'approved') out.push('The ' + F.short + ' goes up on Thursday' + (l ? ', ' + T.variantName : '') + '. ' + cap(l ? T.lessLoss : T.loses));
+    if (st === 'built') out.push('The ' + F.short + ' ' + SIM.agree(f, 'is', 'are') + ' up' + (l ? ', ' + T.variantName : '') + '. ' + cap(l ? T.lessLoss : T.loses));
+    else if (st === 'approved') out.push('The ' + F.short + ' ' + SIM.agree(f, 'goes', 'go') + ' up on Thursday' + (l ? ', ' + T.variantName : '') + '. ' + cap(l ? T.lessLoss : T.loses));
     else if (['proposal', 'ready', 'onfile', 'tabled'].includes(st)) out.push('Your idea for the ' + F.short + ' is on file for next season.');
   }
   if ((S.w || {}).wren_paid) out.push('Wren was paid for the porch lanterns, at the price on the sign.');
   const close = Object.keys(CAST).filter((id) => !CAST[id].minor && (S.bonds[id] || 0) >= 2).sort((a, b) => (S.bonds[b] || 0) - (S.bonds[a] || 0)).slice(0, 4).map((id) => CAST[id].name);
   if (close.length) out.push(list(close) + (close.length > 1 ? ' know you now.' : ' knows you now.'));
   const rue = rueState;
-  out.push(rue === 'easing' ? 'Rue went to the festival without the app. Tomorrow might be a bad one. That is allowed.' : 'Rue\'s streak is at four hundred and fourteen days.');
+  if ((S.act || 1) === 1) out.push(rue === 'easing' ? 'Rue went to the festival without the app. Tomorrow might be a bad one. That is allowed.' : 'Rue\'s streak is at four hundred and fourteen days.');
   const B = S.blend; out.push(!B.has ? 'You never installed Blend.' : B.deleted ? 'You deleted Blend. The birds seem louder.' : B.smooth ? 'Blend\'s Smooth Mode is still on.' : 'Blend is still on your phone.');
   const col = colourOf(S.self); out.push(col === 'yourself' ? 'You look like yourself.' : col === 'faded' ? 'You look a little faded around the edges.' : 'You are nearly the colour of the statue.');
   if (S.default && DEFAULTS[S.default] && S.default !== 'as_is') out.push('Next time: ' + DEFAULTS[S.default].t.toLowerCase() + '.');
@@ -86,14 +86,15 @@ export function buildCarry(S, key, rueState) {
   }
   const people = {};
   for (const id of SAVE.RESIDENTS) people[id] = { bond: Math.max(0, Math.min(3, S.bonds[id] || 0)), gw: Math.max(0, Math.min(3, (S.gw || {})[id] || 0)), revealed: (S.revealed || {})[id] === 'seen', met: !!S.met[id] };
-  const B = S.blend; const tally = {}; for (const k of SAVE.TALLY) tally[k] = Math.min(31, (S.stats[k] || 0) + (k === 'bend' ? S.stats.smooth || 0 : 0));
+  // the tally is cumulative across visits (each visit's code holds everything so far)
+  const B = S.blend; const tally = {}; for (const k of SAVE.TALLY) tally[k] = Math.min(31, ((S.tallyPrev || {})[k] || 0) + (S.stats[k] || 0) + (k === 'bend' ? S.stats.smooth || 0 : 0));
   const w = Object.assign({}, S.w || {}); if (S.flags.hollis_archive) w.hollis_archive = 1; if (S.flags.wren_invited) w.wren_came = 1; if (rueState === 'easing') w.rue_festival = 1;
   const prev = (SAVE.readCarry().carry || { acts: {} }).acts;
-  const endings = Object.assign({ 1: '', 2: '', 3: '' }, ((prev[String((S.act || 1) - 1)] || {}).endings) || {}); endings[S.act || 1] = key;
+  const endings = Object.assign({ 1: '', 2: '', 3: '' }, S.endingsPrev || ((prev[String((S.act || 1) - 1)] || {}).endings) || {}); endings[S.act || 1] = key;
   return SAVE.normalizeCarry({
-    act: S.act || 1, look: S.look0 || S.look, look0: S.look0 || S.look, comfort: S.look.comfort || 'hum', pronoun: S.pronoun, profile: S.profile,
+    act: S.act || 1, look: S.look, look0: S.look0 || S.look, comfort: S.look.comfort || 'hum', pronoun: S.pronoun, profile: S.profile,
     fixes, people, rue: rueState === 'easing' ? 'easing' : 'streak', blend: !B.has ? 'never' : B.deleted ? 'deleted' : B.smooth ? 'smooth' : 'kept', dep: B.dep || 0,
-    colour: colourOf(S.self), selfEnd: Math.round(S.self), default: S.default || 'as_is', pushHabit: S.pushHabit || 'none', w, tally, endings, jar: (S.jar || []).length,
+    colour: colourOf(S.self), selfEnd: Math.round(S.self), default: S.default || 'as_is', pushHabit: S.pushHabit || 'none', w, tally, endings, jar: Math.min(12, (S.jarPrev || 0) + (S.jar || []).length),
   });
 }
 // where things fit, for the fit card: places where the fit was good (from where you felt pinches, inverted)
@@ -101,6 +102,6 @@ export function fitCardData(S, G, key) {
   const where = S.where || {}; const pinched = new Set(); for (const k of Object.keys(where)) for (const z of Object.keys(where[k])) if (where[k][z] >= 3) pinched.add(z);
   const places = ['farend', 'commons', 'homerow', 'market', 'transit', 'works'].filter((z) => !pinched.has(z)).slice(0, 3).map((z) => ({ farend: 'The Far End', commons: 'The Commons', homerow: 'Home Row', market: 'Market Square', transit: 'The bus stop', works: 'The Works' }[z]));
   if (S.fixes.quiet === 'built') places.unshift('The quiet corner');
-  const st = S.stats; const tally = { you: (st.bend || 0) + (st.smooth || 0), gear: st.gear || 0, them: st.ask || 0, place: st.fix || 0, nobody: st.leave || 0 };
-  return { portrait: G.portrait(), name: S.name, showName: false, places: places.slice(0, 3), tally, nextTime: S.default && DEFAULTS[S.default] ? DEFAULTS[S.default].t : null, kept: (S.jar || []).length ? S.jar[S.jar.length - 1].t : null, visits: S.act || 1, title: TITLES[key].title };
+  const st = S.stats; const P = S.tallyPrev || {}; const tally = { you: (P.bend || 0) + (st.bend || 0) + (st.smooth || 0), gear: (P.gear || 0) + (st.gear || 0), them: (P.ask || 0) + (st.ask || 0), place: (P.fix || 0) + (st.fix || 0), nobody: (P.leave || 0) + (st.leave || 0) };
+  return { portrait: G.portrait(), name: S.name, showName: false, places: places.slice(0, 3), tally, turned: S.junoAnswer || null, nextTime: S.default && DEFAULTS[S.default] ? DEFAULTS[S.default].t : null, kept: (S.jar || []).length ? S.jar[S.jar.length - 1].t : null, visits: (S.act || 1) - ((S.w || {}).recap ? 1 : 0), title: TITLES[key].title };
 }
