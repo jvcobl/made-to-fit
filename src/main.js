@@ -10,7 +10,7 @@ import * as SIM from './sim.js';
 import { CAST, ROUTINES, BLEND } from './content.js';
 import { Story } from './story.js';
 import { Guide } from './guide.js';
-import { updateLOD } from './lod.js';
+import { updateLOD, warmLOD } from './lod.js';
 import { Feel } from './feel.js';
 import { Look } from './look.js';
 import { Feed } from './games/feed.js';
@@ -59,7 +59,7 @@ class Game {
     this.guide = new Guide(this);
     this.feed = new Feed(this);
     this.feel = new Feel(this);
-    this.look = new Look(this); this.look.warm();
+    this.look = new Look(this); this.look.warm(); this.warmCreatures();
     this.applySettings();
     this.bindInput();
     this.setLoc('town');
@@ -97,6 +97,23 @@ class Game {
   roomCam(id) { const r = this.rooms[id]; return this.tall && PORTRAIT_CAM[id] ? PORTRAIT_CAM[id] : r.cam; }
   followOpts(o = {}) { return Object.assign(this.tall ? { dist: 17.5, fov: 44, pitch: 0.9 } : { dist: 14.5 }, o); }
   // ---------- residents ----------
+  // every resident's near rig built once and its shaders compiled now (behind the loading screen, or a visit's opening
+  // fade), so nobody's first close-up stalls a frame; then everyone goes back to the form they had
+  warmCreatures() {
+    const back = [];
+    for (const n of Object.values(this.npcs)) { const c = n.c; back.push([c, c.form, c.root.parent]); if (!c.root.parent) this.town.scene.add(c.root); c.setForm('near'); c.ensureNote(); }
+    this.player.ensureNote(); warmLOD(this);
+    // a note sprite in every scene too (rooms light things differently, so each needs its own compile)
+    const scenes = [this.town.scene, ...Object.values(this.rooms).map((r) => r.scene)];
+    const temp = this.player.note ? scenes.map((sc) => { const sp = new THREE.Sprite(this.player.note.material); sc.add(sp); return [sc, sp]; }) : [];
+    // and the way-marker (its beam and ring are drawn in whichever scene you are in)
+    const gm = this.guide && this.guide.mark, gp = gm && gm.parent;
+    for (const sc of scenes) { if (gm) sc.add(gm); this.stage.precompile(sc); }
+    if (gm) { if (gm.parent) gm.parent.remove(gm); if (gp) gp.add(gm); }
+    for (const [sc, sp] of temp) sc.remove(sp);
+    for (const [c, f, parent] of back) { c.setForm(f); if (c.note) c.note.visible = false; if (!parent) this.town.scene.remove(c.root); }
+    if (this.player.note) this.player.note.visible = false;
+  }
   buildNPCs() {
     this.npcs = {};
     let seed = 400;

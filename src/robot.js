@@ -1,8 +1,11 @@
 // The machines of the later visits, built from a few plain meshes each: Unit (the Standard Resident, built in metal,
 // with a screen for a face), the delivery bots on the Works ramp, the festival drone, and the van that replaced the bus.
+// Each is merged into as few meshes as it can be (one draw call per part that moves, glows or shows a picture).
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { damp } from './util.js';
+import { mergeProps } from './town.js';
 
 const metal = (c, o = {}) => new THREE.MeshStandardMaterial(Object.assign({ color: c, roughness: 0.38, metalness: 0.5 }, o));
 const flat = (c, o = {}) => new THREE.MeshStandardMaterial(Object.assign({ color: c, roughness: 0.8, metalness: 0 }, o));
@@ -25,8 +28,10 @@ export class Unit {
   constructor() {
     const root = new THREE.Group(); this.root = root;
     const beige = metal('#e3d4bb', { metalness: 0.22, roughness: 0.42 });
-    const body = new THREE.Mesh(new THREE.SphereGeometry(0.52, 28, 20), beige); body.scale.set(1, 1.08, 0.94); body.position.y = 0.78; body.castShadow = true; root.add(body); this.body = body;
-    for (const s of [-1, 1]) { const ear = new THREE.Mesh(new THREE.ConeGeometry(0.13, 0.3, 14), beige); ear.position.set(0.27 * s, 1.36, 0); ear.rotation.z = -0.32 * s; body.parent.add(ear); (this.ears = this.ears || []).push(ear); }
+    // the body and both ears bob together, so they are one mesh
+    const parts = [new THREE.SphereGeometry(0.52, 28, 20).scale(1, 1.08, 0.94)];
+    for (const s of [-1, 1]) parts.push(new THREE.ConeGeometry(0.13, 0.3, 14).rotateZ(-0.32 * s).translate(0.27 * s, 0.58, 0));
+    const body = new THREE.Mesh(mergeGeometries(parts, false), beige); parts.forEach((g) => g.dispose()); body.position.y = 0.78; body.castShadow = true; root.add(body); this.body = body; this.ears = [];
     const base = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.4, 0.22, 20), metal('#5b6470', { roughness: 0.6 })); base.position.y = 0.12; root.add(base);
     this.canvas = screenCanvas(); this.tex = new THREE.CanvasTexture(this.canvas); this.tex.colorSpace = THREE.SRGBColorSpace;
     const scr = new THREE.Mesh(new THREE.PlaneGeometry(0.52, 0.33), new THREE.MeshBasicMaterial({ map: this.tex, toneMapped: false }));
@@ -53,6 +58,7 @@ export function deliveryBot() {
   for (const sx of [-0.27, 0.27]) for (const sz of [-0.22, 0, 0.22]) { const w = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.06, 10), wm); w.rotation.z = Math.PI / 2; w.position.set(sx, 0.09, sz); g.add(w); }
   const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.7, 4), wm); pole.position.set(0.16, 0.88, -0.22); g.add(pole);
   const flag = new THREE.Mesh(new THREE.PlaneGeometry(0.16, 0.1), flat('#f2a33a', { side: THREE.DoubleSide })); flag.position.set(0.24, 1.18, -0.22); g.add(flag);
+  mergeProps(g, { side: THREE.DoubleSide, name: 'bot' });
   g.traverse((o) => { if (o.isMesh) o.userData.noOcc = true; });
   return g;
 }
@@ -61,11 +67,13 @@ export function deliveryBot() {
 export function drone(color = '#ffcf7a') {
   const g = new THREE.Group();
   const body = new THREE.Mesh(new RoundedBoxGeometry(0.36, 0.1, 0.36, 2, 0.03), flat('#2f3a4a')); g.add(body);
+  // four pale rotor discs (a plain disc looks the same at any turn, so nothing needs to spin): merged with the body
+  for (const [x, z] of [[-0.26, -0.26], [0.26, -0.26], [-0.26, 0.26], [0.26, 0.26]]) { const r = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.008, 16), flat('#dfe4ea')); r.position.set(x, 0.07, z); g.add(r); }
   const rotors = [];
-  for (const [x, z] of [[-0.26, -0.26], [0.26, -0.26], [-0.26, 0.26], [0.26, 0.26]]) { const r = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, 0.01, 16), flat('#c9cfd6', { transparent: true, opacity: 0.55 })); r.position.set(x, 0.07, z); g.add(r); rotors.push(r); }
   const line = new THREE.Mesh(new THREE.CylinderGeometry(0.005, 0.005, 0.6, 4), flat('#2a2a30')); line.position.y = -0.33; g.add(line);
   const lan = new THREE.Mesh(new THREE.SphereGeometry(0.17, 14, 10), flat(color, { emissive: color, emissiveIntensity: 1.3 })); lan.scale.y = 1.25; lan.position.y = -0.72; g.add(lan);
   g.userData.rotors = rotors;
+  mergeProps(g, { name: 'drone' });
   g.traverse((o) => { if (o.isMesh) o.userData.noOcc = true; });
   return g;
 }
@@ -78,6 +86,7 @@ export function van(signMesh) {
   const wm = flat('#2a2a30');
   for (const sx of [-0.98, 0.98]) for (const sz of [-1.4, 1.4]) { const w = new THREE.Mesh(new THREE.CylinderGeometry(0.36, 0.36, 0.26, 16), wm); w.rotation.z = Math.PI / 2; w.position.set(sx, 0.36, sz); g.add(w); }
   if (signMesh) { const s = signMesh('VAN · BOOK ON THE APP', 1.9, 0.3, { bg: '#13202e', fg: '#9ef2e4', border: false, size: 46 }); s.position.set(0, 2.32, 0); s.rotation.y = Math.PI / 2; g.add(s); const s2 = s.clone(); s2.rotation.y = -Math.PI / 2; g.add(s2); }
+  mergeProps(g, { roughness: 0.55, name: 'van' });
   g.traverse((o) => { if (o.isMesh) o.userData.noOcc = true; });
   return g;
 }

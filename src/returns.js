@@ -68,7 +68,7 @@ export class Return {
     for (const [id, look] of Object.entries(this.A.looks || {})) { const n = G.npcs[id]; if (n) n.c.setLook(Object.assign({}, CAST[id].look, look)); }
     if (this.A.setup) this.A.setup(this);
     if (this.A.applyFix) for (const f of Object.keys(S.fixes)) if (S.fixes[f] === 'built') this.A.applyFix(this, f);
-    try { G.stage.renderer.compile(G.town.scene, G.stage.camera); } catch (e) { /* best effort */ }
+    G.warmCreatures();
   }
   // the day: arrival (or a checkpoint), then free play until the festival's end
   async run(phase) {

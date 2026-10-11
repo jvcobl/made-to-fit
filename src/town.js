@@ -33,6 +33,25 @@ export class Batch {
   mesh(material) { if (!this.list.length) return new THREE.Group(); const m = new THREE.Mesh(mergeGeometries(this.list, false), material); this.list.forEach((g) => g.dispose()); this.list = []; return m; }
 }
 
+// One draw call instead of many: merges the plain coloured meshes under a group (no texture, no glow, not see-through)
+// into a single vertex-coloured mesh in the same place, and leaves the rest (signs, lights) as they are. The group
+// stays, so it can still move, turn and hide. Returns how many meshes were merged.
+export function mergeProps(group, o = {}) {
+  group.updateMatrixWorld(true);
+  const inv = new THREE.Matrix4().copy(group.matrixWorld).invert();
+  const plain = (m) => { const mt = m.material; return !!mt && !Array.isArray(mt) && mt.isMeshStandardMaterial && !mt.map && !mt.transparent && (!mt.emissive || mt.emissive.getHex() === 0 || !mt.emissiveIntensity); };
+  const list = []; group.traverse((m) => { if (m !== group && m.isMesh && !m.userData.keep && plain(m)) list.push(m); });
+  if (list.length < 2) return 0;
+  const b = new Batch(); let cast = false, receive = false;
+  for (const m of list) { b.add(m.geometry, m.material.color, new THREE.Matrix4().multiplyMatrices(inv, m.matrixWorld)); cast = cast || m.castShadow; receive = receive || m.receiveShadow; }
+  for (const m of list) { m.parent.remove(m); m.geometry.dispose(); }
+  const mesh = b.mesh(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: o.roughness == null ? 0.75 : o.roughness, metalness: o.metalness || 0, side: o.side || THREE.FrontSide }));
+  // (o.occ: it can fade out of the way of the camera like the rest of the town; act layers never do)
+  mesh.castShadow = cast; mesh.receiveShadow = receive; mesh.userData.noOcc = !o.occ; mesh.name = o.name || 'props';
+  group.add(mesh);
+  return list.length;
+}
+
 const fontStack = '"Fredoka", "Nunito", ui-rounded, "Segoe UI", system-ui, sans-serif';
 export function signTexture(text, o = {}) {
   const w = o.w || 512, h = o.h || 128; const c = document.createElement('canvas'); c.width = w; c.height = h; const x = c.getContext('2d');
@@ -588,6 +607,7 @@ export class Town {
       const r = new THREE.Mesh(geo, mat('#d9ccb6')); r.position.set(13.6, 0, fz + 0.02); r.castShadow = r.receiveShadow = true; g.add(r);
       for (const dz of [0.05, 1.35]) { const rail = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 5.3, 6), mat('#4f6f8f', { metalness: 0.4 })); rail.rotation.z = Math.PI / 2 - 0.104; rail.position.set(16.2, 1.15, fz + dz); g.add(rail); }
       const sign = signMesh('Ramp · this way', 1.3, 0.34, { size: 44, bg: '#4fb3a9', fg: '#fff', border: '#fff' }); sign.position.set(18.8, 0.9, fz + 1.5); g.add(sign);
+      mergeProps(g, { occ: true, name: 'ramp' });
     }
     // dimmable lights: handled by window material
     // plain notes board by the Works door
@@ -603,6 +623,7 @@ export class Town {
       for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2; const p = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 2.2, 6), mat(PAL.woodDark)); p.position.set(qx + Math.cos(a) * 1.7, 1.1, qz + Math.sin(a) * 1.7); g.add(p); }
       for (let i = 0; i < 3; i++) { const c = new THREE.Mesh(new RoundedBoxGeometry(0.7, 0.25, 0.7, 2, 0.1), mat(['#bfa9f0', '#f6cf5b', '#9fd3b0'][i])); c.position.set(qx - 0.7 + i * 0.7, 0.13, qz + (i % 2) * 0.4); g.add(c); }
       const s = signMesh('Quiet corner\nsofter at noon', 1.4, 0.6, { size: 38, bg: '#fbf6ee', fg: '#2b7a78', border: '#2b7a78' }); s.position.set(qx, 1.85, qz + 1.75); g.add(s);
+      mergeProps(g, { occ: true, name: 'quiet' });
     }
     // a bus board that shows changes
     {
@@ -614,12 +635,14 @@ export class Town {
     {
       const g = G('lanterns'); this.porch = [];
       const spots = [[4, 36.3], [9.5, 36.3], [15, 36.3], [23, 36.3], [48.6, 41.0]];
+      const lights = { on: [], off: [] };
       spots.forEach(([x, z], i) => {
         const post = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 1.4, 6), mat(PAL.woodDark)); post.position.set(x - 1.0, 0.7, z + 0.2); g.add(post);
-        const on = i % 2 === 0; const c = on ? '#4fd1c5' : '#f2a33a';
-        const lt = new THREE.Mesh(on ? new THREE.SphereGeometry(0.17, 14, 10) : new THREE.BoxGeometry(0.3, 0.3, 0.3), mat(c, { emissive: c, emissiveIntensity: 1.4 }));
-        lt.position.set(x - 1.0, 1.55, z + 0.2); g.add(lt); this.porch.push(lt);
+        const on = i % 2 === 0;
+        lights[on ? 'on' : 'off'].push((on ? new THREE.SphereGeometry(0.17, 14, 10) : new THREE.BoxGeometry(0.3, 0.3, 0.3)).translate(x - 1.0, 1.55, z + 0.2));
       });
+      for (const [k, c] of [['on', '#4fd1c5'], ['off', '#f2a33a']]) { const lt = new THREE.Mesh(mergeGeometries(lights[k], false), mat(c, { emissive: c, emissiveIntensity: 1.4 })); lights[k].forEach((q) => q.dispose()); g.add(lt); this.porch.push(lt); }
+      mergeProps(g, { occ: true, name: 'lanternPosts' });
     }
   }
   setPlaque(solved) { if (this.plaque && this.plaque2) { this.plaque.visible = !solved; this.plaque2.visible = !!solved; } }

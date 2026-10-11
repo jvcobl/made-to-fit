@@ -4,7 +4,7 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { signMesh } from './town.js';
+import { signMesh, mergeProps, Batch } from './town.js';
 import { Unit, deliveryBot, van } from './robot.js';
 
 const mat = (c, o = {}) => new THREE.MeshStandardMaterial(Object.assign({ color: c, roughness: 0.75 }, o));
@@ -19,7 +19,9 @@ export function townLayer(T, act, S) {
   const g = new THREE.Group(); g.name = 'act' + act; T.scene.add(g); T.actLayer = g; T.busOff = true; if (T.bus) T.bus.visible = false;
   const F = S.fixes || {}; const W = S.w || {};
   const sign = (text, x, y, z, w, h, o = {}, ry = 0) => { const m = signMesh(text, w, h, o); m.position.set(x, y, z); m.rotation.y = ry; g.add(m); return m; };
-  const box = (w, h, d, c, x, y, z, o) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat(c, o)); m.position.set(x, y, z); g.add(m); return m; };
+  // plain props go into one group that is merged into a single mesh at the end (one draw call for all of them)
+  const props = new THREE.Group(); props.name = 'actProps'; g.add(props);
+  const box = (w, h, d, c, x, y, z, o) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat(c, o)); m.position.set(x, y, z); props.add(m); return m; };
   // the van at the old stop (the bus became a van; the van became an app)
   { const v = van(signMesh); v.position.set(57.4, 0, 23.4); g.add(v); T.van = v; T.spots.van = [56.1, 25.6]; }
   // the board, if you won it ten years ago; otherwise a sticker on the old timetable
@@ -31,8 +33,8 @@ export function townLayer(T, act, S) {
   {
     const x = 46.6; T.crossing = { x };
     for (let i = 0; i < 6; i++) box(1.5, 0.02, 0.32, '#f4f1ea', x, 0.02, 22.75 + i * 0.55);
-    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 2.6, 8), mat('#4a4f58', { metalness: 0.4 })); post.position.set(x - 1.1, 1.3, 22.0); g.add(post);
-    const head = new THREE.Mesh(new RoundedBoxGeometry(0.34, 0.62, 0.2, 2, 0.05), mat('#2a2a30')); head.position.set(x - 1.1, 2.45, 22.0); g.add(head);
+    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 2.6, 8), mat('#4a4f58', { metalness: 0.4 })); post.position.set(x - 1.1, 1.3, 22.0); props.add(post);
+    const head = new THREE.Mesh(new RoundedBoxGeometry(0.34, 0.62, 0.2, 2, 0.05), mat('#2a2a30')); head.position.set(x - 1.1, 2.45, 22.0); props.add(head);
     T.crossRed = new THREE.Mesh(new THREE.SphereGeometry(0.09, 12, 8), mat('#e4574a', { emissive: '#e4574a', emissiveIntensity: 1.6 })); T.crossRed.position.set(x - 1.1, 2.6, 22.11); g.add(T.crossRed);
     T.crossGreen = new THREE.Mesh(new THREE.SphereGeometry(0.09, 12, 8), mat('#4fd18b', { emissive: '#4fd18b', emissiveIntensity: 0.15 })); T.crossGreen.position.set(x - 1.1, 2.3, 22.11); g.add(T.crossGreen);
     // the button says what the light does: PUSH (timed to the Standard), or the fix in the shape it was voted
@@ -45,8 +47,8 @@ export function townLayer(T, act, S) {
   }
   // the Blend Lounge beside the old kiosk: a pink bench and a sign
   {
-    const b = new THREE.Mesh(new RoundedBoxGeometry(1.8, 0.14, 0.6, 2, 0.05), mat('#ff8fbe')); b.position.set(38.4, 0.5, 30.0); g.add(b);
-    const back = new THREE.Mesh(new RoundedBoxGeometry(1.8, 0.6, 0.12, 2, 0.05), mat('#ff5fa2')); back.position.set(38.4, 0.85, 30.3); g.add(back);
+    const b = new THREE.Mesh(new RoundedBoxGeometry(1.8, 0.14, 0.6, 2, 0.05), mat('#ff8fbe')); b.position.set(38.4, 0.5, 30.0); props.add(b);
+    const back = new THREE.Mesh(new RoundedBoxGeometry(1.8, 0.6, 0.12, 2, 0.05), mat('#ff5fa2')); back.position.set(38.4, 0.85, 30.3); props.add(back);
     sign('BLEND LOUNGE\n♥ a heart a day', 38.4, 1.65, 30.37, 1.4, 0.5, { size: 34, bg: '#fdf7fb', fg: '#d0457f', border: '#ff5fa2' }, Math.PI);
     T.block(37.4, 29.6, 39.4, 30.5);
     T.spots.lounge = [38.4, 29.1];
@@ -63,11 +65,11 @@ export function townLayer(T, act, S) {
     T.coopSign = sign('FIX-IT SHED\na co-op', 52, 2.2, 9.96, 1.6, 0.5, { size: 34, bg: '#9edcd6', fg: '#1e3a3a', border: '#1e3a3a' }); T.coopSign.visible = false;
     Object.assign(T.spots, { shedYard: [50.6, 12.7], shedYard2: [53.6, 12.9], shedYard3: [49.8, 13.9], shedYard4: [54.6, 12.2], shedDoor: [52, 12.0] });
     // Founders' Row: the lane into the Far End carries the founders' name now
-    { const post = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 2.4, 6), mat('#4a4f58', { metalness: 0.4 })); post.position.set(44.6, 1.2, 39.0); g.add(post);
+    { const post = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 2.4, 6), mat('#4a4f58', { metalness: 0.4 })); post.position.set(44.6, 1.2, 39.0); props.add(post);
       sign('FOUNDERS\' ROW', 44.6, 2.25, 39.05, 1.3, 0.3, { size: 44, bg: '#2f4a3a', fg: '#fbf6ee', border: '#fbf6ee' });
       T.addInter({ id: 'foundersrow', kind: 'prop', x: 44.6, z: 39.8, r: 1.3, label: 'Read the street sign' }); }
     // the stall leases board, by the square
-    { for (const sx of [-0.7, 0.7]) { const p = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1.7, 6), mat('#5a3a2a')); p.position.set(34.0 + sx, 0.85, 27.4); g.add(p); }
+    { for (const sx of [-0.7, 0.7]) { const p = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1.7, 6), mat('#5a3a2a')); p.position.set(34.0 + sx, 0.85, 27.4); props.add(p); }
       sign('STALL LEASES\nto the highest bid\nwaiting list: 14', 34.0, 1.45, 27.45, 1.5, 0.8, { size: 30, bg: '#efe3cf', fg: '#5a3a2a', border: '#8a6f4e' });
       T.block(33.2, 27.2, 34.8, 27.6); T.addInter({ id: 'rentboard', kind: 'prop', x: 34.0, z: 28.3, r: 1.2, label: 'Read the leases board' }); }
     // a plate on the statue's plinth, if the Fund's gift is accepted
@@ -83,7 +85,7 @@ export function townLayer(T, act, S) {
         const m = [];
         for (const lx of [-0.72, 0.72]) { m.push(part(0.08, h, 0.44, lx, h / 2, 0)); if (arms) m.push(part(0.07, 0.06, 0.46, lx, h + 0.24, 0), part(0.06, 0.24, 0.06, lx, h + 0.12, 0.2)); }
         s.add(new THREE.Mesh(mergeGeometries(m), metal));
-        s.visible = false; g.add(s); all[id] = { s, box: [x - 0.3, z - 0.85, x + 0.3, z + 0.85] };
+        mergeProps(s, { name: 'bench' }); s.visible = false; g.add(s); all[id] = { s, box: [x - 0.3, z - 0.85, x + 0.3, z + 0.85] };
       };
       one('low', 27.1, 24.0, -Math.PI / 2, 0.3, false); one('high', 32.9, 24.0, Math.PI / 2, 0.62, true);
       T.showBenches = (which) => { for (const k of which === 'three' ? ['low', 'high'] : ['low']) { const b = all[k]; if (b.s.visible) continue; b.s.visible = true; T.block(...b.box); } };
@@ -96,11 +98,14 @@ export function townLayer(T, act, S) {
     { const c = new THREE.Group(); const body = new THREE.Mesh(new RoundedBoxGeometry(1.5, 0.8, 0.9, 1, 0.08), mat('#6d7f5a')); body.position.y = 0.7; c.add(body);
       const roof = new THREE.Mesh(new THREE.ConeGeometry(1.1, 0.5, 10), mat('#e2b34c')); roof.position.y = 2.6; c.add(roof);
       const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 1.8, 6), mat('#5a3a2a')); pole.position.y = 1.6; c.add(pole);
-      c.position.set(45.6, 0, 40.4); c.visible = false; g.add(c); T.farCart = c; T.spots.cartFar = [46.4, 41.4]; }
+      c.position.set(45.6, 0, 40.4); mergeProps(c, { name: 'farCart' }); c.visible = false; g.add(c); T.farCart = c; T.spots.cartFar = [46.4, 41.4]; }
     // the Far End stalls, if they were voted through
-    { const s = new THREE.Group(); for (let i = 0; i < 3; i++) { const st = new THREE.Mesh(new RoundedBoxGeometry(1.6, 0.9, 0.8, 1, 0.06), mat(['#c8553d', '#4f6f8f', '#e2b34c'][i])); st.position.set(41.6 + i * 2.2, 0.45, 44.4); s.add(st); const aw = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.06, 1.0), mat('#fbf6ee')); aw.position.set(41.6 + i * 2.2, 2.0, 44.4); s.add(aw); }
-      s.visible = F.farstalls === 'built'; g.add(s); T.farStalls = s; }
+    { const s = new THREE.Group(); for (let i = 0; i < 3; i++) { const st = new THREE.Mesh(new RoundedBoxGeometry(1.6, 0.9, 0.8, 1, 0.06), mat(['#c8553d', '#4f6f8f', '#e2b34c'][i])); st.position.set(41.6 + i * 2.2, 0.45, 44.4); s.add(st); const aw = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.06, 1.0), mat('#fbf6ee')); aw.position.set(41.6 + i * 2.2, 2.0, 44.4); s.add(aw);
+        // four thin posts hold each awning up (merged with the rest: no extra draw calls)
+        for (const [dx, dz] of [[-0.78, -0.42], [0.78, -0.42], [-0.78, 0.42], [0.78, 0.42]]) { const po = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 1.1, 6), mat('#7a5236')); po.position.set(41.6 + i * 2.2 + dx, 1.45, 44.4 + dz); s.add(po); } }
+      mergeProps(s, { name: 'farStalls' }); s.visible = F.farstalls === 'built'; g.add(s); T.farStalls = s; }
   }
+  mergeProps(props, { name: 'actProps' });
   g.traverse((o) => { if (o.isMesh) o.userData.noOcc = true; });
   return g;
 }
@@ -116,11 +121,14 @@ export function roomLayer(rooms, act, S) {
     W.spots.unit = [seat[0] + 0.9, seat[1] + 0.4]; W.spots.tomas = [-5.4, 3.0]; W.spots.ada = W.seats[8];
     // the lamps and plants (only if you softened the panels in your first visit: the room you left behind)
     if (F.dim === 'built') {
-      const lg = new THREE.Group(); W.actLamps = lg; const n0 = g.children.length;
-      const lampM = mat('#2f3a4a'); const shade = mat('#ffd9a0', { emissive: '#ffcf7a', emissiveIntensity: 0.9 });
-      W.seats.forEach(([x, z], i) => { if (i === 7) return; const b = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.05, 0.42, 6), lampM); b.position.set(x + 0.6, 1.0, z - 1.0); g.add(b); const s = new THREE.Mesh(new THREE.ConeGeometry(0.14, 0.16, 12, 1, true), shade); s.position.set(x + 0.6, 1.26, z - 1.0); g.add(s); });
-      for (const [px, pz] of [[-7.2, -3.6], [-2.6, 4.3], [0.6, 4.3], [3.6, 3.6], [7.3, -0.6]]) { const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.17, 0.4, 10), mat('#c97f5a')); pot.position.set(px, 0.2, pz); g.add(pot); for (let i = 0; i < 5; i++) { const l = new THREE.Mesh(new THREE.SphereGeometry(0.2, 8, 6), mat('#5f8f4e')); l.position.set(px + Math.cos(i * 1.3) * 0.15, 0.6 + (i % 3) * 0.16, pz + Math.sin(i * 1.3) * 0.15); g.add(l); } }
-      for (const ch of g.children.slice(n0)) lg.add(ch); g.add(lg);
+      // (two draw calls in all: the lamp stands, pots and leaves are one mesh; the glowing shades are another)
+      const lg = new THREE.Group(); W.actLamps = lg;
+      const b = new Batch(); const shades = [];
+      W.seats.forEach(([x, z], i) => { if (i === 7) return; b.add(new THREE.CylinderGeometry(0.03, 0.05, 0.42, 6).translate(x + 0.6, 1.0, z - 1.0), '#2f3a4a', null, { dispose: true }); shades.push(new THREE.ConeGeometry(0.14, 0.16, 12, 1, true).translate(x + 0.6, 1.26, z - 1.0)); });
+      for (const [px, pz] of [[-7.2, -3.6], [-2.6, 4.3], [0.6, 4.3], [3.6, 3.6], [7.3, -0.6]]) { b.add(new THREE.CylinderGeometry(0.22, 0.17, 0.4, 10).translate(px, 0.2, pz), '#c97f5a', null, { dispose: true }); for (let i = 0; i < 5; i++) b.add(new THREE.SphereGeometry(0.2, 8, 6).translate(px + Math.cos(i * 1.3) * 0.15, 0.6 + (i % 3) * 0.16, pz + Math.sin(i * 1.3) * 0.15), '#5f8f4e', null, { dispose: true }); }
+      lg.add(b.mesh(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.75 })));
+      lg.add(new THREE.Mesh(mergeGeometries(shades, false), mat('#ffd9a0', { emissive: '#ffcf7a', emissiveIntensity: 0.9 }))); shades.forEach((q) => q.dispose());
+      g.add(lg);
       out.lampsShown = true;
     }
     if (F.plain === 'built') { const s = signMesh('THIS WEEK\nwho · what · by when', 1.5, 0.9, { size: 40, bg: '#fbf6ee', fg: '#2f3a4a', border: '#4fb3a9' }); s.position.set(-7.86, 1.75, 1.2); s.rotation.y = Math.PI / 2; g.add(s); }

@@ -8,6 +8,9 @@ import * as THREE from 'three';
 import { blobMaterial } from './creature.js';
 
 export const NEAR_IN = 13, NEAR_OUT = 16, NEAR_SLOTS = 4, NEAR_KEEP = 3;
+// a wide shot (the camera this far from what it looks at, like the festival's opening view) shows everyone too small
+// for the near rig to show: only you, and whoever you are talking to, keep it
+export const WIDE = 26;
 const _m = new THREE.Matrix4(), _p = new THREE.Vector3(), _q = new THREE.Quaternion(), _s = new THREE.Vector3();
 
 class LOD {
@@ -46,7 +49,9 @@ class LOD {
       // follow camera that is you); anyone already near keeps a slot unless someone clearly closer arrives
       r.d = G.talking === r.n.id ? -1e9 : near ? dl - NEAR_KEEP : dl;
     }
-    for (let k = 0; k < NEAR_SLOTS; k++) {
+    const cp = G.stage.camPos; const wide = !!cp && Math.hypot(cp.x - look.x, cp.y - look.y, cp.z - look.z) > WIDE;
+    const slots = wide ? (G.talking ? 1 : 0) : NEAR_SLOTS;
+    for (let k = 0; k < slots; k++) {
       let best = null;
       for (const r of this.recs) if (r.ok && !r.pick && (!best || r.d < best.d)) best = r;
       if (!best) break;
@@ -66,6 +71,11 @@ class LOD {
 }
 
 let lod = null;
+// before the first frame: the shared blob-shadow layer in every scene, so their shaders can be compiled ahead of time
+export function warmLOD(G) {
+  if (!lod || lod.G !== G) lod = new LOD(G);
+  for (const sc of [G.town.scene, ...Object.values(G.rooms).map((r) => r.scene)]) lod.layer(sc);
+}
 export function updateLOD(G) {
   if (!lod || lod.G !== G) lod = new LOD(G);
   lod.update();

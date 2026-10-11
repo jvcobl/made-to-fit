@@ -312,11 +312,11 @@ export class UI {
   }
   creator(look, onChange) {
     const S = this.G.S; const L = Object.assign({}, look);
-    const sec = (title, key, opts, cur) => `<h4>${title}</h4><div class="chips" data-k="${key}">` + opts.map(([v, n]) => `<button class="chip ${v === cur ? 'on' : ''}" data-v="${v}">${esc(n)}</button>`).join('') + '</div>';
+    const sec = (title, key, opts, cur) => `<h3 class="sec">${title}</h3><div class="chips" data-k="${key}">` + opts.map(([v, n]) => `<button class="chip ${v === cur ? 'on' : ''}" data-v="${v}">${esc(n)}</button>`).join('') + '</div>';
     const html = `<h2>This is you.</h2><p class="lede">Nobody else in Larkspur looks quite like this. That is the point.</p>
-      <div class="two"><div><h4><label for="cname">Name</label></h4><input type="text" id="cname" maxlength="14" value="${esc(S.name)}" autocomplete="off"></div><div><h4>Pronouns</h4><div class="chips" data-k="pronoun">${['they', 'she', 'he'].map((v) => `<button class="chip ${v === S.pronoun ? 'on' : ''}" data-v="${v}">${v}</button>`).join('')}</div></div></div>
+      <div class="two"><div><h3 class="sec"><label for="cname">Name</label></h3><input type="text" id="cname" maxlength="14" value="${esc(S.name)}" autocomplete="off"></div><div><h3 class="sec">Pronouns</h3><div class="chips" data-k="pronoun">${['they', 'she', 'he'].map((v) => `<button class="chip ${v === S.pronoun ? 'on' : ''}" data-v="${v}">${v}</button>`).join('')}</div></div></div>
       ${sec('Shape', 'shape', OPTIONS.shape, L.shape)}
-      <h4>Color</h4><div class="chips" data-k="color">${OPTIONS.color.map((c) => `<button class="swatch ${c === L.color ? 'on' : ''}" data-v="${c}" style="background:${c}" aria-label="color ${c}"></button>`).join('')}</div>
+      <h3 class="sec">Color</h3><div class="chips" data-k="color">${OPTIONS.color.map((c) => `<button class="swatch ${c === L.color ? 'on' : ''}" data-v="${c}" style="background:${c}" aria-label="color ${c}"></button>`).join('')}</div>
       ${sec('Pattern', 'pattern', OPTIONS.pattern, L.pattern)}${sec('On top', 'top', OPTIONS.top, L.top)}${sec('Something you always wear', 'wear', OPTIONS.wear, L.wear)}${sec('Your voice', 'voice', OPTIONS.voice, L.voice)}
       ${sec('Getting around', 'wheels', [['feet', 'On foot'], ['wheels', 'On wheels']], L.wheels ? 'wheels' : 'feet')}
       ${sec('Your comfort move', 'comfort', COMFORT_OPTS, L.comfort || 'hum')}<p class="small">What your creature does when a place fits it.</p>
@@ -374,13 +374,13 @@ export class UI {
     const one = (key, list) => `<div class="chips" role="group">${list.map(([id, t]) => chip(`data-one="${key}" data-v="${id}"`, v[key] === id, t)).join('')}</div>`;
     const msg = (k) => (note.k === k ? `<p class="small rnote" role="status">${esc(note.t)}</p>` : '');
     const html = () => `<h2>That first week</h2><p class="lede">Six things Larkspur remembers about you. Pick what feels right, or let the game choose.</p>
-      <h4 id="rq1">What got built (two at most)</h4><div class="chips" role="group" aria-labelledby="rq1">${o.fixes.map((f) => chip(`data-fix="${f.id}"`, v.built.includes(f.id), f.t)).join('')}</div>${msg('fix')}
+      <h3 class="sec" id="rq1">What got built (two at most)</h3><div class="chips" role="group" aria-labelledby="rq1">${o.fixes.map((f) => chip(`data-fix="${f.id}"`, v.built.includes(f.id), f.t)).join('')}</div>${msg('fix')}
       ${v.built.map((id) => { const f = o.fixes.find((x) => x.id === id); return `<div class="rsub"><span>${esc(f.t)}:</span>${chip(`data-listen="${id}"`, !!v.listened[id], 'You listened to ' + f.stake)}</div>`; }).join('')}
-      <h4 id="rq2">Who knew you (up to four)</h4><div class="chips" role="group" aria-labelledby="rq2">${o.people.map((x) => chip(`data-person="${x.id}"`, v.people.includes(x.id), x.t)).join('')}</div>${msg('person')}
-      <h4>Rue, at the festival</h4>${one('rue', [['streak', 'Still on her streak'], ['easing', 'Easing off it']])}
-      <h4>Blend, the app</h4>${one('blend', [['never', 'Never installed it'], ['kept', 'Kept it'], ['deleted', 'Deleted it']])}
-      <h4>How you left</h4>${one('left', [['yourself', 'Looking like yourself'], ['faded', 'A little faded']])}
-      <h4>One thing you'd set differently next time</h4>${one('dflt', o.defaults.filter((d) => d.id !== 'blend_off' || v.blend === 'kept').map((d) => [d.id, d.t]))}
+      <h3 class="sec" id="rq2">Who knew you (up to four)</h3><div class="chips" role="group" aria-labelledby="rq2">${o.people.map((x) => chip(`data-person="${x.id}"`, v.people.includes(x.id), x.t)).join('')}</div>${msg('person')}
+      <h3 class="sec">Rue, at the festival</h3>${one('rue', [['streak', 'Still on her streak'], ['easing', 'Easing off it']])}
+      <h3 class="sec">Blend, the app</h3>${one('blend', [['never', 'Never installed it'], ['kept', 'Kept it'], ['deleted', 'Deleted it']])}
+      <h3 class="sec">How you left</h3>${one('left', [['yourself', 'Looking like yourself'], ['faded', 'A little faded']])}
+      <h3 class="sec">One thing you'd set differently next time</h3>${one('dflt', o.defaults.filter((d) => d.id !== 'blend_off' || v.blend === 'kept').map((d) => [d.id, d.t]))}
       <div class="pfoot sticky"><button class="btn" id="rrand">Choose for me</button><button class="btn primary" id="rgo">Ten years later</button></div>`;
     const p = this.openPanel('center recap', html());
     const redraw = (sel) => { const top = p.scrollTop; p.innerHTML = html(); p.scrollTop = top; const f = sel && p.querySelector(sel); if (f) f.focus({ preventScroll: true }); };
@@ -406,8 +406,8 @@ export class UI {
     const coinsBtn = (attr, price, label) => `<button class="btn" ${attr} ${S.coins < price ? 'aria-disabled="true"' : ''}>${S.coins < price ? 'Not enough coins yet' : label}</button>`;
     const tile = (f) => cardTile(f);
     const shopHtml = () => `<h2>Moss's cart</h2><p class="lede">You have ${S.coins} coins.</p>
-      <h4 class="sh4">Under the counter</h4><div class="list">${items.map(([k, n, c, d]) => `<div class="card"><b>${n}</b> ${S.gear[k] ? '<span class="pill built">yours</span>' : `<span class="pill">${c} coins</span>`}<div class="meta">${d}</div>${S.gear[k] ? '' : `<div style="margin-top:8px">${coinsBtn(`data-buy="${k}"`, c, 'Buy')}</div>`}</div>`).join('')}</div>
-      <h4 class="sh4">On the shelf: pond cards</h4><div class="list">
+      <h3 class="sec sh4">Under the counter</h3><div class="list">${items.map(([k, n, c, d]) => `<div class="card"><b>${n}</b> ${S.gear[k] ? '<span class="pill built">yours</span>' : `<span class="pill">${c} coins</span>`}<div class="meta">${d}</div>${S.gear[k] ? '' : `<div style="margin-top:8px">${coinsBtn(`data-buy="${k}"`, c, 'Buy')}</div>`}</div>`).join('')}</div>
+      <h3 class="sec sh4">On the shelf: pond cards</h3><div class="list">
         <div class="card"><b>Sealed pack</b> <span class="pill">${PACK_PRICE} coins</span><div class="meta">Three cards at random. Every fish is equally likely.</div><div style="margin-top:8px">${coinsBtn('data-pack="1"', PACK_PRICE, 'Buy a pack')}</div>${res('pack')}</div>
         ${S.flags.packOpened ? `<div class="card"><b>Buy more packs</b><div class="meta">Open several at once. You'll get a summary.</div><div class="stepper" role="group" aria-label="How many packs"><button class="mini-btn" data-more="-1" aria-label="One fewer">−</button><span aria-live="polite">${more}</span><button class="mini-btn" data-more="1" aria-label="One more">+</button><span class="small">${more * PACK_PRICE} coins</span></div><div style="margin-top:8px">${coinsBtn('data-packs="1"', more * PACK_PRICE, 'Buy ' + more)}</div>${res('more')}</div>` : ''}
         <div class="card"><b>Singles binder</b> <span class="pill">${SINGLE_PRICE} coins a card</span><div class="meta">Pick any card. Every fish is in here, the golden one too.</div><div style="margin-top:8px"><button class="btn" data-binder="1">Open the binder</button></div></div>
@@ -577,8 +577,8 @@ export class UI {
     const html = NOTE_SECTIONS.map((sec) => {
       const all = FIELD_NOTES.filter((n) => n.section === sec.id && n.act <= act); if (!all.length) return '';
       const found = all.filter((n) => seen[n.id]);
-      if (sec.id === 'autism' && !S.flags.autismOpen) return `<div class="nsec"><h5>${esc(sec.title)}</h5><p class="small">Opens on your first night.</p></div>`;
-      return `<div class="nsec"><h5>${esc(sec.title)}</h5>${sec.intro && found.length ? `<p class="small">${esc(sec.intro)}</p>` : ''}${found.map((n) => this.noteCard(n, seen[n.id] === S.day)).join('')}${all.length > found.length ? `<p class="small">${all.length - found.length} more to find.</p>` : ''}</div>`;
+      if (sec.id === 'autism' && !S.flags.autismOpen) return `<div class="nsec"><h4>${esc(sec.title)}</h4><p class="small">Opens on your first night.</p></div>`;
+      return `<div class="nsec"><h4>${esc(sec.title)}</h4>${sec.intro && found.length ? `<p class="small">${esc(sec.intro)}</p>` : ''}${found.map((n) => this.noteCard(n, seen[n.id] === S.day)).join('')}${all.length > found.length ? `<p class="small">${all.length - found.length} more to find.</p>` : ''}</div>`;
     }).join('');
     return `<p class="small" style="margin-top:6px">Larkspur is made up. The ideas under it are not. A note appears here after something in the game has happened to you.</p>${html}`;
   }
@@ -645,7 +645,7 @@ export class UI {
   // ---------- Who decided? ----------
   decidedCard(d) {
     const pay = d.pay.length ? d.pay.map((p) => `<figure>${p.img ? `<img src="${p.img}" alt="">` : '<i class="vsil"></i>'}<figcaption>${esc(p.name)}</figcaption></figure>`).join('') : '<p class="small">Nobody else, this time.</p>';
-    const p = this.openPanel('center decided', `<div class="tday">Who decided? · ${d.n} of ${d.of}</div><p class="dverb">${esc(d.verb)}</p><div class="dcols"><div><h4>What you faced</h4><ul>${d.faced.map((x) => `<li>${esc(x)}</li>`).join('')}</ul></div><div><h4>Also true</h4><ul>${d.also.map((x) => `<li>${esc(x)}</li>`).join('')}</ul></div></div><h4>Who paid</h4><div class="dpay">${pay}</div><div class="pfoot">${d.first ? '<button class="btn" id="dskip">Skip to the festival</button>' : ''}<button class="btn primary" id="dnext">Next</button></div>`);
+    const p = this.openPanel('center decided', `<div class="tday">Who decided? · ${d.n} of ${d.of}</div><h2 class="dverb">${esc(d.verb)}</h2><div class="dcols"><div><h3 class="sec">What you faced</h3><ul>${d.faced.map((x) => `<li>${esc(x)}</li>`).join('')}</ul></div><div><h3 class="sec">Also true</h3><ul>${d.also.map((x) => `<li>${esc(x)}</li>`).join('')}</ul></div></div><h3 class="sec">Who paid</h3><div class="dpay">${pay}</div><div class="pfoot">${d.first ? '<button class="btn" id="dskip">Skip to the festival</button>' : ''}<button class="btn primary" id="dnext">Next</button></div>`);
     this.announce('Who decided? ' + d.verb + ' What you faced: ' + d.faced.join(' ') + ' Also true: ' + d.also.join(' ') + ' Who paid: ' + (d.pay.map((x) => x.name).join(', ') || 'nobody else'));
     return new Promise((r) => {
       const go = (v) => { window.removeEventListener('keydown', kh); this.closePanel(); r(v); };
@@ -674,19 +674,19 @@ export class UI {
     const resp = [['bend', 'Bent'], ['gear', 'Gear'], ['ask', 'Asked'], ['fix', 'Noted a fix'], ['leave', 'Left']].map(([k, n]) => `<div class="ev-r ${k} ${d.counts[k] ? '' : 'zero'}"><div class="ic">${ICON[k]}</div><b>${d.counts[k] || 0}</b><span>${n}</span></div>`).join('');
     const marbles = d.jar.map((m) => `<i style="--c:${m.c}" title="${esc(m.t)}"></i>`).join('') + '<i class="empty"></i>'.repeat(Math.max(0, d.jarMax - d.jar.length));
     const p = this.openPanel('center evening', `<div class="tday">${esc(d.day)} evening</div><h2>${esc(d.title)}</h2>
-      <h4>Today, when a place did not fit</h4><div class="ev-row">${resp}</div>
-      <h4>Kept moments</h4><div class="jarrow"><div class="jar">${marbles}</div><div class="jt">${d.jarText}</div></div>
-      ${d.news.length ? `<h4>Around town</h4><ul class="ev-news">${d.news.map((n) => `<li>${esc(n)}</li>`).join('')}</ul>` : ''}
-      ${d.open ? `<h4>Still open</h4><p class="ev-open">${esc(d.open)}</p>` : ''}
+      <h3 class="sec">Today, when a place did not fit</h3><div class="ev-row">${resp}</div>
+      <h3 class="sec">Kept moments</h3><div class="jarrow"><div class="jar">${marbles}</div><div class="jt">${d.jarText}</div></div>
+      ${d.news.length ? `<h3 class="sec">Around town</h3><ul class="ev-news">${d.news.map((n) => `<li>${esc(n)}</li>`).join('')}</ul>` : ''}
+      ${d.open ? `<h3 class="sec">Still open</h3><p class="ev-open">${esc(d.open)}</p>` : ''}
       ${d.notebook ? `<p class="ev-open">${esc(d.notebook)} It's in your phone, under Notebook.</p>` : ''}
-      ${d.tomorrow.length ? `<h4>Tomorrow</h4><ul class="ev-news">${d.tomorrow.map((n) => `<li>${esc(n)}</li>`).join('')}</ul>` : ''}
+      ${d.tomorrow.length ? `<h3 class="sec">Tomorrow</h3><ul class="ev-news">${d.tomorrow.map((n) => `<li>${esc(n)}</li>`).join('')}</ul>` : ''}
       <div class="pfoot"><button class="btn primary" id="sleep">Sleep</button></div>`);
     return new Promise((r) => { const go = () => { window.removeEventListener('keydown', kh); this.closePanel(); r(); }; const kh = (e) => { if (e.key === 'Enter') { e.preventDefault(); go(); } }; p.querySelector('#sleep').onclick = go; setTimeout(() => window.addEventListener('keydown', kh), 300); });
   }
   ending(d) {
     const p = this.openPanel('ending', `<div class="wrap"><div class="portraits"><figure><img src="${d.before}" alt="You on your first day">You on your first day</figure><figure><img src="${d.after}" alt="You tonight">You tonight</figure></div>
       <h1>${esc(d.title)}</h1><p class="lead">${esc(d.text)}</p>${d.line ? `<p class="eline">${esc(d.line)}</p>` : ''}
-      <h4 class="eh">What Larkspur will remember</h4><ul class="fates">${d.remember.map((f) => `<li>${esc(f)}</li>`).join('')}</ul>
+      <h2 class="eh">What Larkspur will remember</h2><ul class="fates">${d.remember.map((f) => `<li>${esc(f)}</li>`).join('')}</ul>
       <div class="row erow"><button class="btn primary" id="notes">What was this about?</button><button class="btn" id="card">Make your fit card</button>${d.act < 3 && this.G.story.nextAct ? `<button class="btn accent" id="next">${d.act === 1 ? 'Ten years later' : 'Twenty years later'}</button>` : ''}<button class="btn" id="again">Play this visit again</button></div>
       <div class="ecode"><label for="vcode">Your visit code</label><textarea id="vcode" class="codebox" readonly rows="2">${esc(d.code || '')}</textarea><div class="row"><button class="btn" id="copy">Copy</button></div><p class="small">${d.act >= 3 ? 'It holds only what Larkspur remembers of your visits: no name, nothing else.' : 'It holds only what carries to the next visit: no name, nothing else. Paste it into "Played before?" on any device.'}</p></div>
       <div id="cardbox"></div><div id="noteslist"></div></div>`);
@@ -695,7 +695,7 @@ export class UI {
     p.querySelector('#copy').onclick = async () => { const t = p.querySelector('#vcode'); t.select(); let ok = false; try { await navigator.clipboard.writeText(t.value); ok = true; } catch (e) { try { ok = document.execCommand('copy'); } catch (e2) { ok = false; } } this.toast(ok ? 'Copied.' : 'Select the code and copy it.', '', 2000); };
     p.querySelector('#notes').onclick = () => {
       const S = this.G.S; const seen = S.notes || {}; const act = S.act || 1;
-      p.querySelector('#noteslist').innerHTML = `<p class="nl-intro">Larkspur is made up. The ideas under it are not. Here is what the game was built on, with how strong the evidence is.</p>` + NOTE_SECTIONS.map((sec) => { const ns = FIELD_NOTES.filter((n) => n.section === sec.id && n.act <= act); if (!ns.length) return ''; return `<h3 class="nlsec">${esc(sec.title)}</h3>${sec.intro ? `<p class="small">${esc(sec.intro)}</p>` : ''}` + ns.map((n) => `<div class="note ${seen[n.id] ? 'seen' : ''}"><div class="tag">${esc(n.tag)}${seen[n.id] ? ' · you found this one' : ''}</div><h5>${esc(n.title)}</h5><p>${esc(n.text)}</p><div class="src">${esc(n.src)}</div></div>`).join(''); }).join('') + `<div class="support"><h3 class="nlsec">Support</h3>${SUPPORT.lines.map((l) => `<p><b>${esc(l.where)}</b> ${esc(l.text)}</p>`).join('')}<p class="small">${esc(SUPPORT.footer)}</p></div>`;
+      p.querySelector('#noteslist').innerHTML = `<p class="nl-intro">Larkspur is made up. The ideas under it are not. Here is what the game was built on, with how strong the evidence is.</p>` + NOTE_SECTIONS.map((sec) => { const ns = FIELD_NOTES.filter((n) => n.section === sec.id && n.act <= act); if (!ns.length) return ''; return `<h3 class="nlsec">${esc(sec.title)}</h3>${sec.intro ? `<p class="small">${esc(sec.intro)}</p>` : ''}` + ns.map((n) => `<div class="note ${seen[n.id] ? 'seen' : ''}"><div class="tag">${esc(n.tag)}${seen[n.id] ? ' · you found this one' : ''}</div><h4>${esc(n.title)}</h4><p>${esc(n.text)}</p><div class="src">${esc(n.src)}</div></div>`).join(''); }).join('') + `<div class="support"><h3 class="nlsec">Support</h3>${SUPPORT.lines.map((l) => `<p><b>${esc(l.where)}</b> ${esc(l.text)}</p>`).join('')}<p class="small">${esc(SUPPORT.footer)}</p></div>`;
       p.querySelector('#notes').hidden = true; p.querySelector('#noteslist').scrollIntoView({ behavior: 'smooth' });
     };
     p.querySelector('#card').onclick = async () => {

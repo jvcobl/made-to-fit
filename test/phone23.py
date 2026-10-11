@@ -71,7 +71,7 @@ with sync_playwright() as p:
     if until(pg, "__wb.waiter() === 'barrier'", 40, pick=None): snap(pg, '10_a2_kiosk_card')
     until(pg, "!__wb.busy() && !__wb.waiter()", 40, pick=lambda o: next((k for k, x in enumerate(o) if x['key'] == 'leave'), 0))
     pg.evaluate("__wb.mgTest('teach')"); until(pg, "!!(__wb.G.mg && document.querySelector('.mg-over .go'))", 30, pick=None); snap(pg, '11_teach_intro')
-    pg.evaluate("document.querySelector('.mg-over .go').click()"); pg.wait_for_timeout(700); snap(pg, '12_teach_play', strict=False)
+    pg.evaluate("document.querySelector('.mg-over .go') && document.querySelector('.mg-over .go').click()"); pg.wait_for_timeout(700); snap(pg, '12_teach_play', strict=False)
     pg.evaluate("__wb.G.mg && __wb.G.mg.running && __wb.G.mg.end()")
     if until(pg, "!!document.querySelector('.mg-result .go')", 20, pick=None): snap(pg, '13_teach_result')
     pg.evaluate("document.querySelector('.mg-result .go') && document.querySelector('.mg-result .go').click()"); until(pg, "!__wb.mg() && !__wb.busy()", 40)

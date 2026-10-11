@@ -79,7 +79,7 @@ export class Look {
     const G = this.G; const scenes = { town: G.town.scene, works: G.rooms.works.scene, hall: G.rooms.hall.scene, home: G.rooms.home.scene };
     SIGHTS.forEach((s, i) => scenes[s.loc].add(this.halos[i]));
     G.town.scene.add(this.ghost.root);
-    try { for (const h of this.halos) h.visible = true; this.ghost.root.visible = true; for (const sc of Object.values(scenes)) G.stage.renderer.compile(sc, G.stage.camera); } catch (e) { /* compile is best-effort */ }
+    try { for (const h of this.halos) h.visible = true; this.ghost.root.visible = true; for (const sc of Object.values(scenes)) G.stage.precompile(sc); } catch (e) { /* compile is best-effort */ }
     for (const h of this.halos) h.visible = false; this.ghost.root.visible = false;
   }
   pickUp() {

@@ -128,7 +128,7 @@ export class Stage {
     r.shadowMap.enabled = true; r.shadowMap.type = THREE.PCFSoftShadowMap;
     r.toneMapping = THREE.NeutralToneMapping; r.toneMappingExposure = 1;
     el.appendChild(r.domElement);
-    r.domElement.id = 'gl';
+    r.domElement.id = 'gl'; r.domElement.setAttribute('aria-hidden', 'true');
     this.camera = new THREE.PerspectiveCamera(36, window.innerWidth / window.innerHeight, 0.1, 700);
     const size = r.getDrawingBufferSize(new THREE.Vector2());
     const rt = new THREE.WebGLRenderTarget(size.x, size.y, { type: THREE.HalfFloatType, samples: this.quality === 'low' || this.test ? 0 : 4 });
@@ -140,6 +140,7 @@ export class Stage {
     this.composer.addPass(this.renderPass); this.composer.addPass(this.bloom); this.composer.addPass(this.output); this.composer.addPass(this.grade);
     this.grade.uniforms.uRes.value.set(size.x, size.y);
     this.scene = null;
+    this.precompileTarget = rt;
     this.rig = { mode: 'follow', target: new THREE.Vector3(), focus: new THREE.Vector3(), yaw: 0, dist: 12.5, pitch: 0.82, push: 0, fov: 36, lookY: 0.9,
       shotPos: new THREE.Vector3(), shotLook: new THREE.Vector3(), shotFov: 32, shotK: 3, orbitC: new THREE.Vector3(), orbitR: 34, orbitH: 20, orbitT: 0, orbitSpeed: 0.035, bounds: null };
     this.camPos = new THREE.Vector3(30, 30, 60); this.camLook = new THREE.Vector3(30, 0, 24); this.curFov = 36;
@@ -159,6 +160,12 @@ export class Stage {
     const size = this.renderer.getDrawingBufferSize(new THREE.Vector2());
     this.grade.uniforms.uRes.value.set(size.x, size.y);
     this.camera.aspect = w / h; this.applyOffset(); this.camera.updateProjectionMatrix();
+  }
+  // compile a scene's shaders ahead of time, exactly as they will be drawn: into the effects chain's buffer (linear
+  // colour), which is not what a bare renderer.compile() assumes (so its programs would never be used)
+  precompile(scene) {
+    const r = this.renderer, was = r.getRenderTarget();
+    try { r.setRenderTarget(this.precompileTarget); r.compile(scene, this.camera); } catch (e) { /* best effort */ } finally { r.setRenderTarget(was); }
   }
   setScene(scene) { this.scene = scene; this.renderPass.scene = scene; }
   // shift the picture sideways (px), e.g. so a character is not hidden behind a side panel

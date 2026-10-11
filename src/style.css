@@ -319,7 +319,7 @@ body.reduce * { animation-duration: 0.01ms !important; }
 .chip-env i { font-style: normal; margin-right: 5px; } .chip-env.ok { background: #dff2e4; color: #1f5a33; }
 .mg-clock { position: relative; width: 42px; height: 42px; flex: none; } .mg-clock svg { width: 42px; height: 42px; }
 .mg-clock span { position: absolute; inset: 0; display: grid; place-items: center; font-family: var(--display); font-weight: 700; font-size: 13px; }
-.mg-pause { flex: none; width: 38px; height: 38px; border-radius: 50%; border: 0; background: var(--paper2); font-size: 13px; letter-spacing: -1px; }
+.mg-pause { flex: none; width: 44px; height: 44px; border-radius: 50%; border: 0; background: var(--paper2); font-size: 13px; letter-spacing: -1px; }
 .mg-stage { position: relative; flex: 1; min-height: 0; touch-action: none; }
 .mg-stage > canvas { position: absolute; inset: 0; display: block; touch-action: none; }
 .mg-over { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; }
@@ -555,6 +555,15 @@ body.reduce * { animation-duration: 0.01ms !important; }
 .panel.decided .choice { flex-direction: column; align-items: flex-start; gap: 2px; } .panel.decided .choice .sub { margin-left: 0; padding-left: 0; }
 /* Moss's shelf: pond cards (no foil, no rarity marks, no reveal) */
 .sh4 { margin: 14px 0 6px; font-family: var(--display); font-size: 14px; color: var(--soft); }
+/* section headings sit one level under their panel's title (h3 under an h2) and look as they always did */
+.panel h3.sec { margin: 16px 0 8px; font-family: var(--display); font-weight: 600; font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--soft); }
+.creator h3.sec { margin: 13px 0 7px; }
+#overlay h3.sec { margin: 18px 0 8px; font-family: var(--display); font-weight: 600; font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--soft); }
+.panel h2.dverb { font-size: 19px; margin: 6px 0 10px; }
+.ending h2.eh { margin: 18px 0 6px; font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--soft); }
+.ending .note h4 { margin: 4px 0 4px; font-family: var(--display); font-weight: 600; font-size: 17px; letter-spacing: 0; text-transform: none; color: inherit; }
+.nsec h4 { font-family: var(--display); font-size: 15px; margin: 8px 0 4px; }
+.dcols h3.sec { margin: 0 0 6px; }
 .pcardtile { display: inline-flex; align-items: flex-end; width: 92px; height: 116px; border-radius: 10px; padding: 8px; box-sizing: border-box; background: linear-gradient(180deg, color-mix(in srgb, var(--c) 45%, #fff) 0 62%, #fffaf0 62%); box-shadow: inset 0 0 0 2px var(--c), 0 2px 6px rgba(43, 37, 48, 0.12); font-size: 12px; line-height: 1.2; color: var(--ink); vertical-align: top; }
 .pack3 { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin: 4px 0 6px; }
 .packres { background: #fff8de; border-radius: 14px; padding: 10px 12px; margin: 10px 0 4px; font-size: 14px; line-height: 1.4; box-shadow: inset 0 0 0 1.5px rgba(255, 207, 122, 0.7); }
