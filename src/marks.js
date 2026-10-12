@@ -34,7 +34,7 @@ export const MARKS = [
   { id: 'mk_bell', sight: 'bell', street: 'market', kind: 'sound', at: [30, 3.6, 16.6], name: 'The noon bell', line: 'Twelve strokes at noon, right over the stalls. You only see this one at midday.', who: ['moss', 'bea'], you: ['sound', 'over'], rare: [705, 760] },
   { id: 'wk_memo', sight: 'memo', street: 'works', kind: 'talk', at: [15.6, 2.4, 10.62], name: 'The memo in the window', line: '"It would be great if everyone could maybe think about the festival post at some point!!" Who, what and by when are left as an exercise.', who: ['wren', 'rue'], you: ['talk', 'under'], pre: 'wren' },
   { id: 'wk_steps', street: 'works', kind: 'steps', at: [12, 1.3, 11.9], name: 'Three steps, no ramp', line: 'The only way in from the street. Anyone on wheels goes round to the loading dock, which opens at ten.', who: ['bea', 'pip'], you: ['wheels'] },
-  { id: 'wk_glare', sight: 'panels', street: 'works', kind: 'light', at: [8.2, 2.7, 10.62], name: 'The ceiling panels', line: 'Bright enough inside to read by at midnight. Gil has a headache by eleven most days. (An extra: not on the list.)', who: ['gil', 'wren'], you: ['light', 'over'], extra: true },
+  { id: 'wk_glare', sight: 'panels', street: 'works', kind: 'light', at: [8.2, 2.7, 10.62], name: 'The ceiling panels', line: 'Bright enough inside to read by at midnight. Gil gets a headache from them most afternoons.', who: ['gil', 'wren'], you: ['light', 'over'], extra: true },
   { id: 'wk_dock', street: 'works', kind: 'steps', at: [20.4, 2.3, 8.2], name: 'The loading dock', line: 'The long way in for anything on wheels. Pip brings her bread cart round here every morning and waits for the door, which opens at ten.', who: ['pip', 'bea'], you: ['wheels'] },
   { id: 'wk_flicker', street: 'works', kind: 'light', at: [10.4, 3.3, 10.62], name: 'The flickering panel', line: 'One panel in the second row flickers, now and then. Fen says you stop noticing. Gil never does. It only acts up after lunch.', who: ['gil'], you: ['light', 'over'], rare: [780, 900] },
   { id: 'tr_speaker', street: 'transit', kind: 'change', at: [53.4, 3.0, 23.0], name: 'The crackly speaker', line: 'Route changes are announced once, over this. Miss it and you are on the wrong bus.', who: ['bea', 'pip'], you: ['change', 'over'] },
@@ -75,6 +75,14 @@ export class Marks {
     const handle = new THREE.Mesh(new THREE.TorusGeometry(0.07, 0.012, 6, 16, Math.PI), cap.material); handle.position.y = 0.18;
     lg.add(glass, cap, handle); lg.visible = false; lg.traverse((o) => { o.userData.noOcc = true; }); this.held = lg; G.player.root.add(lg);
     this.light = new THREE.PointLight('#ffcf8a', 0, 9, 1.6); this.light.position.set(0, -40, 0); G.town.scene.add(this.light);
+    // the beam you can see: a soft fan of light on the ground, the way the lantern points (about forty degrees either
+    // side), brighter as something unfound comes into line, so the sweep reads without sound and without motion
+    { const c = document.createElement('canvas'); c.width = c.height = 128; const x = c.getContext('2d'); const g = x.createRadialGradient(64, 64, 4, 64, 64, 64);
+      g.addColorStop(0, 'rgba(255,226,160,0.9)'); g.addColorStop(0.55, 'rgba(255,214,140,0.45)'); g.addColorStop(1, 'rgba(255,210,130,0)'); x.fillStyle = g; x.fillRect(0, 0, 128, 128);
+      const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+      const geo = new THREE.CircleGeometry(9, 28, Math.PI / 2 - 0.69, 1.38); geo.rotateX(Math.PI / 2);
+      this.beam = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: t, transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide, toneMapped: false }));
+      this.beam.renderOrder = 2; this.beam.visible = false; this.beam.userData.noOcc = true; G.town.scene.add(this.beam); }
   }
   get S() { return this.G.S; }
   // marks are the lantern's job in the first visit, once the town has its colours to win back
@@ -138,12 +146,14 @@ export class Marks {
     const st = STREETS[m.street];
     // a sound mark: the street goes quiet for a moment, to show what a fix could do
     if (m.kind === 'sound') { G.audio.preview(2.4); setTimeout(() => G.fx.pop(at.clone().add(new THREE.Vector3(0, -0.8, 0)), 'Imagine it quieter…', { kind: 'good', ms: 1900, rise: 20 }), 350); }
-    if (m.rare) G.fx.pop(at, 'Rare find: ' + m.name, { kind: 'rare', big: true, hook: 'rare', hookCtx: { what: 'A rare find: ' + m.name } });
+    const who = m.who.filter((id) => CAST[id]).map((id) => CAST[id].name); const whoTxt = who.length ? (who.length > 1 ? who.slice(0, -1).join(', ') + ' and ' + who[who.length - 1] : who[0]) : '';
+    const point = m.name.charAt(0).toLowerCase() + m.name.slice(1) + (whoTxt ? ', which pinches ' + whoTxt : '');
+    if (m.rare) G.fx.pop(at, 'Rare find: ' + m.name, { kind: 'rare', big: true, hook: 'rare', hookCtx: { what: 'A rare find: ' + m.name, point } });
     else if (m.fit) G.fx.pop(at, 'Room made: ' + m.name, { kind: 'good' });
     else {
       const left = c.total - c.done;
-      G.fx.pop(at, (st ? st.name + ' ' : '') + c.done + '/' + c.total, { kind: 'mark', hook: 'juice', hookCtx: { what: 'A mark tagged: ' + m.name } });
-      if (left === 1) setTimeout(() => G.fx.pop({ x: innerWidth / 2, y: 150 }, '1 left in ' + (st ? st.name : 'this street') + '!', { kind: 'mark', hook: 'gradient', hookCtx: { what: '"1 left" in ' + (st ? st.name : 'a street') }, ms: 1900, rise: 24 }), 700);
+      G.fx.pop(at, (st ? st.name + ' ' : '') + c.done + '/' + c.total, { kind: 'mark', hook: 'juice', hookCtx: { what: 'A mark tagged: ' + m.name, point } });
+      if (left === 1) setTimeout(() => G.fx.chipPop('1 left in ' + (st ? st.name : 'this street') + '!', { kind: 'mark', hook: 'gradient', hookCtx: { what: '"1 left" in ' + (st ? st.name : 'a street'), point: 'the last thing on ' + (st ? st.name : 'that street') + '\'s list that pinches someone' }, ms: 1900 }), 700);
     }
     this.showCard(m);
     G.story.fieldNote && m.kind === 'steps' && G.story.fieldNote('curb');
@@ -213,6 +223,10 @@ export class Marks {
     const lift = this.k; this.held.visible = lift > 0.05;
     if (this.held.visible) { const sw = G.settings.reduceMotion ? 0 : Math.sin(this.t * 2.2) * 0.05; this.held.position.set(0.42, 0.55 + lift * 0.75, 0.22); this.held.rotation.z = sw; }
     if (on) { this.light.position.set(p.x + 0.3, 1.6, p.z + 0.2); this.light.intensity = this.k * (dim ? 2.2 : 6) * (1 + (this.warm || 0) * 0.6 * (G.settings.reduceMotion ? 0 : 0.5 + 0.5 * Math.sin(this.t * (4 + 10 * (this.warm || 0))))); } else this.light.intensity = 0;
+    { const b = this.beam; const show = on && lift > 0.05 && !this.showAll; b.visible = show;
+      if (show) { b.position.set(p.x, 0.07, p.z); b.rotation.y = G.player.root.rotation.y; b.material.opacity = lift * (0.48 + 0.5 * (this.warm || 0)) * (dim ? 0.5 : 1); } }
+    // the hum, said once in words for anyone without sound
+    if (up && (this.warm || 0) > 0.35 && !this.S.flags.humCC) { this.S.flags.humCC = 1; G.ui.cc('The lantern glows and hums: something is close. Turn toward it.', 4200); }
     if ((this.ct = (this.ct || 0) - dt) <= 0) { this.ct = 0.3; this.refreshChip(false); }
   }
 }

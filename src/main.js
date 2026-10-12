@@ -763,7 +763,7 @@ class Game {
     this.ui.placeBubbles((k) => this.anchorOf(k));
     if (this.phoneOpen && (this._pt = (this._pt || 0) - dt) <= 0) { this._pt = 1; this.ui.refreshPhone(); }
     if ((this._hb = (this._hb || 0) - dt) <= 0) {
-      this._hb = 1; const ck = document.querySelector('#hud .clock'); this.hudBottom = ck && !this.ui.el('#hud').hidden ? ck.getBoundingClientRect().bottom : 0;
+      this._hb = 0.2; const ck = document.querySelector('#hud .clock'); const r = ck && !this.ui.el('#hud').hidden ? ck.getBoundingClientRect() : null; this.hudBottom = r ? r.bottom : 0; this.hudRight = r ? r.right : 0;
       // on a narrow screen the clock box spans the top: notices go just under it, never over the objective
       const ts = this.ui.el('#toasts'); const narrow = innerWidth < 700; const top = narrow && this.hudBottom ? Math.round(this.hudBottom + 8) + 'px' : '';
       if (ts.style.top !== top) ts.style.top = top;

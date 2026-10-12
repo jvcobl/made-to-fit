@@ -42,12 +42,21 @@ export class FX {
     }
     const el = document.createElement('div'); el.className = 'pop ' + (o.kind || '') + (o.big ? ' big' : '');
     const hook = o.hook && this.G.hooks ? this.G.hooks.fire(o.hook, o.hookCtx) : '';
+    // (the pop layer is hidden from screen readers, so a reward with a hook is also said, with the hook's name)
+    if (hook && this.G.ui) this.G.ui.announce(text.replace(/<[^>]*>/g, '') + '. A hook: ' + hook + '.');
     el.innerHTML = `<span class="pt">${o.html ? text : esc(text)}</span>` + (hook ? `<i class="hk" title="A hook: ${esc(hook)}">${HOOK_SVG}</i>` : '');
     this.layer.appendChild(el);
     const p = { el, follow: o.follow || null, dy: o.dy == null ? 2.4 : o.dy, at: at && at.isVector3 ? at.clone() : null, sx: at && !at.isVector3 ? at.x : 0, sy: at && !at.isVector3 ? at.y : 0, t: 0, ms: (o.ms || 1500) / 1000, rise: o.rise == null ? 54 : o.rise, dx: o.dx || 0 };
     this.pops.push(p); if (this.pops.length > 12) { const old = this.pops.shift(); old.el.remove(); }
     this.place(p);
     return el;
+  }
+  // a pop about the street's list, next to that list: just under it at the top of a wide screen, just above it at the
+  // bottom of a phone (never in the middle of the notices)
+  chipPop(text, o = {}) {
+    const c = document.querySelector('#streetchip'); let x = innerWidth / 2, y = 110;
+    if (c && !c.hidden) { const r = c.getBoundingClientRect(); if (r.width) { x = r.left + r.width / 2; y = r.top > innerHeight / 2 ? r.top - 8 : r.bottom + 42; } }
+    return this.pop({ x, y }, text, Object.assign({ rise: 12 }, o));
   }
   place(p) {
     let x = p.sx, y = p.sy;
@@ -121,6 +130,8 @@ export class FX {
       this.size[i] = q.s * (0.5 + 0.5 * t); this.alpha[i] = Math.min(1, t * 2.2);
     }
     if (live) { const a = this.points.geometry.attributes; a.position.needsUpdate = a.pcolor.needsUpdate = a.psize.needsUpdate = a.palpha.needsUpdate = true; }
+    // (no sparks in the air: no draw call for them either)
+    this.points.visible = live;
     // rings
     for (let i = this.rings.length - 1; i >= 0; i--) {
       const r = this.rings[i]; r.t += dt; const t = clamp(r.t / r.dur);

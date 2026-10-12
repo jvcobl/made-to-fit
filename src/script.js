@@ -11,7 +11,7 @@ export const COND_TERMS = [
   ['bond', new RegExp('^bond\\.(\\w+)' + OP + '(-?\\d+)$')], ['gw', new RegExp('^gw\\.(\\w+)' + OP + '(\\d+)$')],
   ['act', new RegExp('^act' + OP + '(\\d)$')], ['w', /^w\.(\w+)$/], ['know', /^know\.(\w+)\.(\w+)$/],
   ['stake', /^stake\.(\w+)=(\w+)$/], ['rue', /^rue=(\w+)$/], ['sight', /^sight\.(\w+)$/], ['told', /^told\.(\w+)\.(\w+)$/],
-  ['shift', /^shift$/], ['meetingday', /^meetingday$/], ['festivalday', /^festivalday$/],
+  ['shift', /^shift$/], ['meetingday', /^meetingday$/], ['festivalday', /^festivalday$/], ['v2', /^v2$/],
 ];
 export const EFFECT_TERMS = [
   ['bond', /^bond\.(\w+)([+-]\d+)$/], ['gw', /^gw\.(\w+)([+-]\d+)$/], ['stat', /^(self|energy|coins|spot|dep)([+-][\d.]+)$/],

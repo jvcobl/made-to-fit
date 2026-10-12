@@ -8,14 +8,14 @@ import { esc } from './util.js';
 import { HOOK_SVG } from './fx.js';
 
 export const HOOKS = {
-  endowed: { name: 'A head start', short: 'a head start (endowed progress)', what: 'Each street\'s list starts with one already ticked, so the rest feels closer and you\'re likelier to finish.', life: 'Loyalty cards that come with two stamps already on them.', note: 'endowed' },
-  gradient: { name: 'Almost there', short: 'almost there (the goal gradient)', what: '"1 left!" People speed up as a goal gets close, so the game tells you when it is.', life: 'Progress bars, "your profile is 80% complete".', note: 'gradient' },
-  rare: { name: 'Not knowing when', short: 'not knowing when (a variable reward)', what: 'Some finds only turn up at certain times. Not knowing when keeps you looking.', life: 'Pull-to-refresh, loot boxes, slot machines.', note: 'variable' },
-  juice: { name: 'Fireworks', short: 'fireworks (celebration)', what: 'Sparks, chimes and a push of the camera make a small act feel big.', life: 'Confetti when a payment goes through. Slot machines celebrate small losses the same way.', note: 'ldw' },
-  openloop: { name: 'Unfinished business', short: 'unfinished business (an open loop)', what: 'Something left half done pulls you back to it. The day ends on one on purpose.', life: '"Continue watching", cliffhangers, a half-full progress ring.', note: 'openloop' },
-  points: { name: 'Numbers that go up', short: 'numbers that go up (points)', what: 'Points feel like progress, even when they measure nothing you care about.', life: 'App points, badges, levels, XP.', note: 'points' },
-  streak: { name: 'Don\'t break the chain', short: 'don\'t break the chain (a streak)', what: 'A run of uses in a row becomes something to protect, so you keep it going.', life: 'Language-app streaks, daily login bonuses.', note: 'streaks' },
-  likes: { name: 'Being liked', short: 'being liked (social approval)', what: 'A heart from someone else is a reward of its own, and it\'s hard to stop checking for more.', life: 'Likes, hearts, follower counts.', note: 'likes' },
+  endowed: { name: 'A head start', short: 'a head start (endowed progress)', what: 'Each street\'s list starts with one already ticked, so the rest feels closer and you\'re likelier to finish.', life: 'Loyalty cards that come with two stamps already on them.', note: 'endowed', use: 'It used a head start: the list began part-filled, so the rest felt closer.' },
+  gradient: { name: 'Almost there', short: 'almost there (the goal gradient)', what: '"1 left!" People speed up as a goal gets close, so the game tells you when it is.', life: 'Progress bars, "your profile is 80% complete".', note: 'gradient', use: 'It used "almost there": the closer a goal looks, the harder it pulls.' },
+  rare: { name: 'Not knowing when', short: 'not knowing when (a variable reward)', what: 'Some finds only turn up at certain times. Not knowing when keeps you looking.', life: 'Pull-to-refresh, loot boxes, slot machines.', note: 'variable', use: 'It used not knowing when: some finds only turn up at certain hours.' },
+  juice: { name: 'Fireworks', short: 'fireworks (celebration)', what: 'Sparks, chimes and a push of the camera make a small act feel big.', life: 'Confetti when a payment goes through. Slot machines celebrate small losses the same way.', note: 'ldw', use: 'It used fireworks: sparks and a chime made a small act feel big.' },
+  openloop: { name: 'Unfinished business', short: 'unfinished business (an open loop)', what: 'Something left half done pulls you back to it. The day ends on one on purpose.', life: '"Continue watching", cliffhangers, a half-full progress ring.', note: 'openloop', use: 'It used unfinished business: a question left open for tomorrow.' },
+  points: { name: 'Numbers that go up', short: 'numbers that go up (points)', what: 'Points feel like progress, even when they measure nothing you care about.', life: 'App points, badges, levels, XP.', note: 'points', use: 'It used numbers that go up.' },
+  streak: { name: 'Don\'t break the chain', short: 'don\'t break the chain (a streak)', what: 'A run of uses in a row becomes something to protect, so you keep it going.', life: 'Language-app streaks, daily login bonuses.', note: 'streaks', use: 'It used a streak: something to protect, so you keep going.' },
+  likes: { name: 'Being liked', short: 'being liked (social approval)', what: 'A heart from someone else is a reward of its own, and it\'s hard to stop checking for more.', life: 'Likes, hearts, follower counts.', note: 'likes', use: 'It used being liked.' },
 };
 export const HOOK_ORDER = ['endowed', 'gradient', 'rare', 'juice', 'openloop', 'points', 'streak', 'likes'];
 
@@ -29,12 +29,13 @@ export class Hooks {
     const S = this.S; S.hooks = S.hooks || {}; S.hookLog = S.hookLog || [];
     const first = !Object.keys(S.hooks).length;
     S.hooks[id] = (S.hooks[id] || 0) + 1;
-    if (ctx.what && S.hookLog.length < 60) S.hookLog.push({ id, what: String(ctx.what).slice(0, 60), by: ctx.by || 'game', day: S.day || 1 });
+    if (ctx.what && S.hookLog.length < 60) S.hookLog.push({ id, what: String(ctx.what).slice(0, 60), by: ctx.by || 'game', day: S.day || 1, point: ctx.point ? String(ctx.point).slice(0, 80) : undefined });
     if (first && !S.flags.hookTip) {
       S.flags.hookTip = 1; const G = this.G;
+      // (after the moment that earned it has finished: no pops still in the air)
       const tip = (n) => setTimeout(() => {
-        const calm = G.mode === 'play' && !G.busy && !G.ui.waiter && G.ui.panel.hidden && !G.phoneOpen;
-        if (calm || n > 30) G.ui.toast(`<span class="hkline"><i class="hk">${HOOK_SVG}</i><b>That little hook</b></span>marks a reward built to keep you playing. Your phone's Fit Book has a Hook Log that says which pull each one is. Tonight, the game shows you all of them.`, 'idea', 7600);
+        const calm = G.mode === 'play' && !G.busy && !G.ui.waiter && G.ui.panel.hidden && !G.phoneOpen && !(G.fx && G.fx.pops.length);
+        if ((calm && n >= 2) || n > 30) G.ui.toast(`<span class="hkline"><i class="hk">${HOOK_SVG}</i><b>That little hook</b></span>It marks a reward built to keep you playing. Your phone's Fit Book has a Hook Log that says which pull each one is.${S.v2 && (S.day || 1) === 1 ? ' Tonight, the game shows you all of them.' : ''}`, 'idea', 7600);
         else tip(n + 1);
       }, 1600);
       tip(0);

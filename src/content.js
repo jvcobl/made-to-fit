@@ -105,7 +105,7 @@ export const BARRIER = {
   commons: { title: 'The Commons', over: { light: 'Bright open lawn and nowhere to stand in the shade.' }, under: { people: 'A quiet park. Pleasant, but nobody to talk to.', sound: 'Very still. Just a wind chime somewhere.' } },
   farend: { title: 'The Far End', over: {}, under: { sound: 'It is so quiet you can hear your thoughts going in circles.', people: 'Not a soul around. It is peaceful, and a little lonely.', light: 'The lanes are dim. The lanterns are not lit yet.' } },
   homerow: { title: 'Home Row', over: { people: 'Neighbors drop by without warning. Somebody is always at a door.' }, under: { people: 'Curtains drawn up and down the row.' } },
-  hall: { title: 'Town Hall', over: { people: 'Every bench full. Every face turned the same way.', sound: 'Murmuring that never quite stops, then a gavel.', talk: 'Everyone is speaking in the careful way people speak when they mean something else.' }, under: {} },
+  hall: { title: 'Town Hall', over: { people: 'Every bench full. Every face turned the same way.', sound: 'Murmuring that never quite stops, then a gavel.', talk: 'Everyone is speaking in the careful way people speak when they mean something else.' }, under: { people: 'Rows of empty benches. Your footsteps echo.', sound: 'A hush, and the clock ticking over the door.' } },
   street: { title: 'Larkspur', over: { sound: 'Traffic and voices bouncing between the buildings.', people: 'A crowd on the sidewalk.', light: 'Glare from every window.' }, under: { people: 'Empty streets.', sound: 'Very quiet.' } },
   festival: { title: 'The Lantern Festival', over: { people: 'Everyone in Larkspur, in one square, at once.', sound: 'Music, laughter, a brass band that is mostly enthusiasm.', light: 'Strings of lights, flash after flash of phones.', time: 'It is late, and the night is just getting started.' }, under: {} },
 };
@@ -235,7 +235,7 @@ export const TALK = {
       { if: 'blend & !flag.gil_pills', go: 'pills' }, { end: true },
       { label: 'pills' }, { who: 'gil', t: 'Oh, you got Blend? Me too. It reminds me to take my pills. Best thing on my phone. Also the worst thing on my phone.' }, { do: ['flag.gil_pills'] }],
     d2: [
-      { who: 'gil', t: 'Long week, and it\'s only Tuesday. Those panels give me a headache by three, honestly. Don\'t tell anyone. Management has to love the panels.' },
+      { who: 'gil', t: 'Long week, and it\'s only Tuesday. Those panels give me a headache most afternoons, honestly. Don\'t tell anyone. Management has to love the panels.' },
       { do: ['flag.gil_head', 'know.gil.over'] },
       { ask: [{ t: 'They give me one too.', tag: 'plain', do: ['bond.gil+1'], go: 'same' }, { t: 'You could ask for different ones.', do: ['idea.dim'] }, { t: 'Say nothing.', tag: 'quiet' }, { t: 'The panels are great, though!', blend: true, if: 'blend', go: 'great', id: 'blend_gil' }] },
       { end: true }, { label: 'same' }, { who: 'gil', t: 'Really? Huh. I thought it was just me.' }, { do: ['idea.dim'] }, { end: true },
@@ -442,7 +442,10 @@ export const TALK = {
       { who: 'clover', t: 'Every step in town is eight inches, because that suited the Standard\'s legs. Every bell is as loud as the Standard liked. Every workday starts at the hour the Standard woke up.' },
       { who: 'clover', t: 'And the Standard itself? The founders measured the volunteers at the Works one summer. Whoever was young and around. Then they averaged them.' },
       { note: 'A faded photo: a summer crew in work shirts, squinting into the sun.' },
-      { who: 'clover', t: 'Nobody in town matches it. Not one. Not even Hollis, and he\'s tried.' },
+      { if: 'v2', go: 'arch2' },
+      { who: 'clover', t: 'Nobody in town matches it. Not one. Not even Hollis, and he\'s tried.' }, { go: 'arch3' },
+      { label: 'arch2' }, { who: 'clover', t: 'So that\'s who the Standard was: one summer\'s crew, averaged. Wren\'s lantern showed you the rest last night.' },
+      { label: 'arch3' },
       { do: ['flag.statue_seen', 'know.clover.love'] },
       { if: 'day=2 & !flag.council', go: 'tell' }, { end: true },
       { label: 'tell' }, { who: 'clover', t: 'Tell Hollis before the meeting, if you like. He reads a ledger the way other people read letters.' },
@@ -562,7 +565,7 @@ Object.assign(STAKES, {
     talk: [{ who: 'pip', t: 'A passing bay for the bots? Good. Mostly good.' }, { who: 'pip', t: 'My flour comes up that ramp on a bot. If it sits in a bay every time someone passes, my bread rises late.' }, { who: 'pip', t: 'Could they pull in only at shift changes? That\'s when the ramp\'s busy anyway.' }],
     change: 'Only at shift changes.', keep: 'Whenever someone needs the ramp.',
     listened: { who: 'pip', t: 'Shift changes. Perfect. My dough thanks you.' }, overruled: { who: 'pip', t: 'Fine! My dough will learn patience.' } },
-  rentcap: { who: 'bao', loses: 'Bao and Lin, fourteenth on the waiting list: capped stalls hardly ever come free.', lessLoss: 'Bao and Lin lose less: the waiting list still moves.', variantName: 'with half the free stalls for the waiting list', cost: 'For you: Moss is capped, but her neighbours may change.',
+  rentcap: { who: 'bao', loses: 'Bao and Lin, fourteenth on the waiting list: capped stalls hardly ever come free.', lessLoss: 'Bao and Lin lose less: the waiting list still moves.', variantName: 'with half the free stalls for the waiting list', cost: 'For you: Moss is capped, but her neighbors may change.',
     talk: [{ who: 'bao', t: 'Bao. And that\'s Lin, with the steamer. The dumpling cart. We\'re fourteenth on the waiting list.' }, { who: 'bao', t: 'If the old stalls are capped, nobody ever gives one up. We\'ll be fourteenth forever.' }, { who: 'bao', t: 'Could half the stalls that come free go to the list? We\'d bid like everyone else for the rest.' }],
     change: 'Half the free stalls to the waiting list.', keep: 'A cap for the old stalls, and that\'s all.',
     listened: { who: 'bao', t: 'Half. We can work with half. Have a dumpling.' }, overruled: { who: 'bao', t: 'Fourteenth it is. The dumplings are still good.' } },
@@ -592,7 +595,7 @@ export const COUNCIL = {
   lean: { pip: 'Does it bring people through my door?', hollis: 'I\'d need more than a feeling.', clover: 'Who did you ask about who it costs?', rue: 'Who did you ask, and who did you count?' },
   votes: {
     rue: { yes: 'We asked the person it costs, and we changed it. Yes.', no: 'Nobody asked the person it costs. Not yet. No.', overruled: 'We asked, and then we didn\'t listen. Not yet. No.' },
-    pip: { yes: 'More people through my door. Yes.', no: 'I don\'t see what it does for the shop. No.', neighbour: 'Pomeroy\'s my neighbour. If he\'s against it, so am I. No.', heard: 'You asked what it would cost me, and you changed it. Yes.' },
+    pip: { yes: 'More people through my door. Yes.', no: 'I don\'t see what it does for the shop. No.', neighbour: 'Pomeroy\'s my neighbor. If he\'s against it, so am I. No.', heard: 'You asked what it would cost me, and you changed it. Yes.' },
     clover: { yes: 'We asked who it costs, and we changed it. Yes.', no: 'We didn\'t ask who it costs. Not yet. No.', overruled: 'We asked who it costs, and then we didn\'t listen. Not yet. No.' },
     hollis: { yes: 'I have seen the ledger. Yes.', yesPlain: 'For Larkspur. Yes.', no: 'We have always done it this way. No.', heard: 'You asked what it would cost me, and you changed it. A compromise. Yes.' },
   },
@@ -614,7 +617,9 @@ export const FELT = {
   quiet: { zone: 'market', sub: 'quietcorner', from: 690, to: 840, lines: ['Noon in the quiet corner. Moss\'s regulars are back on the bench, holding their tea with both hands.', 'Bea sits down beside them and turns her hearing aid back up. From the far side of the square: "APPLES!"'], keep: 'The quiet corner, in use', hush: ['Noon in the quiet corner. Moss\'s regulars are back on the bench, holding their tea with both hands.', 'Bea sits down beside them and turns her hearing aid back up. From the apple stall, a loud whisper: "apples."'] },
   board: { zone: 'transit', from: 930, to: 1050, lines: ['The bus board says VIA ELM ST in letters a person can read from the bench. Bea reads it out for her daughter\'s bus, then reads it again for the fun of it.', 'Pip checks it for the flour van, nods, and goes back to the ovens.'], keep: 'The bus board, in use' },
   lanterns: { zone: 'homerow', from: 540, to: 1140, lines: ['You deliver festival programmes up Home Row. Bea\'s porch light is teal. She waves you in for soup.', 'At the Far End, Wren\'s light is amber. A note on the box: "Not now. Leave it in the box." You leave it in the box.'], keep: 'The porch lanterns, in use' },
-  ramp: { zone: 'street', at: 'works', from: 540, to: 660, lines: ['You help Pip roll the bun cart up the new ramp at the Works. Not one tray falls.', 'A parent with a stroller comes up right behind you, and doesn\'t have to ask anyone for anything.'], keep: 'The ramp, in use' },
+  ramp: { zone: 'street', at: 'works', from: 540, to: 660, lines: ['You help Pip roll the bun cart up the new ramp at the Works. Not one tray falls.', 'A parent with a stroller comes up right behind you, and doesn\'t have to ask anyone for anything.'], keep: 'The ramp, in use',
+    // (the new game already watched the cart and the pram go up it, the day it was built)
+    lines2: ['Before nine, Bea is at the Works with the parcels. She goes straight up the ramp, without stopping at the bottom to think about it.', 'Round the side, the loading dock is shut, and nobody is waiting outside it.'] },
   dim: { zone: 'works', from: 540, to: 660, lines: ['The Works, festival morning. Gil is working under a soft panel and has not mentioned his head once.', 'Two desks down, Fen turns her lamp all the way up and goes back to the small print.'], keep: 'The soft lights, in use', own: ['The Works, festival morning. Gil is working under a soft panel and has not mentioned his head once.', 'Two desks down, Fen has brought a lamp from home. She says nothing about it.'] },
   plain: { zone: 'works', from: 540, to: 660, lines: ['On the board by the door, one plain note: "Gil: festival permits, by 11." Nobody has to guess what it means.', 'Rue reads it through the window on her way past, and laughs out loud.'], keep: 'The plain notes, in use' },
 };

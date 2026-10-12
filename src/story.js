@@ -21,8 +21,11 @@ import { FestivalMail } from './games/mail.js';
 import { Return, stateFromCarry } from './returns.js';
 import { Slice } from './slice.js';
 import { Hearing, HEARINGS } from './hearing.js';
+import { HOOK_SVG } from './fx.js';
 
 // where objectives point: a spot just in front of each door
+// where a fix stands, for the colour that rolls out from it
+const WAVE_AT = { board: [53.4, 24.6], quiet: [23.5, 31.2], lanterns: [8.5, 36.5], ramp: [13, 12.6], dim: [13, 12.6], plain: [13, 12.6] };
 const T = { works: [12, 13.9], shed: [52, 11.8], hall: [32, 14.1], home: [9.5, 37.7], square: [30, 27.2], statue: [30, 26.6], farend: [50, 42.3], pond: [52.4, 43.9] };
 const ob = (t, at, label, extra) => Object.assign({ t, at: at || null, label: label || '' }, extra || {});
 
@@ -334,6 +337,7 @@ export class Story {
     const S = this.S, m = t.m; let v;
     switch (t.name) {
       case 'blend': v = S.blend.has && !S.blend.deleted; break;
+      case 'v2': v = !!S.v2; break;
       case 'smooth': v = S.blend.has && S.blend.smooth; break;
       case 'wheels': v = S.wheels; break;
       case 'late': v = S.min >= 840; break;
@@ -644,7 +648,9 @@ export class Story {
     // whatever was approved yesterday went up overnight; today shows it in use rather than announcing it
     const upNow = [];
     for (const k of Object.keys(S.fixes)) if (S.fixes[k] === 'approved' && d <= 3) { S.fixes[k] = 'built'; G.applyFix(k); this.fieldNote('curb'); upNow.push(k); }
-    if (S.color) for (const k of upNow) { const z = SIM.FIXES[k].zone; if (S.color[z] != null && S.color[z] < 1) { S.color[z] = 1; S.color.street = Math.min(1, (S.color.street || 0) + 0.15); } }
+    // (the new game: a street a fix went up in overnight stays as it was until you first walk into it, and then its
+    // colour rolls out from the fix while you watch)
+    if (S.color) for (const k of upNow) { const z = SIM.FIXES[k].zone; if (S.color[z] != null && S.color[z] < 1) { S.color.street = Math.min(1, (S.color.street || 0) + 0.15); if (S.v2 && WAVE_AT[k]) (S.waveDue = S.waveDue || []).push(k); else S.color[z] = 1; } }
     S.rue = this.rueState();
     for (const id of Object.keys(S.lantern.entries)) this.resolveHint(id, false);
     G.audio.setScene('home');
@@ -665,7 +671,7 @@ export class Story {
   todayCard(d) {
     const S = this.S;
     if (d === 1) return { day: 'Monday', title: 'Your first day', items: [{ t: 'Get to the Works by 9:00', sub: 'Bea from next door is heading that way.' }, { t: 'Say hi to your neighbors' }, { t: 'Find the Fix-It Shed', sub: 'In the Commons, past Town Hall.' }], note: 'When a place pinches, you choose who adjusts.' };
-    if (d === 2 && S.v2) return { day: 'Tuesday', title: 'A full day', items: [{ t: 'The bus stop, before work', sub: 'Something there changes without a word. Take the lantern.' }, { t: 'Weekly sync at the Works, 9:00' }, { t: 'Clover found something in the loft', sub: 'The Fix-It Shed.' }, { t: 'Town meeting, 6 PM, Town Hall', sub: 'Ideas with two backers get a hearing.' }], note: 'Two more fixes fit in this season\'s budget. Monday\'s were made on the spot.' };
+    if (d === 2 && S.v2) return { day: 'Tuesday', title: 'A full day', items: [{ t: 'The bus stop, before work', sub: 'Something there changes without a word. Take the lantern.' }, { t: 'Weekly sync at the Works, 9:00' }, { t: 'Clover found something in the loft', sub: 'The Fix-It Shed.' }, { t: 'Town meeting, 6 PM, Town Hall', sub: 'Ideas with two backers get a hearing.' }], note: 'This season\'s budget has room for two fixes. Monday\'s came before it.' };
     if (d === 2) { const open = this.openThread(); return { day: 'Tuesday', title: 'A full day', items: [{ t: 'Weekly sync at the Works, 9:00' }, { t: 'Clover found something in the loft', sub: 'The Fix-It Shed.' }, { t: 'Town meeting, 6 PM, Town Hall', sub: 'Proposals with two backers get a vote.' }], note: open ? 'Still open from yesterday: ' + open : 'Listen to people. They tell you what pinches them, if you let them.' }; }
     // Wednesday: the fixes in use first, then Wren's lanterns and the festival
     const items = [];
@@ -680,7 +686,7 @@ export class Story {
     for (const f of Object.keys(SIM.FIXES)) {
       const st = SIM.fixState(S, f); const F = SIM.FIXES[f];
       if (st === 'idea') return 'your idea for the ' + F.short + ' is waiting for Clover at the Fix-It Shed.';
-      if (st === 'proposal' && (!S.flags.councilDone || F.approve === 'gil')) { const need = F.backers.filter((b) => !(S.support[f] || []).includes(b)); return 'the ' + F.short + ' ' + SIM.agree(f, 'needs', 'need') + ' ' + (2 - SIM.supporters(S, f)) + ' more backer' + (2 - SIM.supporters(S, f) > 1 ? 's' : '') + '. Try ' + NAMES(need) + '.'; }
+      if (st === 'proposal' && (!S.flags.councilDone || F.approve === 'gil')) { const need = F.backers.filter((b) => !(S.support[f] || []).includes(b)); const k = 2 - SIM.supporters(S, f); return 'the ' + F.short + ' ' + SIM.agree(f, 'needs', 'need') + ' ' + (['no', 'one', 'two'][k] || k) + ' more backer' + (k > 1 ? 's' : '') + '. Try ' + NAMES(need) + '.'; }
       if (st === 'ready' && F.approve === 'gil' && !S.flags['gilasked_' + f]) return 'the ' + F.short + ' ' + SIM.agree(f, 'has its', 'have their') + ' backers. Show Gil at the Works.';
     }
     return '';
@@ -693,8 +699,10 @@ export class Story {
     const [t, c] = text ? [text, color || '#ffcf7a'] : T2[id] || [id, '#ffcf7a'];
     if (S.jar.length >= 12) { S.flags.jarFull = 1; return; }
     S.jar.push({ t, c }); this.G.audio.sfx('jar');
+    // (a jar to fill is a pull too: it says so, and it stays quiet for anyone who chose to play without them)
     const first = !S.flags.jarTold; S.flags.jarTold = 1;
-    this.ui.toast(`<span class="jaricon"></span><b>${first ? 'Kept, in the jar on your shelf:' : 'Kept:'}</b> ${t}`, 'keep', first ? 4600 : 2600);
+    if (!S.v2) this.ui.toast(`<span class="jaricon"></span><b>${first ? 'Kept, in the jar on your shelf:' : 'Kept:'}</b> ${t}`, 'keep', first ? 4600 : 2600);
+    else if (!this.ui.quietHooks()) { this.G.hooks.fire('gradient', { what: 'Kept in your jar: ' + t }); this.ui.toast(`<span class="jaricon"></span><b>${first ? 'Kept, in the jar on your shelf:' : 'Kept:'}</b> ${t}<i class="hk" title="A hook: a collection to fill (almost there)">${HOOK_SVG}</i>`, 'keep', first ? 4600 : 2600); }
     if (S.jar.length === 12) { S.flags.jarFull = 1; setTimeout(() => this.ui.toast('Your jar is full.', 'idea', 4800), 900); this.fieldNote('glp1'); }
     if (this.G.rooms.home.setJar) this.G.rooms.home.setJar(S.jar);
   }
@@ -753,7 +761,7 @@ export class Story {
       if (gilReady && m < 1020) return ob('Show Gil the plans at the Works, or take them to the meeting.', T.works, 'The Works', { inside: 'works', spot: 'gil', spotLabel: 'Gil' });
       if (S.flags.statue_seen && !S.flags.hollis_archive && this.G.npcs.hollis.place === 'town') { const h = this.nearestOf(['hollis']); if (h) return ob('Tell Hollis what Clover found, before the meeting.', h.at, 'Hollis'); }
       if (!Object.keys(S.fixes).length) { const n = this.nearestOf(Object.keys(CAST).filter((id) => !S.talked[id] && !CAST[id].minor)); if (n) return ob('Listen for what pinches people. Try ' + CAST[n.id].name + '.', n.at, CAST[n.id].name); }
-      return ob('Explore, or rest somewhere that fits. The meeting is at 6.');
+      return ob('Explore, or rest somewhere that fits. The meeting is at 6.', null, '', { wait: { to: 1065, label: 'Skip to 5:45 PM' } });
     }
     if (d === 3) {
       if (m >= 1140) return ob('The Lantern Festival starts at 8 in Market Square.', T.square, 'Market Square');
@@ -773,10 +781,16 @@ export class Story {
       // the next fix in use: point there once its hour is near; until then, say when, and leave the time to you
       const feltNext = Object.keys(FELT).filter((f) => FELT_WAY[f] && !seen(f) && m < FELT[f].to).sort((a, b) => FELT[a].from - FELT[b].from)[0];
       if (feltNext && FELT[feltNext].from - m <= 45) return feltOb(feltNext);
-      if (feltNext) return ob('Festival day. ' + FELT_LATER[feltNext] + ' Until then, the day is yours.');
-      return ob('Festival day. The lanterns go up at 8.');
+      if (feltNext) return ob('Festival day. ' + FELT_LATER[feltNext] + ' Until then, the day is yours.', null, '', { wait: { to: FELT[feltNext].from, label: 'Skip to ' + fmtTime(FELT[feltNext].from) } });
+      return ob('Festival day. The lanterns go up at 8.', null, '', { wait: { to: 1185, label: 'Skip to 7:45 PM' } });
     }
     return ob('');
+  }
+  // let a quiet stretch pass (the objective says until when): a short time-lapse, and a little rest on the way
+  waitFor() {
+    const G = this.G, S = this.S; const ob0 = this.objective(); if (!ob0 || !ob0.wait || G.busy || G.mode !== 'play') return;
+    const to = ob0.wait.to;
+    G.run(async () => { const e0 = S.energy; await this.slice.timelapse(to, 'You take your time. The town gets on with its afternoon.'); S.energy = clamp(e0 + 8, 0, S.maxE); this.autoSoon && this.autoSoon(); });
   }
   // Tuesday in the new game: what pinches at the bus stop, with the lantern, until its list is full (or the idea is made)
   busList() {
@@ -819,6 +833,8 @@ export class Story {
       if (S.cloverAt != null && m >= S.cloverAt && !G.ui.waiter) { G.run(() => this.cloverAfter()); return; }
       if (d === 2 && S.flags.shift2 && !S.flags.afternoon && G.loc === 'town' && G.ui.panel.hidden) { S.flags.afternoon = 1; G.run(() => this.afternoon()); return; }
       if (d === 2 && S.flags.missed2 && !S.flags.afternoon && G.ui.panel.hidden) { S.flags.afternoon = 1; G.run(() => this.afternoon()); return; }
+      // a fix that went up overnight: its street's colour comes back the first time you walk into it
+      { const due = (S.waveDue || []).find((f) => G.loc === 'town' && G.zone === SIM.FIXES[f].zone); if (due) { S.waveDue = S.waveDue.filter((f) => f !== due); G.run(async () => { this.ui.toast('<b>' + SIM.FIXES[due].name + '</b> went up overnight.', 'good', 3600); await this.slice.wave(SIM.FIXES[due].zone, WAVE_AT[due]); }); return; } }
       // Wednesday: what the fixes are like in use, Who decided? on the walk over, then the festival
       { const ff = this.feltDue(); if (ff) { G.run(() => this.felt(ff)); return; } }
       if (d === 3 && m >= 1170 && !S.flags.decided) { S.flags.decided = 1; G.run(() => this.toFestival()); return; }
@@ -845,6 +861,11 @@ export class Story {
     // a later visit's own card for a place (Unit at the Works, the kiosk at Town Hall) is that place's card for the day
     if (this.ret && this.ret.owns(z)) return;
     // barriers: when a place pinches, ask who adjusts
+    // (but not for the empty street on the way into the festival, not while the bus stop's list is still open with the
+    // lantern, and not in the hall while it fills for the meeting: the meeting asks for itself)
+    if ((S.flags.festival && z !== 'festival') || (S.flags.decided && !S.flags.festival)) return;
+    if (z === 'transit' && this.busList()) return;
+    if (z === 'hall' && a1 && d === 2 && m >= 1020 && !S.flags.councilDone) return;
     const key = d + ':' + z + (z === 'festival' ? ':f' : '');
     if (a1 && d === 1 && !S.flags.shift1 && m < 600 && z !== 'works') return;
     if (z === 'homerow' && G.pinchNow && !['people', 'talk'].includes(G.pinchNow.top)) return;
@@ -888,7 +909,7 @@ export class Story {
         { key: 'bend', who: 'You', label: 'Push through', sub: 'You stay, and nobody notices. −4 energy; the pinch stays, hidden.', hold: true },
         gearKey ? (S.gear[gearKey] && !S.wearing[gearKey] ? { key: 'gear', who: 'Your gear', label: 'Put on your ' + gearKey, sub: 'You stay. ' + (gearKey === 'headphones' ? 'Sound' : 'Glare') + ' only; people may notice.' } : { key: 'gear', who: 'Your gear', label: 'Use gear', disabled: true, reason: S.wearing[gearKey] ? 'already on, and still not enough' : 'nothing for this yet. Moss sells some.' }) : { key: 'gear', who: 'Your gear', label: 'Use gear', disabled: true, reason: 'nothing you own helps with this' },
         // (favours come due only on the first visit; ten years on, people know you, or they don't have goodwill to spare)
-        ownerHere && !o.noAsk && ASKABLE.includes(top) ? { key: 'ask', who: 'Them', label: 'Ask ' + name + ' to change it', sub: gw >= 1 ? 'It may change for you now. Goodwill with ' + name + ' ' + this.dots(gw) + '; this uses one.' + (this.ret ? '' : ' ' + name + ' may ask a favour later.') : shared ? 'It pinches ' + name + ' too, and you know it.' + (this.ret ? '' : ' ' + name + ' may ask a favour later.') : this.ret ? name + ' has no goodwill to spare today. Probably a no.' : (S.gwUsed || {})[owner] ? 'You have already asked ' + name + ' for one favour. Probably a no.' : name + ' doesn\'t know you well yet. Probably a no.' } : { key: 'ask', who: 'Them', label: 'Ask someone', disabled: true, reason: o.noAsk ? 'you asked. The answer was no.' : !ASKABLE.includes(top) ? ASK_NOT[top] || 'nobody can change this for you' : owner ? 'nobody in charge is here right now' : 'nobody here is in charge of it' },
+        ownerHere && !o.noAsk && ASKABLE.includes(top) ? { key: 'ask', who: 'Them', label: 'Ask ' + name + ' to change it', sub: gw >= 1 ? 'It may change for you now. Goodwill with ' + name + ' ' + this.dots(gw) + '; this uses one.' + (this.ret ? '' : ' ' + name + ' may ask a favor later.') : shared ? 'It pinches ' + name + ' too, and you know it.' + (this.ret ? '' : ' ' + name + ' may ask a favor later.') : this.ret ? name + ' has no goodwill to spare today. Probably a no.' : (S.gwUsed || {})[owner] ? 'You have already asked ' + name + ' for one favor. Probably a no.' : name + ' doesn\'t know you well yet. Probably a no.' } : { key: 'ask', who: 'Them', label: 'Ask someone', disabled: true, reason: o.noAsk ? 'you asked. The answer was no.' : !ASKABLE.includes(top) ? ASK_NOT[top] || 'nobody can change this for you' : owner ? 'nobody in charge is here right now' : 'nobody here is in charge of it' },
         // (in a later visit there's no time to sketch it: it goes straight to tonight's meeting, if it finds two backers;
         // after the meeting, it goes on file for next year)
         fixId && !noted && (SIM.fixState(S, fixId) === 'none' || (this.ret && SIM.fixState(S, fixId) === 'onfile' && !S.flags.councilDone)) ? (noticed || S.flags['told_' + fixId] ? (this.ret ? (S.flags.councilDone ? { key: 'fix', who: 'The place', label: 'Put it on file for next year', sub: 'The meeting is over for this year. Someone can bring it back.' } : { key: 'fix', who: 'The place', label: 'Propose it for tonight', sub: 'Two backers by six, then the meeting. Two fixes a year; someone loses something.' }) : { key: 'fix', who: 'The place', label: 'Note it for the Fix-It Shed', sub: 'Could change it for everyone, later. Slow; two a season; someone loses something.' }) : { key: 'fix', who: 'The place', label: 'Note it', disabled: true, reason: 'you are not sure what is causing it' }) : { key: 'fix', who: 'The place', label: 'Fix it', disabled: true, reason: fixId && SIM.fixState(S, fixId) !== 'none' ? (['built', 'approved'].includes(SIM.fixState(S, fixId)) ? 'it\'s already built' : !this.ret ? 'already in your notes' : SIM.fixState(S, fixId) === 'onfile' ? 'it\'s on file for next year' : 'you\'ve proposed it for tonight') : 'nothing obvious to change here' },
@@ -919,7 +940,7 @@ export class Story {
         if (ok && zone === 'works' && top === 'light' && !under) S.flags['rowdim' + S.day] = 1;
         if (ok) {
           S.mods[zone] = S.mods[zone] || {}; for (const dd of ['sound', 'light', 'people']) if (p.dims[dd].v > 0.02 || dd === top) S.mods[zone][dd] = (S.mods[zone][dd] || 0) + (p.dims[dd].over > 0 ? -0.35 : 0.3);
-          if (gw >= 1) { S.gw[owner] = gw - 1; S.gwUsed = S.gwUsed || {}; S.gwUsed[owner] = (S.gwUsed[owner] || 0) + 1; if (!S.flags.gwTold) { S.flags.gwTold = 1; this.ui.toast('<b>Goodwill</b><br>People who know you will do a little for you. Asking spends it. Time together, and favours, earn it back.', 'idea', 6500); } }
+          if (gw >= 1) { S.gw[owner] = gw - 1; S.gwUsed = S.gwUsed || {}; S.gwUsed[owner] = (S.gwUsed[owner] || 0) + 1; if (!S.flags.gwTold) { S.flags.gwTold = 1; this.ui.toast('<b>Goodwill</b><br>People who know you will do a little for you. Asking spends it. Time together, and favors, earn it back.', 'idea', 6500); } }
           this.owe(owner);
           // someone else pays for the change, and says so, plainly
           const by = ((this.ret && (this.ret.A.bystander || {})[owner]) || BYSTANDER[owner] || {})[dir] || {}; const [bn, bt] = by[top] || by.other || [];
@@ -1105,7 +1126,7 @@ export class Story {
     this.ui.letterbox(true);
     await this.run(TALK.gil[day === 1 ? 'shift1' : 'meeting2'], { npc: 'gil' });
     await this.officeApproval();
-    await this.say('gil', day === 1 ? 'Okay! You\'re on the mail today. Letters come down the chute, and each one goes in the cubby with the same symbol. Easy!' : 'Okay! Festival paperwork. Lantern permits! Rules are rules: to hang a lantern, you have to match the Standard Resident. Template\'s on your desk. Easy!');
+    await this.say('gil', day === 1 ? 'Okay! You\'re on the mail today. Letters come down the chute, and each one goes in the cubby with the same symbol. Easy!' : 'Okay! Festival paperwork. Lantern permits for the square on Wednesday! Rules are rules: to hang a festival lantern, you have to match the Standard Resident. Template\'s on your desk. Easy!');
     this.ui.hideDialog(); this.ui.letterbox(false); G.endTalk();
     { const c = G.roomCam('works'); G.stage.shot(c.pos, c.look, c.fov, 2); }
     // the work itself: a short task whose difficulty comes from the room
@@ -1116,7 +1137,7 @@ export class Story {
     if (day === 2 && r && r.stats) {
       const st = r.stats;
       G.npcTo('gil', [G.rooms.works.spots.mydesk[0] + 1.3, G.rooms.works.spots.mydesk[1] - 0.6]); G.talkFrame('gil'); this.ui.letterbox(true);
-      if (st.approvedWho.includes('gil')) { await this.say('gil', 'You approved... mine? Ha. Huh. I haven\'t hung a lantern in about nine years. Thank you.'); this.addBond('gil', 1); }
+      if (st.approvedWho.includes('gil')) { await this.say('gil', 'You approved... mine? Ha. Huh. I haven\'t hung a festival lantern in about nine years. Thank you.'); this.addBond('gil', 1); }
       else if (st.approved > 0) await this.say('gil', 'You approved some? Are we allowed to... Honestly? Good. It\'s a lantern.');
       else await this.say('gil', 'Zero matches again! Every year. Every single year. Weird, right?');
       S.flags.permits = 1; this.fieldNote('average'); this.ui.hideDialog(); this.ui.letterbox(false); G.endTalk();
@@ -1228,7 +1249,8 @@ export class Story {
       await this.say('clover', heard ? 'Your sketch already makes room for ' + who + '. Expect a thank-you.' : full ? 'And somebody always loses something. ' + who + ' will want a word. Listen, and then decide.' : who + ' will want a word.');
       S.flags.cloverWalk = 1;
     }
-    if (!ideas.length) await this.say('clover', 'Nothing new to sketch. Your proposals are on your phone, under Fix-It. ' + this.capLine());
+    // (said in full once a day; after that, just the gist)
+    if (!ideas.length) { const k = 'cloverNone' + S.day; await this.say('clover', S.flags[k] ? 'Nothing new to sketch yet. Bring me whatever pinches.' : 'Nothing new to sketch. Your proposals are on your phone, under Fix-It. ' + this.capLine()); S.flags[k] = 1; }
   }
   // whoever a fix costs walks up to you, a little while after the sketch, wherever you are in town
   stakeVisit() {
@@ -1367,7 +1389,7 @@ export class Story {
     const title = c.fix + c.ask > c.bend && c.fix + c.ask > 0 ? 'You changed something today.' : c.bend >= 3 ? 'You carried a lot today.' : c.leave >= 2 ? 'You looked after yourself today.' : 'A day in Larkspur.';
     const tomorrow = d === 1 ? ['Weekly sync at the Works, 9:00.', 'Town meeting at 6 PM. Proposals with two backers get a vote.'] : d === 2 ? ['Festival day. The Works opens 9 to 11 for festival mail.', 'The Lantern Festival at 8 PM.'] : [];
     const nb = S.notesNew || 0;
-    return { day: ['', 'Monday', 'Tuesday', 'Wednesday'][d], title, counts: c, jar: S.jar || [], jarMax: 12, jarText: n >= 12 ? 'Full, and glowing.' : n + ' of 12. It does not need to be full.', news, open: this.openThread(), tomorrow, notebook: nb ? 'New in your notebook: ' + nb + (d === 1 && S.flags.autismOpen ? ', including where this game\'s question came from.' : '.') : '' };
+    return { day: ['', 'Monday', 'Tuesday', 'Wednesday'][d], title, counts: c, jar: S.jar || [], jarMax: 12, jarText: n >= 12 ? 'Full, and glowing.' : n + ' of 12. It does not need to be full.', news, open: ((t) => t.charAt(0).toUpperCase() + t.slice(1))(this.openThread()), tomorrow, notebook: nb ? 'New in your notebook: ' + nb + (d === 1 && S.flags.autismOpen ? ', including where this game\'s question came from.' : '.') : '' };
   }
   // ---------- nights ----------
   async night(d) {
@@ -1443,7 +1465,7 @@ export class Story {
     const n = (f) => ['none', 'one'][Math.min(1, SIM.supporters(S, f))] || 'one';
     const works = pend.some((f) => SIM.FIXES[f].approve === 'gil');
     const it = (k) => (k > 1 ? 'They go' : 'It goes');
-    let t = pend.length ? 'Before the vote: a proposal needs two backers to get one. ' + pend.map((f) => 'The ' + SIM.FIXES[f].short + ' has ' + n(f) + '.').join(' ') + ' ' + (this.ret ? it(pend.length) + ' on file for next year. ' : works ? it(pend.length) + ' on file. Gil can still sign off a Works fix tomorrow, if it finds its backers. ' : it(pend.length) + ' on file for next season. ') : '';
+    let t = pend.length ? 'Before the vote: a proposal needs two backers to get one. ' + pend.map((f) => 'The ' + SIM.FIXES[f].short + ' ' + SIM.agree(f, 'has', 'have') + ' ' + n(f) + '.').join(' ') + ' ' + (this.ret ? it(pend.length) + ' on file for next year. ' : works ? it(pend.length) + ' on file. Gil can still sign off a Works fix tomorrow, if it finds its backers. ' : it(pend.length) + ' on file for next season. ') : '';
     if (raw.length) t += (pend.length ? 'And your ' : 'Your ') + (raw.length > 1 ? 'ideas for ' : 'idea for ') + LIST(raw.map((f) => 'the ' + SIM.FIXES[f].short)) + ' never made it to the Shed. ' + (this.ret ? it(raw.length) + ' on file for next year.' : 'Bring ' + (raw.length > 1 ? 'them' : 'it') + ' by tomorrow, and I\'ll put ' + (raw.length > 1 ? 'them' : 'it') + ' on file for next season.');
     await this.say('clover', t.trim());
   }
@@ -1612,7 +1634,7 @@ export class Story {
   }
   async felt(f) {
     const S = this.S, F = FELT[f]; S.felt = S.felt || {}; S.felt[f] = 1;
-    const lines = f === 'quiet' && (S.stakes || {}).quiet !== 'listened' ? F.hush : f === 'dim' && (S.stakes || {}).dim !== 'listened' ? F.own : F.lines;
+    const lines = f === 'quiet' && (S.stakes || {}).quiet !== 'listened' ? F.hush : f === 'dim' && (S.stakes || {}).dim !== 'listened' ? F.own : (S.v2 && F.lines2) || F.lines;
     for (const t of lines) await this.note(t);
     this.ui.hideDialog(); this.keep('felt_' + f, F.keep, '#9fd3b0');
   }

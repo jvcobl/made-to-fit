@@ -24,8 +24,10 @@ SEED = int(opt('--seed', 5)); HTML = os.path.abspath(opt('--html', os.path.join(
 ENV = '--env' in argv; REPORT = '--report' in argv; LATER = [] if '--act1' in argv else [2, 3]
 QUALITIES = [a for a in argv if a in ('high', 'low')] or ['high', 'low']
 # hall_meeting is the Hall with the meeting's audience (as first measured); hall_council adds the council and every backer
-BUDGET = {'square_noon': 150, 'works_shift': 150, 'hall_meeting': 150, 'hall_council': 150, 'festival_arrival': 200, 'festival_follow': 200, 'festival_fixes': 200}
-for n in (2, 3): BUDGET.update({'a%d_square' % n: 150, 'a%d_works' % n: 150, 'a%d_council' % n: 150, 'a%d_festival_arrival' % n: 200, 'a%d_festival_follow' % n: 200})
+# (the square at noon is the busiest view: its count moves by about five from run to run with the crowd that happens to
+# be in it, and the new game's speakers added two; 160 keeps the same guard with room for that)
+BUDGET = {'square_noon': 160, 'works_shift': 150, 'hall_meeting': 150, 'hall_council': 150, 'festival_arrival': 200, 'festival_follow': 200, 'festival_fixes': 200}
+for n in (2, 3): BUDGET.update({'a%d_square' % n: 160, 'a%d_works' % n: 150, 'a%d_council' % n: 150, 'a%d_festival_arrival' % n: 200, 'a%d_festival_follow' % n: 200})
 SAMPLES, GAP_MS = 8, 220
 
 # a seeded Math.random: crowd spots, blink timers and wander targets come out the same on every run
@@ -215,8 +217,10 @@ def run(q):
         res['later'] = {}
         for n in LATER:
             # Acts 2 and 3 start by a reload (the carry in storage), as in the game
-            ev("__wb.gotoAct(%d, { built: ['quiet', 'dim', 'ramp', 'lanterns'] })" % n)
-            pg.wait_for_timeout(1500)
+            # (wait for the reload itself before looking: a look during the navigation can land on the old page)
+            with pg.expect_navigation(timeout=60000):
+                ev("__wb.gotoAct(%d, { built: ['quiet', 'dim', 'ramp', 'lanterns'] })" % n)
+            pg.wait_for_load_state('load'); pg.wait_for_timeout(1500)
             try: pg.wait_for_function('window.__wb && __wb.G && __wb.ret && __wb.ret()', timeout=150000)
             except Exception:
                 print('reload into act %d did not start: url %s; state %s; errors %s' % (n, pg.url, ev("window.__wb && __wb.G ? [__wb.mode(), __wb.busy(), __wb.panel(), __wb.waiter(), __wb.state().act] : 'no game'"), res['errors'][:6]), flush=True)

@@ -35,7 +35,7 @@ with sync_playwright() as p:
     bea = pg.evaluate("(() => { const q = __wb.G.npcs.bea.c.root.position; return [q.x, q.z, __wb.G.npcs.bea.place] })()")
     check('Bea is back at the Works steps', bea[2] == 'town' and abs(bea[0] - 13.4) < 2.5 and abs(bea[1] - 14.2) < 2.5, bea)
     check('the guest list shows', pg.evaluate("!document.querySelector('#hud .gstrip').hidden"))
-    check('the porch lanterns are up, yours teal', pg.evaluate("__wb.G.town.porchLights[1].t.visible && __wb.G.town.fixGroups.lanterns.visible"))
+    check('the porch lanterns are up, yours teal', pg.evaluate("__wb.G.town.porchMode(1) === 'teal' && __wb.G.town.fixGroups.lanterns.visible"))
     check('the quiet corner is up', pg.evaluate("__wb.G.town.fixGroups.quiet.visible"))
     check('no page errors', not errors, errors)
     print(json.dumps({'ok': all(c[1] for c in checks), 'failed': [c[0] for c in checks if not c[1]]}))

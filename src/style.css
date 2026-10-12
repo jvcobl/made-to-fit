@@ -519,7 +519,7 @@ body.reduce * { animation-duration: 0.01ms !important; }
 @media (max-width: 520px) { .rowset2 { grid-template-columns: 1fr; gap: 2px 0; } .rowset2 > span { margin-top: 10px; } #overlay .ovcard { padding: 18px 16px 14px; } #overlay .ovcard > .pfoot { bottom: -14px; margin-bottom: -14px; padding-bottom: 14px; } }
 /* screen-reader announcer and sound captions */
 .sr-only { position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
-#cc { position: fixed; left: 50%; bottom: calc(96px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); max-width: min(640px, 90vw); background: rgba(20, 16, 26, 0.86); color: #fffaf0; font-size: 15px; line-height: 1.4; padding: 7px 14px; border-radius: 12px; text-align: center; z-index: 6; pointer-events: none !important; opacity: 0; transition: opacity 0.3s; }
+#cc { position: fixed; left: 50%; bottom: calc(96px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); width: max-content; max-width: min(640px, 90vw); background: rgba(20, 16, 26, 0.86); color: #fffaf0; font-size: 15px; line-height: 1.4; padding: 7px 14px; border-radius: 12px; text-align: center; z-index: 6; pointer-events: none !important; opacity: 0; transition: opacity 0.3s; }
 #cc.on { opacity: 1; }
 
 .title .btn small { display: block; font-family: var(--body); font-weight: 400; font-size: 12.5px; opacity: 0.85; margin-top: 1px; }
@@ -623,7 +623,7 @@ body.reduce * { animation-duration: 0.01ms !important; }
 .hk svg { width: 12px; height: 12px; }
 .pop.blend .hk, .pop.rare .hk { color: #b0306e; }
 .toast .hkline { display: flex; align-items: center; justify-content: center; gap: 6px; margin-bottom: 2px; }
-#streetchip { position: fixed; top: calc(14px + env(safe-area-inset-top, 0px)); left: 50%; transform: translateX(-50%); z-index: 3; display: flex; align-items: center; gap: 10px; padding: 7px 14px; border-radius: 999px; background: rgba(251, 246, 238, 0.94); box-shadow: 0 6px 20px rgba(20, 14, 30, 0.22); font-family: var(--display); font-size: 15px; pointer-events: none !important; }
+#streetchip { position: fixed; top: calc(14px + env(safe-area-inset-top, 0px)); left: 50%; transform: translateX(-50%); width: max-content; max-width: 94vw; white-space: nowrap; z-index: 3; display: flex; align-items: center; gap: 10px; padding: 7px 14px; border-radius: 999px; background: rgba(251, 246, 238, 0.94); box-shadow: 0 6px 20px rgba(20, 14, 30, 0.22); font-family: var(--display); font-size: 15px; pointer-events: none !important; }
 #streetchip .dots { display: flex; gap: 5px; } #streetchip .dots i { width: 11px; height: 11px; border-radius: 50%; background: rgba(43, 37, 48, 0.14); box-shadow: inset 0 0 0 2px rgba(43, 37, 48, 0.18); }
 #streetchip .dots i.on { background: #ffcf7a; box-shadow: inset 0 0 0 2px #c98a1e; } #streetchip .dots i.rare { border-radius: 3px; transform: rotate(45deg) scale(0.85); } #streetchip .dots i.rare.on { background: #c77dba; box-shadow: inset 0 0 0 2px #7b5cd6; }
 #streetchip .n { color: var(--soft); font-weight: 600; } #streetchip .ready { color: var(--good); font-weight: 700; } #streetchip .hint { color: var(--soft); font-size: 13px; }
@@ -713,7 +713,7 @@ body.touch .setup.taps .pl kbd { display: none; }
 .toast.cardt .ck.insight { background: #e6f6f4; color: #1f4a48; } .toast.cardt .ck.deal { background: #e9e4f7; color: #4f4aa8; }
 .toast.cardt .tsub em { font-style: normal; font-weight: 700; color: var(--teal); }
 /* lantern night: the count of marks, and of residents who fit the Standard */
-.revealcount { position: fixed; left: 50%; top: 18%; transform: translateX(-50%); z-index: 6; text-align: center; color: #fffaf0; text-shadow: 0 2px 14px rgba(0, 0, 0, 0.6); pointer-events: none !important; }
+.revealcount { position: fixed; left: 50%; top: 18%; transform: translateX(-50%); width: max-content; max-width: 90vw; z-index: 6; text-align: center; color: #fffaf0; text-shadow: 0 2px 14px rgba(0, 0, 0, 0.6); pointer-events: none !important; }
 .revealcount b { display: block; font-family: var(--display); font-size: 84px; line-height: 1; }
 .revealcount span { font-family: var(--display); font-size: 20px; }
 .hooksort .hs { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
@@ -727,7 +727,7 @@ body.touch .setup.taps .pl kbd { display: none; }
 .daycard figure { margin: 0; } .daycard figure img { width: 64px; height: 64px; border-radius: 50%; box-shadow: 0 4px 12px rgba(20, 14, 30, 0.2); } .daycard figcaption { font-family: var(--display); font-size: 13px; margin-top: 3px; }
 .daycard .dbuilt { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin-bottom: 8px; } .daycard .dbuilt span { font-size: 13px; background: #dff2e4; color: #1f5a33; border-radius: 999px; padding: 4px 10px; font-family: var(--display); }
 .daycard .pfoot { justify-content: center; flex-wrap: wrap; }
-@media (max-width: 640px) { #hud .gstrip .gf img, #hud .gstrip .gf i { width: 18px; height: 18px; } .revealcount b { font-size: 60px; } #streetchip { top: auto; bottom: calc(78px + env(safe-area-inset-bottom, 0px)); font-size: 14px; padding: 6px 12px; } #markcard { bottom: calc(132px + env(safe-area-inset-bottom, 0px)); } }
+@media (max-width: 640px) { #hud .gstrip .gf img, #hud .gstrip .gf i { width: 18px; height: 18px; } .revealcount b { font-size: 60px; } #streetchip { top: auto; bottom: calc(78px + env(safe-area-inset-bottom, 0px)); font-size: 14px; padding: 6px 12px; } #cc { bottom: calc(122px + env(safe-area-inset-bottom, 0px)); } #markcard { bottom: calc(132px + env(safe-area-inset-bottom, 0px)); } }
 /* the Fit Book */
 .subtabs { display: flex; gap: 6px; margin: 4px 0 10px; flex-wrap: wrap; } .subtabs .chip { min-height: 36px; padding: 5px 12px; }
 .fbcards { display: flex; flex-direction: column; gap: 8px; }
@@ -742,7 +742,7 @@ body.touch .setup.taps .pl kbd { display: none; }
 body.slice #hud .pstrip, body.slice #hud .energy { display: none !important; }
 body.touch.slice .gb[data-g="look"] { padding: 12px 18px; font-size: 16px; min-height: 52px; box-shadow: 0 0 0 3px rgba(255, 207, 122, 0.7), 0 6px 18px rgba(20, 14, 30, 0.25); }
 body.touch.slice .gb[data-g="look"] span { display: inline !important; }
-.raisebtn { position: fixed; left: 50%; bottom: calc(18% + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); z-index: 6; font-size: 19px; padding: 16px 28px; box-shadow: 0 0 0 4px rgba(255, 207, 122, 0.7), 0 12px 30px rgba(0, 0, 0, 0.35); animation: pop 0.3s ease-out; }
+.raisebtn { position: fixed; left: 50%; bottom: calc(18% + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); width: max-content; max-width: 90vw; z-index: 6; font-size: 19px; padding: 16px 28px; box-shadow: 0 0 0 4px rgba(255, 207, 122, 0.7), 0 12px 30px rgba(0, 0, 0, 0.35); animation: pop 0.3s ease-out; }
 .raisebtn kbd { background: rgba(255, 255, 255, 0.18); color: inherit; margin: 0 8px 0 0; }
 .hooksort .hsrow.res { display: block; } .hooksort .hsr { font-size: 13.5px; color: var(--soft); }
 .hooksort .hooklist { margin-top: 12px; }
@@ -751,3 +751,22 @@ body.touch.slice .gb[data-g="look"] span { display: inline !important; }
 #hearing .htabs { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; } #hearing .htabs .chip { min-height: 36px; padding: 5px 12px; background: rgba(251, 246, 238, 0.92); }
 #hearing .htabs .chip.on { background: var(--ink); color: var(--paper); } #hearing .htabs .chip span { opacity: 0.7; margin-left: 3px; }
 #hearing { grid-template-rows: auto 1fr auto auto; }
+
+/* the first day's postcard: two equal ways on, and a quiet way out */
+.daycard .dq2 { text-align: center; color: var(--soft); font-size: 14px; margin: 10px 0 2px; }
+.daycard .dchoice { justify-content: center; gap: 10px; flex-wrap: wrap; }
+.daycard .dchoice .btn { min-width: 220px; }
+.daycard .dchoice .btn small { display: block; font-weight: 400; font-size: 12.5px; opacity: 0.8; margin-top: 2px; }
+.daycard .dstop { text-align: center; margin-top: 6px; }
+/* a hook mark beside a collection or an open loop, on paper-coloured cards */
+.jt .hk, .ev-open .hk, .toast .hk, #phone .small .hk { background: #fbefd2; vertical-align: -4px; margin-right: 2px; }
+.toast .hk { margin-left: 6px; }
+/* lantern night: everyone on the porch, and what doesn't fit them */
+.revealcount .rvlist { list-style: none; display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 8px; margin: 12px auto 0; padding: 0; max-width: 560px; }
+.revealcount .rvlist li { font-family: var(--display); font-size: 15px; background: rgba(20, 16, 26, 0.62); padding: 4px 11px; border-radius: 999px; text-shadow: none; animation: pop 0.25s ease-out; }
+@media (max-width: 640px) { .revealcount .rvlist li { font-size: 13.5px; padding: 3px 9px; } }
+/* a hearing card opened on a touch screen: read it whole, tap again to present it */
+#hearing .hcard.sel { transform: translateY(-6px); box-shadow: 0 0 0 3px #ffcf7a, 0 8px 22px rgba(20, 14, 30, 0.4); }
+#hearing .hcard.sel .htx { -webkit-line-clamp: 12; }
+#hearing .hcard.sel::after { content: 'Tap again to present'; display: block; margin-top: 4px; font-size: 11.5px; font-weight: 700; color: #8a5a1a; }
+.clock .way.wait { background: rgba(251, 246, 238, 0.96); color: var(--ink); box-shadow: inset 0 0 0 1.5px rgba(43, 37, 48, 0.22); padding-left: 12px; margin-left: 6px; }

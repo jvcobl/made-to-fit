@@ -462,14 +462,17 @@ export class Town {
     this.planter(cx - 4, cz + 4.6, 1.2, 1.2, ['#f3a0c2', '#e2b34c']); this.planter(cx + 4, cz + 4.6, 1.2, 1.2, ['#bfa9f0', '#fff4d6']);
     this.spots.square = [cx, cz + 3.4]; this.spots.squareW = [cx - 4, cz + 2.5]; this.spots.squareE = [cx + 4, cz + 2.5]; this.spots.statueSide = [cx - 2.4, cz + 1.4];
     for (const [lx, lz] of [[22, 22], [38, 22], [22, 30], [38, 30]]) this.lamp(lx, lz);
-    // a loudspeaker on every lamp around the square, all pointed at the middle (the quiet corner turns one away)
+    // a loudspeaker on every lamp around the square, all pointed at the middle (the quiet corner turns one away). Three
+    // never move, so they join the town's merged geometry; the one that turns is a single mesh of its own
     this.speakers = {};
-    { const sm = new THREE.MeshStandardMaterial({ color: '#5b6470', roughness: 0.6 });
+    { const parts = () => { const box = new THREE.BoxGeometry(0.34, 0.3, 0.22); const horn = new THREE.CylinderGeometry(0.2, 0.08, 0.34, 12, 1, false); horn.rotateX(Math.PI / 2); horn.translate(0, 0, 0.26); return [box, horn]; };
       for (const [lx, lz] of [[22, 22], [38, 22], [22, 30], [38, 30]]) {
-        const g = new THREE.Group(); g.position.set(lx, 2.35, lz); g.rotation.y = Math.atan2(cx - lx, cz - lz);
-        const box = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.3, 0.22), sm); g.add(box);
-        const horn = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.08, 0.34, 12, 1, true), sm); horn.rotation.x = Math.PI / 2; horn.position.z = 0.26; g.add(horn);
-        box.castShadow = true; this.scene.add(g); this.speakers[lx + ',' + lz] = g;
+        const ry = Math.atan2(cx - lx, cz - lz);
+        if (lx === 22 && lz === 30) {
+          const [box, horn] = parts(); const geo = mergeGeometries([box.toNonIndexed(), horn.toNonIndexed()]); box.dispose(); horn.dispose();
+          const g = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: '#5b6470', roughness: 0.6, side: THREE.DoubleSide })); g.position.set(lx, 2.35, lz); g.rotation.y = ry;
+          this.scene.add(g); this.speakers[lx + ',' + lz] = g;
+        } else for (const geo of parts()) this.batch.add(geo, '#5b6470', mtx(lx, 2.35, lz, ry));
       } }
   }
   buildCommons() {
@@ -648,21 +651,31 @@ export class Town {
     }
     // porch lanterns: teal circle means come say hi, amber square means not now (each house sets its own)
     {
-      const g = G('lanterns'); this.porchLights = [];
+      const g = G('lanterns');
       const spots = [[4, 36.3], [9.5, 36.3], [15, 36.3], [23, 36.3], [48.6, 41.0]];
       const teal = mat('#4fd1c5', { emissive: '#4fd1c5', emissiveIntensity: 1.4 }), amber = mat('#f2a33a', { emissive: '#f2a33a', emissiveIntensity: 1.4 });
       this.porchMats = [teal, amber]; this.porch = [];
       const sph = new THREE.SphereGeometry(0.17, 14, 10), box = new THREE.BoxGeometry(0.3, 0.3, 0.3);
+      // (two instanced meshes, teal and amber, one slot per house: two draws for the whole row, whatever each house shows)
+      const tI = new THREE.InstancedMesh(sph, teal, spots.length), aI = new THREE.InstancedMesh(box, amber, spots.length);
+      for (const m of [tI, aI]) { m.userData.keep = true; g.add(m); }
+      this.porchI = { t: tI, a: aI, at: spots.map(([x, z]) => [x - 1.0, 1.55, z + 0.2]), mode: [] };
       spots.forEach(([x, z], i) => {
         const post = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 1.4, 6), mat(PAL.woodDark)); post.position.set(x - 1.0, 0.7, z + 0.2); g.add(post);
-        const t = new THREE.Mesh(sph, teal), a = new THREE.Mesh(box, amber); for (const m of [t, a]) { m.position.set(x - 1.0, 1.55, z + 0.2); m.userData.keep = true; g.add(m); }
-        this.porchLights.push({ t, a }); this.setPorch(i, i % 2 === 0 ? 'teal' : 'amber');
+        this.setPorch(i, i % 2 === 0 ? 'teal' : 'amber');
       });
+      for (const m of [tI, aI]) m.computeBoundingSphere();
       mergeProps(g, { occ: true, name: 'lanternPosts' });
     }
   }
   // one house's porch lantern: 'teal' (come say hi), 'amber' (not now), or off
-  setPorch(i, mode) { const L = this.porchLights && this.porchLights[i]; if (!L) return; L.t.visible = mode === 'teal'; L.a.visible = mode === 'amber'; }
+  setPorch(i, mode) {
+    const P = this.porchI; if (!P || !P.at[i]) return; P.mode[i] = mode || null; const [x, y, z] = P.at[i];
+    const s = (on) => (on ? 1 : 0.0001);
+    P.t.setMatrixAt(i, mtx(x, y, z, 0, s(mode === 'teal'), s(mode === 'teal'), s(mode === 'teal'))); P.a.setMatrixAt(i, mtx(x, y, z, 0, s(mode === 'amber'), s(mode === 'amber'), s(mode === 'amber')));
+    P.t.instanceMatrix.needsUpdate = true; P.a.instanceMatrix.needsUpdate = true;
+  }
+  porchMode(i) { return this.porchI ? this.porchI.mode[i] || null : null; }
   setPlaque(solved) { if (this.plaque && this.plaque2) { this.plaque.visible = !solved; this.plaque2.visible = !!solved; } }
   setFix(id, on) {
     if (id === 'dim') { this.glassWorks.emissive.set(on ? '#ffd9a0' : '#e9f6ff'); this.glassWorks.color.set(on ? '#e9dcc5' : '#cfe4ef'); this.worksDim = on; return; }

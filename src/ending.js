@@ -7,7 +7,7 @@ import * as SAVE from './save.js';
 
 export const TITLES = {
   blended: { title: 'Blended', text: 'You fit. Everyone says so. Most days you cannot quite remember what you were like when you arrived, and Blend says that is the point.' },
-  carried: { title: 'Carried', text: 'Larkspur never made room, so you carried it. It showed, in the end, in your colour.' },
+  carried: { title: 'Carried', text: 'Larkspur never made room, so you carried it. It showed, in the end, in your color.' },
   roommade: { title: 'Room Made', text: 'Two things in Larkspur work differently now, and people you have never met use them. Someone lost something for each; you know who.' },
   wider: { title: 'A Little Wider', text: 'One thing in Larkspur works differently now, and people you will never meet will use it. Someone lost a little for it; you know who.' },
   movedon: { title: 'Moved On', text: 'You found the places that fit and stopped going to the ones that did not. The town kept its shape. You kept yours.' },
@@ -60,7 +60,7 @@ export function specificLine(S, key) {
     const n = {}; for (const r of S.log || []) if (r.k === 'barrier' && r.v === 'bend') n[r.z] = (n[r.z] || 0) + 1;
     const top = Object.keys(n).sort((a, b) => n[b] - n[a]).slice(0, 2);
     if (!top.length) return '';
-    return top.map((z) => (ZONE_NAME[z] || 'Larkspur') + ' ' + (STAYED[z] || 'stayed as it was') + '.').join(' ') + (top.length > 1 ? ' You carried both' : ' You carried it') + ', and it showed in your colour.';
+    return top.map((z) => (ZONE_NAME[z] || 'Larkspur') + ' ' + (STAYED[z] || 'stayed as it was') + '.').join(' ') + (top.length > 1 ? ' You carried both' : ' You carried it') + ', and it showed in your color.';
   }
   // leaving was your usual answer: name where you stepped out of, and what you still left the town
   if (key === 'movedon') {
@@ -96,7 +96,7 @@ export function remember(S, rueState, extra) {
   const rue = rueState;
   if ((S.act || 1) === 1) out.push(rue === 'easing' ? 'Rue went to the festival without the app. Tomorrow might be a bad one. That is allowed.' : 'Rue\'s streak is at four hundred and fourteen days.');
   const B = S.blend; out.push(!B.has ? 'You never installed Blend.' : B.deleted ? 'You deleted Blend. The birds seem louder.' : B.smooth ? 'Blend\'s Smooth Mode is still on.' : 'Blend is still on your phone.');
-  const col = colourOf(S.self); out.push(col === 'yourself' ? 'You look like yourself.' : col === 'faded' ? 'You look a little faded around the edges.' : 'You are nearly the colour of the statue.');
+  const col = colourOf(S.self); out.push(col === 'yourself' ? 'You look like yourself.' : col === 'faded' ? 'You look a little faded around the edges.' : 'You are nearly the color of the statue.');
   if (S.default && DEFAULTS[S.default] && S.default !== 'as_is') out.push('Next time: ' + DEFAULTS[S.default].t.toLowerCase() + '.');
   return out;
 }

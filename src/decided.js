@@ -19,6 +19,33 @@ export const CAUSES = {
   festival: ['The festival has always been held in the square, at full volume.'],
   home: ['Your room is set the way you set it.'],
 };
+// the same, for what pinched there (zone:dim:dir, then zone:dim), so the fact fits the moment; else the place's own
+const CAUSES_BY = {
+  'market:sound:over': ['Whoever owns a speaker sets its volume.', 'The jingle plays from every post at once.'],
+  'market:people:over': ['At noon the stalls funnel everyone into one lane.'],
+  'market:light:over': ['The kiosk and the stall fronts are glass, facing the noon sun.'],
+  'market:people:under': ['The stalls open late, so the square fills only toward noon.'],
+  'market:sound:under': ['The speakers only play around noon.'],
+  'works:light:over': ['The panels were bought to the founders\' spec.'],
+  'works:time': ['Shifts start at nine; the spec says so.'],
+  'transit:change': ['Route changes are only announced aloud.', 'The speaker faces the road.'],
+  'transit:sound:over': ['The speaker faces the road, not the bench.'],
+  'transit:light:over': ['The shelter is glass on three sides.'],
+  'transit:time': ['The timetable was set for someone up early and home by dark.'],
+  'hall:people:over': ['Meetings start at six, in a full room.'],
+  'hall:sound:over': ['The chamber has hard walls and no carpet.'],
+  'hall:people:under': ['Outside meeting nights, the hall stands empty.'],
+  'hall:talk': ['The rules say stillness in the chamber.'],
+  'street:people:under': ['The streets empty at the hours the Standard keeps.'],
+  'street:light:over': ['The shop windows face the street, and the sun.'],
+  'commons:light:over': ['The lawn was laid out without shade.'],
+  'commons:people:under': ['The Commons was laid out for crowds that only come on festival days.'],
+  'farend:light:under': ['The lanes are lit only on festival nights.'],
+  'farend:people:under': ['Nothing in the town\'s plan brings anyone out this far.'],
+  'homerow:people:over': ['No door on the row has a sign.'],
+  'homerow:people:under': ['Curtains on the row stay drawn, out of habit.'],
+};
+export function causesFor(r, causes) { return (r.dim && (CAUSES_BY[r.z + ':' + r.dim + ':' + r.dir] || CAUSES_BY[r.z + ':' + r.dim])) || causes[r.z] || CAUSES.street; }
 // what was also true when you said Blend's line
 const BLEND_ALSO = ['Blend suggests the line most people would say.', 'It pays the same points whoever you are talking to.'];
 // a fixed shot of each place (exterior), for the moment's card
@@ -56,7 +83,7 @@ function verbLine(r) {
   }
   if (r.k === 'refused') return r.by === 'sana' ? 'You rang Unit\'s call bell. A script answered.' : 'You asked ' + who(r.by) + '. The answer was no.';
   if (r.k === 'missed') return r.v === 'shift' ? 'You missed your shift. Gil covered.' : r.v === 'meeting' ? 'You stepped out of the meeting.' : r.v === 'pond' ? 'You didn\'t make it to the pond. Rue waited.' : 'You slept through the afternoon.';
-  if (r.k === 'favour') return r.v === 'yes' ? 'You said yes to a favour.' : r.v === 'no' ? 'You said no to a favour.' : 'A favour never came due.';
+  if (r.k === 'favour') return r.v === 'yes' ? 'You said yes to a favor.' : r.v === 'no' ? 'You said no to a favor.' : 'A favor never came due.';
   if (r.k === 'vote') return r.v === 'passed' || r.v === 'approved' ? 'A fix went through.' : r.v === 'stalled' ? 'The Fund\'s clause stalled a fix. Referred for further study.' : 'A fix didn\'t pass.';
   if (r.k === 'stake') return r.v === 'listened' ? 'You changed a design for the person it cost.' : 'You kept a design as it was.';
   if (r.k === 'habit') return r.v === 'gear' ? 'You put your gear on before you noticed. It has become what you do there.' : r.v === 'leave' ? 'You were out the door before you noticed. It has become what you do there.' : 'You straightened up before you noticed. It has become what you do there.';
@@ -137,7 +164,7 @@ export async function whoDecided(story) {
     // (a voice on the phone, or a machine, has no face to draw: a silhouette)
     const pay = (r.pay || []).map((id) => ({ id, name: id === 'you' ? 'You' : CAST[id] ? CAST[id].name : id, img: id === 'you' ? G.portraitOf(S.look, { bg: '#efe6d6', w: 120, h: 120 }) : CAST[id] && CAST[id].look ? G.portraitOf(CAST[id].look, { bg: '#efe6d6', w: 120, h: 120 }) : '' }));
     const causes = Object.assign({}, CAUSES, (story.ret && story.ret.causes()) || {});
-    const k = await ui.decidedCard({ n: i + 1, of: moments.length, faced: faced(S, r), also: r.k === 'default' ? BLEND_ALSO : causes[r.z] || CAUSES.street, verb: verbLine(r), pay, first: i === 0 });
+    const k = await ui.decidedCard({ n: i + 1, of: moments.length, faced: faced(S, r), also: r.k === 'default' ? BLEND_ALSO : story.ret ? causes[r.z] || CAUSES.street : causesFor(r, causes), verb: verbLine(r), pay, first: i === 0 });
     if (k === 'skip') skip = true;
     await G.stage.fadeTo(1, 400);
   }

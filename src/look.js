@@ -26,7 +26,7 @@ export const SIGHTS = [
 // the later visits' sights (eight each), defined with their scenes; act tells them apart
 for (const [act, A] of [[2, ACT2], [3, ACT3]]) for (const s of A.sights || []) SIGHTS.push(Object.assign({ act }, s));
 export const SECOND = 'Who decided: the founders\' committee, from one summer\'s measurements.';
-const META = { lantern: 'Wren\'s lantern. Made for people who read English and see colour. Wren is working on that.' };
+const META = { lantern: 'Wren\'s lantern. Made for people who read English and see color. Wren is working on that.' };
 const RANGE = 14;
 
 // the six rows of the Standard's room: your room's objects, the dial each one sets, its clue, and the answer
@@ -89,14 +89,18 @@ export class Look {
   }
   toggle() { if (!this.unlocked || this.G.mode !== 'play' || this.G.busy || this.G.ui.waiter) return; if (this.raised) this.lower(); else this.raise(); }
   raise() {
-    const S = this.S; this.raised = true; this.G.audio.sfx('lantern'); this.G.ui.gearKey = '';
+    const S = this.S;
     // the first visit, with the town's colours to win back: the lantern shows marks (marks.js) instead of sights
     if (this.G.marks && this.G.marks.active) {
       if (this.G.loc !== 'town') { this.G.ui.toast('The lantern shows what pinches people out in the streets. Try it outside.', '', 3600); return; }
-      if (!S.flags.markTip) { S.flags.markTip = 1; this.G.ui.toast(`<b>Marks</b> show what pinches people here. ${this.G.ui.touch ? 'Tap a mark' : 'Get close and press ' + this.G.keyOf('interact') + ', or click a mark,'} to tag it.`, 'idea', 6500); }
-      const sl = this.G.story.slice; if (sl && sl.on) sl.onRaise();
+      this.raised = true; this.G.audio.sfx('lantern'); this.G.ui.gearKey = '';
+      // (the first day's objective says how it works; anywhere else, a tip the first time)
+      const sl = this.G.story.slice;
+      if (!S.flags.markTip) { S.flags.markTip = 1; if (!(sl && sl.on)) this.G.ui.toast(`<b>Turn to sweep the beam.</b> It glows and hums near what pinches people. ${this.G.ui.touch ? 'Tap a mark' : 'Get close and press ' + this.G.keyOf('interact') + ', or click a mark,'} to tag it.`, 'idea', 6500); }
+      if (sl && sl.on) sl.onRaise();
       return;
     }
+    this.raised = true; this.G.audio.sfx('lantern'); this.G.ui.gearKey = '';
     this.list.hidden = false; this.refresh(true);
     if (!S.flags.lanternMeta) { S.flags.lanternMeta = 1; this.showCard({ name: 'Wren\'s lantern', line: META.lantern }); }
   }

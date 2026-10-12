@@ -369,6 +369,10 @@ class Human:
                 k = 'way:' + s['obj']; self.tries[k] = self.tries.get(k, 0) + 1
                 if self.tries[k] in (8, 30): problem('pressed Show the way %d times for: %s' % (self.tries[k], s['obj'])); self.snap('stuck_way_%d' % int(now()), force=True)
                 return
+        # a quiet stretch the game offers to skip: after looking around a while, a person takes it
+        if self.pg.locator('#waitBtn:not([hidden])').count():
+            k = 'wait:' + s['obj']; self.tries[k] = self.tries.get(k, 0) + 1
+            if self.tries[k] == 12: say('DO', 'skip ahead (' + self.text_of('#waitBtn') + ')'); self.click('#waitBtn'); return
         # no objective target: walk up to someone not talked to today, by clicking on them
         if time.time() - self.lastWay > 4:
             self.lastWay = time.time()

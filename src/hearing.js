@@ -17,7 +17,7 @@ export const CARDS = {
   pip_cart: { kind: 'story', who: 'pip', title: 'Pip, about her mornings', text: 'I take the bread cart round by the loading dock every morning. Takes ages. Never mind!' },
   perceptible: { kind: 'insight', title: 'Say it more than one way', text: 'A design principle: information should reach people however they take it in. A light by a door says "come in" or "not now" without a word.', src: 'Center for Universal Design, 1997' },
   zoning: { kind: 'insight', title: 'Zones, not sameness', text: 'Quiet places beside lively ones, rather than one level for everybody. Design guidance for neurodivergent people recommends it; the evidence is mostly expert consensus so far.', src: 'BSI PAS 6463, 2022; Mostafa, 2014' },
-  curb: { kind: 'insight', title: 'The curb-cut effect', text: 'Curb cuts won by wheelchair users turned out to help parents with strollers, travellers with suitcases and workers with carts. Changes made for some often help many more.', src: 'Blackwell, 2017' },
+  curb: { kind: 'insight', title: 'The curb-cut effect', text: 'Curb cuts won by wheelchair users turned out to help parents with strollers, travelers with suitcases and workers with carts. Changes made for some often help many more.', src: 'Blackwell, 2017' },
   average: { kind: 'insight', title: 'Nobody is average', text: 'In 1950 the US Air Force measured 4,063 flyers on ten body dimensions. Not one fell in the middle range on all ten.', src: 'Daniels, 1952' },
 };
 
@@ -31,7 +31,7 @@ export const RAMP = {
       yes: 'Ah. Nobody complained because nobody on wheels could get in to. I take the point.',
       wrong: 'I don\'t quite see what that has to do with the steps.' },
     { who: 'pip', kind: 'Money', t: 'A whole ramp, for Bea? That\'s a lot of the Works budget for one person!', weak: 'for one person',
-      why: 'We get one build at the Works this year. It should help the most people it can.', hint: 'Who else comes and goes on wheels?',
+      why: 'Money spent at the Works can\'t be spent twice. It should help the most people it can.', hint: 'Who else comes and goes on wheels?',
       accept: ['wk_dock', 'pip_cart', 'curb', 'witness:moss'],
       yes: 'Oh! The bread cart. I go round by the dock every single morning. That\'s me as well, isn\'t it?',
       wrong: 'Sorry, I don\'t see how that helps anyone else.' },
@@ -140,7 +140,13 @@ export class Hearing {
       const tag = c.kind === 'mark' ? 'Mark' : c.kind === 'insight' ? 'Insight' : c.kind === 'deal' ? 'Agreed' : 'Their words';
       return `<button class="hcard ${c.kind} ${spent ? 'spent' : ''}" data-id="${c.id}" ${spent ? 'aria-disabled="true"' : ''}>${icon}<span class="htag">${tag}</span><b>${esc(c.title)}</b><span class="htx">${esc(c.text)}</span>${c.src ? `<span class="hsrc">${esc(c.src)}</span>` : ''}</button>`;
     }).join('') || '<p class="hempty">No cards yet. Tag marks with the lantern, and listen to people.</p>';
-    box.querySelectorAll('.hcard').forEach((b) => { b.onclick = () => { if (b.getAttribute('aria-disabled') === 'true') { this.G.ui.nudge(b, 'Already used.'); return; } this.present(b.dataset.id); }; });
+    // (on a touch screen the first tap opens a card to read it whole, and a second tap presents it: a wrong card costs
+    // composure, so nobody should have to play one they couldn't read)
+    box.querySelectorAll('.hcard').forEach((b) => { b.onclick = () => {
+      if (b.getAttribute('aria-disabled') === 'true') { this.G.ui.nudge(b, 'Already used.'); return; }
+      if (this.G.ui.touch && !b.classList.contains('sel')) { box.querySelectorAll('.hcard.sel').forEach((x) => x.classList.remove('sel')); b.classList.add('sel'); this.G.audio.sfx('select'); this.G.ui.announce(b.textContent + '. Tap again to present it.'); return; }
+      this.present(b.dataset.id);
+    }; });
   }
   async askWhy() {
     if (this.busy || this.over) return;

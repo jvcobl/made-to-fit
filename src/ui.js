@@ -1,5 +1,6 @@
 // DOM interface: dialogue, the "who adjusts?" card, phone, creator, room setup, settings, title, evening page and ending.
 import { esc, fmtTime, clamp, FAST, now, keyName } from './util.js';
+import { HOOK_SVG } from './fx.js';
 import { OPTIONS } from './creature.js';
 import { CAST, HINTS, BLEND, SETUP, PEOPLE, SLOT_LABEL, STAKES, roleOf } from './content.js';
 import { FIELD_NOTES, NOTE_SECTIONS, SUPPORT } from './notes.js';
@@ -44,7 +45,7 @@ export class UI {
       <div id="caption"></div>
       <div id="bubbles"></div>
       <div id="hud" hidden>
-        <div class="clock"><div class="dial"></div><div class="cl"><div class="when"></div><div class="obj"></div><button class="way" id="wayBtn" hidden>${ICON.way}<span>Show the way</span></button><div class="pstrip" role="group" aria-label="How this place fits you" hidden></div><div class="gstrip" role="status" aria-label="Lantern night guests" hidden></div></div></div>
+        <div class="clock"><div class="dial"></div><div class="cl"><div class="when"></div><div class="obj"></div><button class="way" id="wayBtn" hidden>${ICON.way}<span>Show the way</span></button><button class="way wait" id="waitBtn" hidden><span></span></button><div class="pstrip" role="group" aria-label="How this place fits you" hidden></div><div class="gstrip" role="status" aria-label="Lantern night guests" hidden></div></div></div>
         <div class="hudbtns"><button class="btn hb" id="phoneBtn" aria-label="Phone">${ICON.phone}<span class="lbl">Phone</span>${this.touch ? '' : '<kbd class="kphone"></kbd>'}</button><button class="btn hb" id="setBtn" aria-label="Menu: pause and settings">${ICON.cog}<span class="lbl">Menu</span></button></div>
         <div class="dock"><div class="energy" title="Energy for today"><svg viewBox="0 0 36 36"><circle class="track" cx="18" cy="18" r="14" fill="none" stroke-width="5"/><circle class="bar" cx="18" cy="18" r="14" fill="none" stroke-width="5" stroke-linecap="round" stroke-dasharray="88" stroke-dashoffset="0"/></svg><span class="elabel">Energy</span></div><div class="gearbtns"></div></div>
       </div>
@@ -67,6 +68,7 @@ export class UI {
     this.el('#prompt').onclick = () => this.G.interact();
     this.el('#actbtn').onclick = () => this.G.interact();
     this.el('#wayBtn').onclick = () => this.G.showWay();
+    this.el('#waitBtn').onclick = () => this.G.story.waitFor();
     this.el('#edge').onclick = () => this.G.showWay();
     this.el('#caption').onclick = () => this.skipCaption();
     this.dialog.addEventListener('click', (e) => { if (e.target.closest('.choice')) return; this.advance(); });
@@ -81,6 +83,10 @@ export class UI {
   }
   get set() { return this.G.settings; }
   // the screen-reader announcer: each line, choice list and notice is read once, in full (never the typewriter)
+  // the player chose to play without the game's own pulls (the first day's postcard, or Settings)
+  quietHooks() { const G = this.G; return !!((G.settings && G.settings.quietHooks) || (G.S && G.S.flags && G.S.flags.quietHooks)); }
+  // a hook mark beside a collection or an open loop (the new game marks its pulls; quiet play leaves them out)
+  hookMark(title) { const S = this.G.S; return S && S.v2 && !this.quietHooks() ? `<i class="hk" title="A hook: ${esc(title)}">${HOOK_SVG}</i> ` : ''; }
   announce(text) {
     const el = this.el('#sr'); if (!el || !text) return;
     let t = String(text).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim(); if (!t) return;
@@ -246,6 +252,8 @@ export class UI {
     if (this._obj !== text) { this._obj = text; h.querySelector('.obj').textContent = text; }
     const here = obj && obj.inside && obj.inside === this.G.loc; // inside the place the objective names: show the way to its spot, if it has one
     this.el('#wayBtn').hidden = !(obj && (here ? obj.spot : obj.at)) || this.G.mode !== 'play' || !!this.G.busy || !!this.waiter || this.G.mgActive;
+    // a quiet stretch before the next thing: you can let the time pass
+    { const w = this.el('#waitBtn'); const can = !!(obj && obj.wait && S.min < obj.wait.to - 5) && this.G.mode === 'play' && !this.G.busy && !this.waiter && !this.G.mgActive; w.hidden = !can; if (can) { const l = obj.wait.label; if (w.firstChild.textContent !== l) w.firstChild.textContent = l; } }
     h.querySelector('.dial').style.setProperty('--sun', Math.round(clamp((S.min - 420) / 900) * 100) + '%');
     const e = S.energy / 100; const bar = h.querySelector('.bar'); bar.style.strokeDashoffset = String(88 * (1 - e));
     h.querySelector('.energy').classList.toggle('low', e < 0.3);
@@ -273,6 +281,8 @@ export class UI {
     p.hidden = false; if (this._pl !== label) { this._pl = label; p.innerHTML = (this.touch ? '' : '<kbd>' + esc(this.G.keyOf('interact')) + '</kbd>') + esc(label); this._pw = p.offsetWidth; this._ph = p.offsetHeight; }
     // keep the whole label on screen when what it points at is near an edge
     const hw = (this._pw || 0) / 2 + 8; x = clamp(x, hw, Math.max(hw, innerWidth - hw)); y = clamp(y, (this._ph || 0) + 8, innerHeight - 8);
+    // (and never over the clock and objective box in the corner)
+    const G = this.G; if (G.hudBottom && x - hw < (G.hudRight || 0) && y - (this._ph || 0) < G.hudBottom + 8) y = G.hudBottom + 8 + (this._ph || 0);
     p.style.left = x + 'px'; p.style.top = y + 'px';
   }
   // the big contextual button for touch screens
@@ -330,7 +340,7 @@ export class UI {
   creator(look, onChange) {
     const S = this.G.S; const L = Object.assign({}, look);
     const sec = (title, key, opts, cur) => `<h3 class="sec">${title}</h3><div class="chips" data-k="${key}" role="group" aria-label="${esc(title)}">` + opts.map(([v, n]) => `<button class="chip ${v === cur ? 'on' : ''}" data-v="${v}" aria-pressed="${v === cur}">${esc(n)}</button>`).join('') + '</div>';
-    const html = `<h2>This is you.</h2><p class="lede">Nobody else in Larkspur looks quite like this. That is the point.</p>
+    const html = `<h2>This is you.</h2><p class="lede">Nobody else in Larkspur looks quite like this.</p>
       <div class="two"><div><h3 class="sec"><label for="cname">Name</label></h3><input type="text" id="cname" maxlength="14" value="${esc(S.name)}" autocomplete="off"></div><div><h3 class="sec">Pronouns</h3><div class="chips" data-k="pronoun" role="group" aria-label="Pronouns">${['they', 'she', 'he'].map((v) => `<button class="chip ${v === S.pronoun ? 'on' : ''}" data-v="${v}" aria-pressed="${v === S.pronoun}">${v}</button>`).join('')}</div></div></div>
       ${sec('Shape', 'shape', OPTIONS.shape, L.shape)}
       <h3 class="sec">Color</h3><div class="chips" data-k="color" role="group" aria-label="Color">${OPTIONS.color.map((c) => `<button class="swatch ${c === L.color ? 'on' : ''}" data-v="${c}" style="background:${c}" aria-label="${esc(COLOR_NAMES[c] || 'Color')}" aria-pressed="${c === L.color}"></button>`).join('')}</div>
@@ -583,7 +593,7 @@ export class UI {
       const met = !!S.met[id]; const n = st.known(id); const rv = (S.revealed || {})[id] === 'seen';
       return `<button class="pcard ${met ? '' : 'unmet'}" data-person="${id}">${met ? `<img src="${this.face(id, S)}" alt="">` : '<div class="sil">?</div>'}<b>${met ? esc(CAST[id].name) : '???'}</b><span class="pips">${[0, 1, 2, 3].map((i) => `<i class="${i < n ? 'on' : ''}"></i>`).join('')}</span>${rv ? '<span class="rv">✦</span>' : ''}</button>`;
     };
-    return `<p class="small" style="margin-top:6px">Everyone here needs something different. Fill a page by asking, listening and noticing. Three lines on a page show you something about them.</p><div class="pgrid"><button class="pcard you" data-person="you"><img src="${this.face('you', S)}" alt=""><b>You</b><span class="pips small2">your page</span></button>${ids.map(card).join('')}</div><p class="small">${filled} of ${ids.length * 4} lines filled.</p>`;
+    return `<p class="small" style="margin-top:6px">Everyone here needs something different. Fill a page by asking, listening and noticing. Three lines on a page show you something about them.</p><div class="pgrid"><button class="pcard you" data-person="you"><img src="${this.face('you', S)}" alt=""><b>You</b><span class="pips small2">your page</span></button>${ids.map(card).join('')}</div>${S.v2 && this.quietHooks() ? '' : `<p class="small">${this.hookMark('a collection to fill (almost there)')}${filled} of ${ids.length * 4} lines filled.</p>`}`;
   }
   personHtml(S, id) {
     const back = '<button class="mini-btn" id="pback">‹ Everyone</button>';
@@ -724,9 +734,9 @@ export class UI {
     const marbles = d.jar.map((m) => `<i style="--c:${m.c}" title="${esc(m.t)}"></i>`).join('') + '<i class="empty"></i>'.repeat(Math.max(0, d.jarMax - d.jar.length));
     const p = this.openPanel('center evening', `<div class="tday">${esc(d.day)} evening</div><h2>${esc(d.title)}</h2>
       <h3 class="sec">Today, when a place did not fit</h3><div class="ev-row">${resp}</div>
-      <h3 class="sec">Your jar of kept moments</h3><div class="jarrow"><div class="jar">${marbles}</div><div class="jt">${d.jarText}</div></div>
+      <h3 class="sec">Your jar of kept moments</h3><div class="jarrow"><div class="jar">${marbles}</div><div class="jt">${this.hookMark('a collection to fill (almost there)')}${d.jarText}</div></div>
       ${d.news.length ? `<h3 class="sec">Around town</h3><ul class="ev-news">${d.news.map((n) => `<li>${esc(n)}</li>`).join('')}</ul>` : ''}
-      ${d.open ? `<h3 class="sec">Still open</h3><p class="ev-open">${esc(d.open)}</p>` : ''}
+      ${d.open ? `<h3 class="sec">Still open</h3><p class="ev-open">${this.hookMark('unfinished business (an open loop)')}${esc(d.open)}</p>` : ''}
       ${d.notebook ? `<p class="ev-open">${esc(d.notebook)} It's in your phone, under Notebook.</p>` : ''}
       ${d.tomorrow.length ? `<h3 class="sec">Tomorrow</h3><ul class="ev-news">${d.tomorrow.map((n) => `<li>${esc(n)}</li>`).join('')}</ul>` : ''}
       <div class="pfoot sticky"><button class="btn primary" id="sleep">Sleep</button></div>`);
