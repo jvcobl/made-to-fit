@@ -6,6 +6,8 @@
 # Square, tagging a mark with the lantern up (beam, burst, ring, chime), and lantern night's retune, when every mark
 # in town goes out one by one.
 # usage: python3 test/flash_v2.py [wave] [wavemarket] [tag] [reveal] [--frames N] [--shots DIR]
+from pathlib import Path
+REPO = str(Path(__file__).resolve().parents[1])  # the repo root, wherever it is cloned
 import sys, time, json, base64, io
 import numpy as np
 from PIL import Image
@@ -20,7 +22,7 @@ def opt(name, default):
 FRAMES = int(opt('--frames', 240)); SHOTS = opt('--shots', None)
 ALL = ['wave', 'wavemarket', 'tag', 'reveal']
 SCENARIOS = [a for a in argv if not a.startswith('-')] or ALL
-URL = 'file:///home/claude/wb4/dist/who-bends.html?test=1&fast=1&mute=1&seed=9&fixedstep=1'
+URL = 'file://' + REPO + '/dist/who-bends.html?test=1&fast=1&mute=1&seed=9&fixedstep=1'
 
 # sRGB 8-bit -> linear, then relative luminance Y = 0.2126 R + 0.7152 G + 0.0722 B
 _c = np.arange(256) / 255.0

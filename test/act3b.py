@@ -1,12 +1,14 @@
 # Act 3 when none of your own fixes pinches Juno: Juno brings the statue's benches (a default nobody chose), you put in
 # a lower bench yourself, and the Founders' Fund offers Bea's crossing (it was never built). Checks the benches stand
 # (and block), the sight says whose height they are, the Fund builds the crossing, and what Larkspur remembers.
+from pathlib import Path
+REPO = str(Path(__file__).resolve().parents[1])  # the repo root, wherever it is cloned
 import json, sys, time, os
 from playwright.sync_api import sync_playwright
-sys.path.insert(0, '/home/claude/wb4/test')
+sys.path.insert(0, REPO + '/test')
 from drive import ARGS, BASE
 URL = BASE + '?test=1&v1=1&fast=1&mute=1&seed=35'
-SHOTS = '/home/claude/wb4/test/shots_a3'; os.makedirs(SHOTS, exist_ok=True)
+SHOTS = REPO + '/test/shots_a3'; os.makedirs(SHOTS, exist_ok=True)
 out = {'ok': True, 'checks': []}
 def check(name, cond, info=''):
     out['checks'].append([name, bool(cond), info])

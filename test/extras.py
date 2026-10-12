@@ -2,9 +2,11 @@
 # one real help at the bus stop, the feed summarized, Moss's shelf (a pack, several packs, the binder, packs summarized),
 # Gil's packs with their labels, a habit, residents adjusting before you ask (logged), and the comfort move welcome.
 # Prints JSON; exit 1 on failure.
+from pathlib import Path
+REPO = str(Path(__file__).resolve().parents[1])  # the repo root, wherever it is cloned
 import json, sys, time
 from playwright.sync_api import sync_playwright
-sys.path.insert(0, '/home/claude/wb4/test')
+sys.path.insert(0, REPO + '/test')
 from drive import ARGS, BASE, drive_to, free, STATE_JS
 URL = BASE + '?test=1&v1=1&fast=1&mute=1&seed=21'
 out = {'ok': True, 'checks': []}
@@ -95,7 +97,7 @@ with sync_playwright() as p:
     if pg.evaluate("!!document.querySelector('[data-single=gold]')"):
         pg.evaluate("document.querySelector('[data-single=gold]').click()"); pg.wait_for_timeout(200)
     check('binder: the card you picked, for three coins', pg.evaluate("!!__wb.state().cards.gold"))
-    pg.screenshot(path='/home/claude/wb4/test/shots_f/binder.png')
+    pg.screenshot(path=REPO + '/test/shots_f/binder.png')
     pg.evaluate("document.querySelector('#bback').click()"); pg.wait_for_timeout(150)
     pg.evaluate("document.querySelector('#done').click()"); idle(pg)
     check('packs note', pg.evaluate("!!(__wb.state().notes || {}).packs"))

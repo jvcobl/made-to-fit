@@ -3,11 +3,13 @@
 # crossing, Blend Lounge, the Works with Unit, its lamps and plants, the drone), twenty years on (benches, the Far
 # End cart and stalls, the leases board, Founders' Row). Screens go to test/shots_props.
 # usage: python3 test/props_view.py
+from pathlib import Path
+REPO = str(Path(__file__).resolve().parents[1])  # the repo root, wherever it is cloned
 import sys, os, time, json
-sys.path.insert(0, '/home/claude/wb4/test')
+sys.path.insert(0, REPO + '/test')
 from drive import ARGS, BASE
 from playwright.sync_api import sync_playwright
-D = '/home/claude/wb4/test/shots_props'; os.makedirs(D, exist_ok=True)
+D = REPO + '/test/shots_props'; os.makedirs(D, exist_ok=True)
 errors = []
 def free(pg, act):
     t0 = time.time()

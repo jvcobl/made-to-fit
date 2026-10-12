@@ -1,12 +1,14 @@
 # Act 2 (ten years later), from a carry: arrival, Unit's turned card and Teach Unit, festival mail, Tomas at the ramp,
 # the kiosk, Bea's crossing, Pip's rye, the meeting, Who decided?, the festival and the ending (with the carry for
 # Act 3). Screenshots go to test/shots_a2. Prints JSON; exit 1 on failure.
+from pathlib import Path
+REPO = str(Path(__file__).resolve().parents[1])  # the repo root, wherever it is cloned
 import json, sys, time, os
 from playwright.sync_api import sync_playwright
-sys.path.insert(0, '/home/claude/wb4/test')
+sys.path.insert(0, REPO + '/test')
 from drive import ARGS, BASE, drive_to, free, STATE_JS
 URL = BASE + '?test=1&v1=1&fast=1&mute=1&seed=31'
-SHOTS = '/home/claude/wb4/test/shots_a2'; os.makedirs(SHOTS, exist_ok=True)
+SHOTS = REPO + '/test/shots_a2'; os.makedirs(SHOTS, exist_ok=True)
 out = {'ok': True, 'checks': []}
 def check(name, cond, info=''):
     out['checks'].append([name, bool(cond), info])

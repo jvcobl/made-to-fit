@@ -8,9 +8,11 @@
 #  E  Act 3, the Fund builds the crossing: the button and the crossing's text agree; the board's text is Act 3's;
 #     Juno's moment in Who decided? is Juno's pinch, at the Shed, not "too loud for you"
 # usage: python3 test/review2.py [A B C D E]
+from pathlib import Path
+REPO = str(Path(__file__).resolve().parents[1])  # the repo root, wherever it is cloned
 import json, sys, time, os
 from playwright.sync_api import sync_playwright
-sys.path.insert(0, '/home/claude/wb4/test')
+sys.path.insert(0, REPO + '/test')
 from drive import ARGS, BASE
 WANT = [a for a in sys.argv[1:] if a in 'ABCDE'] or list('ABCDE')
 out = {'ok': True, 'checks': []}

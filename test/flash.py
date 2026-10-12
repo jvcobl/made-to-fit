@@ -4,6 +4,8 @@
 # state is below 0.80. Fails if any tile has more than 3 flashes in any one-second window.
 # usage: python3 test/flash.py [sort] [stamp] [works] [outdoor] [pond] [blueprint] [paint] [teach] [mail] [look] [festival]
 #   [release] [act2works] [act2fest] [act3fest] [--frames N] [--seed N] [--shots DIR]   (none named: all fifteen)
+from pathlib import Path
+REPO = str(Path(__file__).resolve().parents[1])  # the repo root, wherever it is cloned
 import sys, time, json, base64, io
 import numpy as np
 from PIL import Image
@@ -21,7 +23,7 @@ SCENARIOS = [a for a in argv if not a.startswith('-')] or ALL
 # the later visits reload the page, so they go last, in order; 'release' ends the first visit, so it goes just before them
 LATE = ['release', 'act2works', 'act2fest', 'act3fest']
 SCENARIOS = [x for x in SCENARIOS if x not in LATE] + [x for x in LATE if x in SCENARIOS]
-URL = 'file:///home/claude/wb4/dist/who-bends.html?test=1&v1=1&fast=1&mgslow=1&mute=1&seed=%d&fixedstep=1' % SEED
+URL = 'file://' + REPO + '/dist/who-bends.html?test=1&v1=1&fast=1&mgslow=1&mute=1&seed=%d&fixedstep=1' % SEED
 
 # sRGB 8-bit -> linear, then relative luminance Y = 0.2126 R + 0.7152 G + 0.0722 B
 _c = np.arange(256) / 255.0

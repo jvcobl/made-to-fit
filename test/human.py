@@ -3,6 +3,8 @@
 # a player reads the screen), but it never teleports, skips or sets anything: it walks with "Show the way" or by
 # clicking on people, talks, answers cards and plays tasks (the task's own auto-player stands in for hands).
 # usage: python3 test/human.py <desktop|phone> <engaged|pusher|mixed> <outdir> [seed] [acts=1|2|3] [clock=2.5] [page]
+from pathlib import Path
+REPO = str(Path(__file__).resolve().parents[1])  # the repo root, wherever it is cloned
 import json, sys, time, os, random, re
 from playwright.sync_api import sync_playwright
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -14,7 +16,7 @@ OUT = sys.argv[3] if len(sys.argv) > 3 else '/tmp/human'
 SEED = int(sys.argv[4]) if len(sys.argv) > 4 else 7
 ACTS = int(sys.argv[5]) if len(sys.argv) > 5 else 3
 CLOCK = float(sys.argv[6]) if len(sys.argv) > 6 else 2.5
-PAGE = sys.argv[7] if len(sys.argv) > 7 else 'file:///home/claude/wb4/dist/who-bends.html'
+PAGE = sys.argv[7] if len(sys.argv) > 7 else 'file://' + REPO + '/dist/who-bends.html'
 BUDGET = float(os.environ.get('BUDGET', '7200'))
 os.makedirs(OUT, exist_ok=True)
 rnd = random.Random(SEED)

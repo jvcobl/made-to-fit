@@ -1,3 +1,5 @@
+from pathlib import Path
+REPO = str(Path(__file__).resolve().parents[1])  # the repo root, wherever it is cloned
 import sys, time
 from playwright.sync_api import sync_playwright
 ARGS = ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist']
@@ -6,7 +8,7 @@ mobile = len(sys.argv) > 1 and sys.argv[1] == 'mobile'; tag = 'm' if mobile else
 with sync_playwright() as p:
     b = p.chromium.launch(args=ARGS); ctx = b.new_context(viewport={'width': 390, 'height': 844} if mobile else {'width': 1280, 'height': 760}, is_mobile=mobile, has_touch=mobile)
     pg = ctx.new_page(); errs = []; pg.on('pageerror', lambda e: errs.append(str(e)[:300]))
-    pg.goto('file:///home/claude/wb4/dist/who-bends.html?test=1&v1=1&fast=1&mgslow=1&mute=1&seed=4')
+    pg.goto('file://' + REPO + '/dist/who-bends.html?test=1&v1=1&fast=1&mgslow=1&mute=1&seed=4')
     pg.wait_for_function('window.__wb && __wb.panel() !== null', timeout=60000)
     def until(js, t=60000):
         t0 = time.time()

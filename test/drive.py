@@ -1,8 +1,10 @@
 # Shared helpers for Playwright tests: launch args and a driver that answers the title, creator, setup, today and
 # dialogue panels until a condition on the game state holds.
+from pathlib import Path
+REPO = str(Path(__file__).resolve().parents[1])  # the repo root, wherever it is cloned
 import time
 ARGS = ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist']
-BASE = 'file:///home/claude/wb4/dist/who-bends.html'
+BASE = 'file://' + REPO + '/dist/who-bends.html'
 STATE_JS = "(() => { const s = __wb.state(); return { panel: __wb.panel(), waiter: __wb.waiter(), mode: __wb.mode(), busy: __wb.busy(), day: s.day, min: s.min, loc: __wb.loc(), zone: __wb.zone(), ov: !!document.querySelector('#overlay:not([hidden])'), mg: __wb.mg() } })()"
 
 def free(st):

@@ -2,11 +2,13 @@
 # result card, screenshotted to test/shots_tasks (look at them). Checks that each task opens, shows its card, runs,
 # ends with a result card and a button out, and that nothing overflows the phone screen.
 # usage: python3 test/tasks_view.py [desktop] [phone] [task names, e.g. paint]
+from pathlib import Path
+REPO = str(Path(__file__).resolve().parents[1])  # the repo root, wherever it is cloned
 import json, sys, time, os
 from playwright.sync_api import sync_playwright
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from drive import ARGS, BASE, drive_to
-D = '/home/claude/wb4/test/shots_tasks'; os.makedirs(D, exist_ok=True)
+D = REPO + '/test/shots_tasks'; os.makedirs(D, exist_ok=True)
 TASKS = [('sort', None), ('stamp', None), ('blueprint', 'quiet'), ('blueprint', 'dim'), ('plain', None), ('pond', None), ('paint', None), ('mail', None), ('teach', None)]
 ONLY = [a for a in sys.argv[1:] if a not in ('desktop', 'phone')]
 if ONLY: TASKS = [t for t in TASKS if t[0] in ONLY]

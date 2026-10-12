@@ -1,10 +1,12 @@
+from pathlib import Path
+REPO = str(Path(__file__).resolve().parents[1])  # the repo root, wherever it is cloned
 import json, time
 from playwright.sync_api import sync_playwright
 ARGS = ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist']
 with sync_playwright() as p:
     b = p.chromium.launch(args=ARGS); pg = b.new_page(viewport={'width': 1000, 'height': 640})
     errs = []; pg.on('pageerror', lambda e: errs.append(str(e)[:300])); pg.on('console', lambda m: errs.append(m.text[:300]) if m.type == 'error' else None)
-    pg.goto('file:///home/claude/wb4/dist/who-bends.html?test=1&v1=1&fast=1&mute=1&seed=5'); pg.wait_for_timeout(1200)
+    pg.goto('file://' + REPO + '/dist/who-bends.html?test=1&v1=1&fast=1&mute=1&seed=5'); pg.wait_for_timeout(1200)
     pg.evaluate("document.querySelector('#tNew').click()")
     def pump(n, label):
         for i in range(n):

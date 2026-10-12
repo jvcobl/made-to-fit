@@ -1,9 +1,11 @@
 # Saves inside the later visits: Act 2's checkpoints (after the Works, after the meeting) and Act 3's (after Juno),
 # each followed by a reload and Continue from the title. What Continue restores is compared with what was saved (the
 # clock runs fast in tests, so the live state moves on); then the day carries on. Prints JSON; exit 1 on failure.
+from pathlib import Path
+REPO = str(Path(__file__).resolve().parents[1])  # the repo root, wherever it is cloned
 import json, sys, time
 from playwright.sync_api import sync_playwright
-sys.path.insert(0, '/home/claude/wb4/test')
+sys.path.insert(0, REPO + '/test')
 from drive import ARGS, BASE
 # autosave=0: these checks are about the story's own checkpoints (test/autosave.py covers saving as you play)
 URL = BASE + '?test=1&v1=1&fast=1&mute=1&seed=37&autosave=0'

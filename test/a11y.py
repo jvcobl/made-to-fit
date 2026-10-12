@@ -2,9 +2,11 @@
 # room dials, six choices), the arrival's choice and today card, a "Who adjusts?" card, a task's intro, the phone and
 # notebook, the pause menu, the ending page and the fit card. Fails on any critical or serious violation.
 # usage: python3 test/a11y.py [path to axe.min.js]
+from pathlib import Path
+REPO = str(Path(__file__).resolve().parents[1])  # the repo root, wherever it is cloned
 import json, sys, time, os
 from playwright.sync_api import sync_playwright
-sys.path.insert(0, '/home/claude/wb4/test')
+sys.path.insert(0, REPO + '/test')
 from drive import ARGS, BASE
 AXE = sys.argv[1] if len(sys.argv) > 1 else '/tmp/claude-0/-home-claude/cfac4721-fa9f-5c02-916d-61cf7c10d7ce/scratchpad/v12/axe/node_modules/axe-core/axe.min.js'
 URL = BASE + '?test=1&v1=1&fast=1&mute=1&seed=12'

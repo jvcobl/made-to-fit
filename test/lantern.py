@@ -1,8 +1,10 @@
 # Look again and the Standard's room: the lantern on the sill, raising it, a sight with its stand-in, the notebook's
 # Sights page, and the puzzle at the statue (three right lock in; six solve it). Prints JSON; exit 1 on failure.
+from pathlib import Path
+REPO = str(Path(__file__).resolve().parents[1])  # the repo root, wherever it is cloned
 import json, sys, time
 from playwright.sync_api import sync_playwright
-sys.path.insert(0, '/home/claude/wb4/test')
+sys.path.insert(0, REPO + '/test')
 from drive import ARGS, BASE, drive_to, free, STATE_JS
 URL = BASE + '?test=1&v1=1&fast=1&mute=1&seed=12'
 out = {'ok': True, 'checks': []}
@@ -47,7 +49,7 @@ with sync_playwright() as p:
     check('the card describes the place', 'noon bell rings as loud' in card, card)
     check('the stand-in appears', pg.evaluate("__wb.G.look.ghostK") > 0.3)
     check('the sight is noted', pg.evaluate("!!(__wb.state().sights || {}).bell"))
-    pg.screenshot(path='/home/claude/wb4/test/shots_f/lantern_bell.png')
+    pg.screenshot(path=REPO + '/test/shots_f/lantern_bell.png')
     pg.keyboard.press('Escape'); pg.wait_for_timeout(200); pg.keyboard.press('Escape'); pg.wait_for_timeout(300)
     check('lowered', not pg.evaluate("__wb.G.look.raised"))
     # the Standard's room
@@ -62,12 +64,12 @@ with sync_playwright() as p:
     check('two right: not yet', m1.startswith('Not yet'), m1)
     m2 = pick({'lamp': 2, 'radio': 2, 'sign': 0, 'note': 0, 'clock': 0, 'calendar': 0})
     check('four right: say so and lock', m2 == 'Four are right.' and pg.evaluate("Object.keys(__wb.state().stdLock).length") == 4, m2)
-    pg.screenshot(path='/home/claude/wb4/test/shots_f/standard_room.png')
+    pg.screenshot(path=REPO + '/test/shots_f/standard_room.png')
     m3 = pick({'note': 2, 'calendar': 1})
     check('six right: the plaque', 'composite' in m3, m3)
     check('solved: carried and kept', pg.evaluate("__wb.state().w.standard_solved") == 1 and pg.evaluate("__wb.G.town.plaque2.visible"))
     check('solved: notes', pg.evaluate("['misfit','reference','ranges'].every((k) => (__wb.state().notes || {})[k])"))
-    pg.screenshot(path='/home/claude/wb4/test/shots_f/standard_solved.png')
+    pg.screenshot(path=REPO + '/test/shots_f/standard_solved.png')
     pg.evaluate("document.querySelector('#sdone').click()"); pg.wait_for_timeout(300)
     # the notebook
     pg.evaluate("__wb.G.togglePhone(true)"); pg.wait_for_timeout(300)

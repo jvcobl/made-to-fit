@@ -1,5 +1,9 @@
 # Made to Fit
 
+**[Play it in your browser](https://jvcobl.github.io/made-to-fit/)** (free, no sign-up, about fifteen minutes for the first day, on a laptop or a phone)
+
+[![The title screen of Made to Fit, a small 3D town with a market square, a town hall and autumn trees](site/og-image.jpg)](https://jvcobl.github.io/made-to-fit/)
+
 A free 3D browser game about person-environment fit. You make a small creature, set up your room the way you like it, and step out into Larkspur, a cozy town planned around a statue of the "Standard Resident" that nobody actually matches. The town starts out muted. Wren's lantern shows what pinches the people who live there; you tag it, make room (a porch lantern, a quiet corner, a ramp argued for at a hearing), and color rolls back over each street you fix. The first day is a complete story of about fifteen minutes; two more days, and two short return visits ten and twenty years on, follow if you like.
 
 The playable build is one self-contained HTML file (Three.js is bundled in; only Google Fonts load from outside). It runs on desktop and phone browsers, with keyboard, mouse or touch.
@@ -53,7 +57,7 @@ URL parameters for local runs: `?test=1` (lighter rendering), `fast=1` (fast tim
 - `node test/check_content.mjs` checks every script (labels, conditions, flags, notes).
 - `python3 test/play.py`, `act2.py`, `act3.py`, `saves.py`, `saves23.py`, `a11y.py`, `phone23.py`, `perf.py`, `flash.py` and the rest cover endings, the later visits, saves, accessibility (axe), phone layout, draw-call budgets and photosensitivity.
 
-Headless Chromium renders with SwiftShader: run browser tests one at a time on a small machine.
+Build first (`node build.mjs`): the scripts load `dist/who-bends.html` from the repo they sit in, wherever it is cloned. Headless Chromium renders with SwiftShader: run browser tests one at a time on a small machine.
 
 ## Known gaps
 - No cold human playtests yet; the automated players stand in for them (they play at 2.5 times the clock, so they tire faster than a person does).

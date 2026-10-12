@@ -2,11 +2,13 @@
 # sideways overflow (nothing wider than the screen, no button cut off at the edge) and for tap targets that are too
 # small (under 40 px tall). Screens go to test/shots_phone; look at them.
 # usage: python3 test/phone23.py
+from pathlib import Path
+REPO = str(Path(__file__).resolve().parents[1])  # the repo root, wherever it is cloned
 import json, sys, time, os
 from playwright.sync_api import sync_playwright
-sys.path.insert(0, '/home/claude/wb4/test')
+sys.path.insert(0, REPO + '/test')
 from drive import ARGS, BASE
-D = '/home/claude/wb4/test/shots_phone'; os.makedirs(D, exist_ok=True)
+D = REPO + '/test/shots_phone'; os.makedirs(D, exist_ok=True)
 out = {'ok': True, 'checks': []}
 def check(name, cond, info=''):
     out['checks'].append([name, bool(cond), info])

@@ -1,10 +1,12 @@
 # Saves: a new visit writes a morning save; reloading offers Continue with the right label and restores the state;
 # a browser that blocks storage shows the banner and still offers a save code. Prints a JSON summary; exit 1 on failure.
+from pathlib import Path
+REPO = str(Path(__file__).resolve().parents[1])  # the repo root, wherever it is cloned
 import json, sys, time
 from playwright.sync_api import sync_playwright
 ARGS = ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist']
 # autosave=0: these checks are about the story's own checkpoints (test/autosave.py covers saving as you play)
-URL = 'file:///home/claude/wb4/dist/who-bends.html?test=1&v1=1&fast=1&mute=1&seed=11&autosave=0'
+URL = 'file://' + REPO + '/dist/who-bends.html?test=1&v1=1&fast=1&mute=1&seed=11&autosave=0'
 BLOCK = "(() => { const thrower = { get() { throw new DOMException('blocked', 'SecurityError'); } }; Object.defineProperty(window, 'localStorage', thrower); })()"
 
 def drive_to(pg, until, budget=150):

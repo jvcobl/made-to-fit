@@ -1,4 +1,6 @@
 # Play the two Works mini-games with real pointer input and take screenshots: intro, play, results.
+from pathlib import Path
+REPO = str(Path(__file__).resolve().parents[1])  # the repo root, wherever it is cloned
 import sys, time
 from playwright.sync_api import sync_playwright
 ARGS = ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist']
@@ -10,7 +12,7 @@ with sync_playwright() as p:
     ctx = b.new_context(viewport={'width': 390, 'height': 844} if mobile else {'width': 1280, 'height': 760}, device_scale_factor=1, is_mobile=mobile, has_touch=mobile)
     ctx.add_init_script("try { localStorage.setItem('whobends.settings', JSON.stringify({ textSpeed: 'instant' })); } catch (e) {}")
     pg = ctx.new_page(); pg.on('pageerror', lambda e: errs.append(str(e)[:300])); pg.on('console', lambda m: errs.append(m.text[:300]) if m.type == 'error' else None)
-    pg.goto('file:///home/claude/wb4/dist/who-bends.html?test=1&v1=1&mute=1&seed=9')
+    pg.goto('file://' + REPO + '/dist/who-bends.html?test=1&v1=1&mute=1&seed=9')
     pg.wait_for_function('window.__wb && __wb.panel() !== null', timeout=60000)
     def shot(n, wait=400): pg.wait_for_timeout(wait); pg.screenshot(path='%s/%s-%s.png' % (out, tag, n))
     def until(js, t=40000, bar=0):

@@ -1,12 +1,14 @@
 # Act 3 (twenty years later), from a carry: the Shed key and the co-op, Juno's turned card, the square (Moss's lease
 # and the Founders' Fund), the Shed's view on Home Row, the meeting (the Fund's clause), Who decided?, the festival
 # and the final ending with the fit card. Screenshots go to test/shots_a3. Prints JSON; exit 1 on failure.
+from pathlib import Path
+REPO = str(Path(__file__).resolve().parents[1])  # the repo root, wherever it is cloned
 import json, sys, time, os
 from playwright.sync_api import sync_playwright
-sys.path.insert(0, '/home/claude/wb4/test')
+sys.path.insert(0, REPO + '/test')
 from drive import ARGS, BASE, drive_to, free, STATE_JS
 URL = BASE + '?test=1&v1=1&fast=1&mute=1&seed=33'
-SHOTS = '/home/claude/wb4/test/shots_a3'; os.makedirs(SHOTS, exist_ok=True)
+SHOTS = REPO + '/test/shots_a3'; os.makedirs(SHOTS, exist_ok=True)
 out = {'ok': True, 'checks': []}
 def check(name, cond, info=''):
     out['checks'].append([name, bool(cond), info])

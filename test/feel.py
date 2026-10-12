@@ -1,9 +1,11 @@
 # The feel change: the creator previews the comfort move; in town the creature reacts to what pinches (not the
 # screen), the pinch strip says it in words, the mood tint stays slow and capped, Smooth Mode greys within its floor,
 # and hiding it (pushing through) keeps a straight face. Prints a JSON summary; exit 1 on failure.
+from pathlib import Path
+REPO = str(Path(__file__).resolve().parents[1])  # the repo root, wherever it is cloned
 import json, sys, time
 from playwright.sync_api import sync_playwright
-sys.path.insert(0, '/home/claude/wb4/test')
+sys.path.insert(0, REPO + '/test')
 from drive import ARGS, BASE, drive_to, free
 URL = BASE + '?test=1&v1=1&fast=1&mute=1&seed=5'
 out = {'ok': True, 'checks': []}
@@ -38,7 +40,7 @@ with sync_playwright() as p:
     check('no pinch push or shake', st['push'] < 0.01 and st['shake'] == 0, (st['push'], st['shake']))
     check('no pinch bloom/exposure/fringe', abs(st['bloom'] - 0.32) < 1e-6 and st['exposure'] == 1 and st['aberr'] == 0, st)
     check('tint within floor', st['sat'] >= 0.75 - 1e-6, st['sat'])
-    pg.screenshot(path='/home/claude/wb4/test/shots_f/feel_market.png')
+    pg.screenshot(path=REPO + '/test/shots_f/feel_market.png')
     # pushing through: a straight face, the strip says it is hidden
     pg.evaluate("(() => { const S = __wb.state(); S.masking = true; S.maskZone = __wb.zone(); })()"); pg.wait_for_timeout(700)
     st2 = pg.evaluate("(() => { const G = __wb.G; return { react: G.player.react, comfort: G.player.comfortLevel, strip: document.querySelector('#hud .pstrip').innerText } })()")

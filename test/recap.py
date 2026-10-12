@@ -1,12 +1,14 @@
 # The ways into a later visit from the title: "Played before?" → "Start from a recap" (creator, the room's six dials,
 # six things about the first week with "Choose for me") → ten years later; then, with only the finished first visit
 # remembered, the title's "Return to Larkspur" → your name → ten years later. Prints JSON; exit 1 on failure.
+from pathlib import Path
+REPO = str(Path(__file__).resolve().parents[1])  # the repo root, wherever it is cloned
 import json, sys, time, os
 from playwright.sync_api import sync_playwright
-sys.path.insert(0, '/home/claude/wb4/test')
+sys.path.insert(0, REPO + '/test')
 from drive import ARGS, BASE
 URL = BASE + '?test=1&v1=1&fast=1&mute=1&seed=41'
-SHOTS = '/home/claude/wb4/test/shots_recap'; os.makedirs(SHOTS, exist_ok=True)
+SHOTS = REPO + '/test/shots_recap'; os.makedirs(SHOTS, exist_ok=True)
 out = {'ok': True, 'checks': []}
 def check(name, cond, info=''):
     out['checks'].append([name, bool(cond), info])

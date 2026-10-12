@@ -1,8 +1,10 @@
 # Act 1 systems, checked one at a time by setting the state directly: the card's costs and goodwill, a refusal,
 # a bystander, the log, a favour, a stakeholder walking up, and a vote at the meeting. Prints JSON; exit 1 on failure.
+from pathlib import Path
+REPO = str(Path(__file__).resolve().parents[1])  # the repo root, wherever it is cloned
 import json, sys, time
 from playwright.sync_api import sync_playwright
-sys.path.insert(0, '/home/claude/wb4/test')
+sys.path.insert(0, REPO + '/test')
 from drive import ARGS, BASE, drive_to, free, STATE_JS
 URL = BASE + '?test=1&v1=1&fast=1&mute=1&seed=8'
 out = {'ok': True, 'checks': []}

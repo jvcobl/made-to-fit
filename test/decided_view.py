@@ -2,11 +2,13 @@
 # click): Tomas at the ramp (Act 2: the ramp outside, not the room inside) and Juno at the Shed (Act 3). Saves
 # screenshots to test/shots_decided and checks the card text.
 # usage: python3 test/decided_view.py
+from pathlib import Path
+REPO = str(Path(__file__).resolve().parents[1])  # the repo root, wherever it is cloned
 import json, sys, time, os
 from playwright.sync_api import sync_playwright
-sys.path.insert(0, '/home/claude/wb4/test')
+sys.path.insert(0, REPO + '/test')
 from drive import ARGS, BASE
-D = '/home/claude/wb4/test/shots_decided'; os.makedirs(D, exist_ok=True)
+D = REPO + '/test/shots_decided'; os.makedirs(D, exist_ok=True)
 ok_all = True
 def check(name, cond, info=''):
     global ok_all

@@ -2,9 +2,11 @@
 # used afterwards (never dropped), the chip sits beside the letter (never over it), captions make the room the
 # subject, the comfort move ends a still moment early (not while hiding it), "Fewer" halves the rate, and the
 # results say what the room took. Prints a JSON summary; exit 1 on failure.
+from pathlib import Path
+REPO = str(Path(__file__).resolve().parents[1])  # the repo root, wherever it is cloned
 import json, sys, time
 from playwright.sync_api import sync_playwright
-sys.path.insert(0, '/home/claude/wb4/test')
+sys.path.insert(0, REPO + '/test')
 from drive import ARGS, BASE, drive_to, free
 URL = BASE + '?test=1&v1=1&mute=1&seed=21'
 out = {'ok': True, 'checks': []}
@@ -42,7 +44,7 @@ with sync_playwright() as p:
                 ex, ey, ew, eh = ev['x'] - cv['x'], ev['y'] - cv['y'], ev['width'], ev['height']
                 overlap = ex < fr['x'] + fr['w'] and ex + ew > fr['x'] and ey < fr['y'] + fr['h'] and ey + eh > fr['y']
                 if overlap: chips_ok = False
-            if not shot: pg.screenshot(path='/home/claude/wb4/test/shots_f/room_event.png'); shot = True
+            if not shot: pg.screenshot(path=REPO + '/test/shots_f/room_event.png'); shot = True
             pg.keyboard.press('1')
             q = pg.evaluate("!!__wb.G.mg.room.queued")
             if q: held += 1 # (a press that lands just after the moment ends is simply used at once)
@@ -61,7 +63,7 @@ with sync_playwright() as p:
     result = pg.evaluate("__wb.G.mg.over.querySelector('.mg-result').innerText")
     check('results: the room as subject', 'The glare took' in result and 'The phones took' in result and 'Dot has turned her desk' in result, result[:300])
     check('results: no grade', not any(w in result for w in ('You lost', 'Grade', 'Score:')), result[:200])
-    pg.screenshot(path='/home/claude/wb4/test/shots_f/room_result.png')
+    pg.screenshot(path=REPO + '/test/shots_f/room_result.png')
     pg.evaluate("__wb.G.mg.over.querySelector('.go').click()"); pg.wait_for_function("!__wb.G.mgActive", timeout=10000)
     # 2) a dull Works for a lively profile: stillness; the comfort move ends it early
     pg.evaluate("(() => { const S = __wb.state(); S.look.comfort = 'rock'; })()")
