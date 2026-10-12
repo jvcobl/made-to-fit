@@ -25,6 +25,9 @@ export const FIELD_NOTES = [
   { id: 'social', section: 'places', act: 1, tag: 'Framework', title: 'The barrier is in the place',
     text: "The social model of disability, set out by disabled activists in the 1970s, locates disability in barriers built into the world rather than in a person's body or mind. The World Health Organization's framework, the ICF (2001), treats disability as an interaction between a person's health and their surroundings, so changing either one can help.",
     src: 'UPIAS, 1976; Oliver, 1983; WHO ICF, 2001' },
+  { id: 'question', section: 'places', act: 1, tag: 'From disability studies', title: 'Change the question',
+    text: 'A 1986 UK government survey of disabled people asked, "Can you tell me what is wrong with you?" In his 1990 book The Politics of Disablement, the disability scholar Mike Oliver printed it beside a rewrite: "Can you tell me what is wrong with society?" Another of his pairs: "Are your difficulties in understanding people mainly due to a hearing problem?" became "Are your difficulties in understanding people mainly due to their inabilities to communicate with you?" The change, he wrote, "is not only about methodology or semantics, it is also about oppression."',
+    src: 'Oliver, 1990 (the survey: OPCS, 1986)' },
   { id: 'misfit', section: 'places', act: 1, tag: 'Concept from disability studies', title: 'Misfit',
     text: "The disability scholar Rosemarie Garland-Thomson used the word misfit for what happens when a body meets a world that wasn't shaped for it. The problem sits in the fit between them, not in either one alone.",
     src: 'Garland-Thomson, 2011' },
@@ -181,6 +184,9 @@ export const FIELD_NOTES = [
     src: 'Nario-Redmond, Gospodinov and Cobb, 2017; Silverman, Gwinn and Van Boven, 2015; Flower, Burns and Bottsford-Miller, 2007' },
 
   // ---------- People ----------
+  { id: 'sonder', section: 'people', act: 1, tag: 'A word for a feeling, not a finding', title: 'Sonder',
+    text: 'The writer John Koenig coined the word sonder for The Dictionary of Obscure Sorrows: "the realization that each random passerby is living a life as vivid and complex as your own." From far enough away, a town looks like one crowd. Plan it from there, and you end up building for one imagined person.',
+    src: 'Koenig, The Dictionary of Obscure Sorrows (2021)' },
   { id: 'ask', section: 'people', act: 1, tag: 'Experiments · strong (asking tested once)', title: 'Ask instead of imagining',
     text: "Across 25 experiments, trying to imagine another person's point of view did not make people more accurate about what that person thought or felt. In the last one, simply asking them did. In this game, asking costs goodwill and people can say no; in that study, it still beat guessing.",
     src: 'Eyal, Steffel and Epley, 2018' },

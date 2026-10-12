@@ -2,7 +2,7 @@
 // Every reward that is built to keep you playing carries a small hook mark (hooks.js), and the Hook Log names it.
 // Calm feedback (Settings, and the comfort check) keeps the words and the sounds and drops most of the motion.
 import * as THREE from 'three';
-import { clamp, esc } from './util.js';
+import { clamp, esc, FAST } from './util.js';
 
 const POOL = 360;
 const VERT = `attribute float psize; attribute float palpha; attribute vec3 pcolor; uniform float uPx; varying vec3 vC; varying float vA;
@@ -46,11 +46,17 @@ export class FX {
     if (hook && this.G.ui) { const t = String(text).replace(/<[^>]*>/g, '').trim(); this.G.ui.announce(t + (/[.!?…]$/.test(t) ? '' : '.') + ' A hook: ' + String(hook).replace(/\s*\([^)]*\)/g, '') + '.'); }
     el.innerHTML = `<span class="pt">${o.html ? text : esc(text)}</span>` + (hook ? `<i class="hk" title="A hook: ${esc(hook)}">${HOOK_SVG}</i>` : '');
     this.layer.appendChild(el);
-    const p = { el, follow: o.follow || null, dy: o.dy == null ? 2.4 : o.dy, at: at && at.isVector3 ? at.clone() : null, sx: at && !at.isVector3 ? at.x : 0, sy: at && !at.isVector3 ? at.y : 0, t: 0, ms: (o.ms || 1500) / 1000, rise: o.rise == null ? 54 : o.rise, dx: o.dx || 0 };
+    const p = { el, follow: o.follow || null, dy: o.dy == null ? 2.4 : o.dy, at: at && at.isVector3 ? at.clone() : null, sx: at && !at.isVector3 ? at.x : 0, sy: at && !at.isVector3 ? at.y : 0, t: 0, ms: this.popMs(text, o) / 1000, rise: o.rise == null ? 54 : o.rise, dx: o.dx || 0 };
     this.pops.push(p); if (this.pops.length > 12) { const old = this.pops.shift(); old.el.remove(); }
     this.place(p);
     return el;
   }
+  // a pop with a few words stays long enough to read them (short ones keep their quick beat)
+  popMs(text, o) {
+    const base = o.ms || 1500; if (FAST || o.html || !this.G.ui || !this.G.ui.readMs) return base;
+    const t = String(text); return t.split(/\s+/).length >= 4 ? Math.max(base, Math.round(this.G.ui.readMs(t) * 0.8)) : base;
+  }
+  unpop(el) { const i = this.pops.findIndex((p) => p.el === el); if (i >= 0) { this.pops[i].el.remove(); this.pops.splice(i, 1); } else if (el && el.remove) el.remove(); }
   // a pop about the street's list, next to that list: just under it at the top of a wide screen, just above it at the
   // bottom of a phone (never in the middle of the notices)
   chipPop(text, o = {}) {

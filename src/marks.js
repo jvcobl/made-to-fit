@@ -170,10 +170,18 @@ export class Marks {
   showCard(m) {
     const G = this.G; const K = KINDS[m.kind]; const you = this.pinchesYou(m);
     const faces = m.who.filter((id) => CAST[id]).map((id) => `<span class="mface"><img alt="" src="${G.ui.face(id, this.S)}"><b>${esc(CAST[id].name)}</b></span>`).join('') + (you ? `<span class="mface you"><img alt="" src="${G.ui.face('you', this.S)}"><b>You too</b></span>` : '');
-    this.cardEl.innerHTML = `<div class="mk" style="--mk:${K[1]}"><span class="mi">${K[0]}</span><span class="mkind">${esc(K[2])}</span></div><div class="mbody"><h4>${esc(m.name)}</h4><p>${esc(m.line)}</p>${m.fit ? '' : `<div class="mwho"><span class="ml">Pinches</span>${faces || '<em>nobody you\'ve met yet</em>'}</div>`}</div>`;
+    this.cardEl.innerHTML = `<div class="mk" style="--mk:${K[1]}"><span class="mi">${K[0]}</span><span class="mkind">${esc(K[2])}</span></div><div class="mbody"><h4>${esc(m.name)}</h4><p>${esc(m.line)}</p>${m.fit ? '' : `<div class="mwho"><span class="ml">Pinches</span>${faces || '<em>nobody you\'ve met yet</em>'}</div>`}</div><button type="button" class="tclose" aria-label="Close this card">×</button>`;
     this.cardEl.hidden = false; this.cardEl.classList.remove('out'); clearTimeout(this.cardT);
     G.ui.announce(m.name + '. ' + m.line + (m.who.length ? ' Pinches ' + m.who.map((id) => CAST[id] ? CAST[id].name : id).join(', ') + (you ? ', and you.' : '.') : ''));
-    this.cardT = setTimeout(() => { this.cardEl.classList.add('out'); setTimeout(() => { this.cardEl.hidden = true; }, 400); }, FAST ? 200 : 5200);
+    // (long enough to read; hovering pauses it; with "Until I close it" it stays until you close it or tag the next one;
+    // every card is also kept in your phone's Fit Book, under Marks)
+    const el = this.cardEl; const hide = () => { clearTimeout(this.cardT); el.classList.add('out'); setTimeout(() => { if (el.classList.contains('out')) el.hidden = true; }, 400); };
+    let left = FAST ? 200 : G.ui.readMs(m.name + ' ' + m.line + ' Pinches ' + m.who.length + ' people', 5200), t0 = performance.now();
+    const run = () => { clearTimeout(this.cardT); if (G.ui.holdText()) return; t0 = performance.now(); this.cardT = setTimeout(hide, left); };
+    el.onpointerenter = () => { clearTimeout(this.cardT); left = Math.max(1500, left - (performance.now() - t0)); };
+    el.onpointerleave = run;
+    el.querySelector('.tclose').onclick = (ev) => { ev.stopPropagation(); hide(); };
+    run();
   }
   hideCard() { clearTimeout(this.cardT); this.cardEl.hidden = true; }
   streetHere() {

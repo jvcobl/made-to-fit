@@ -151,6 +151,18 @@ body.touch .choice .k { display: none; }
 .toast.keep { background: #fffaf0; color: #5a3a10; box-shadow: 0 0 0 2px rgba(255, 207, 122, 0.8), 0 8px 24px rgba(0, 0, 0, 0.2); }
 .jaricon { display: inline-block; width: 11px; height: 11px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #fff4d0, #ffb04a); box-shadow: 0 0 10px #ffcf7a; margin-right: 6px; vertical-align: -1px; }
 .toast.out { opacity: 0; transform: translateY(-8px); transition: all 0.4s; }
+/* notices can be read, paused (hover) and closed: the box lets clicks through, each notice takes its own */
+.toast { pointer-events: auto; position: relative; padding-right: 34px; }
+.toast .tfoot { display: block; margin-top: 4px; font-size: 12px; opacity: 0.6; }
+.tclose { position: absolute; top: 4px; right: 6px; width: 26px; height: 26px; border: 0; border-radius: 50%; background: transparent; color: inherit; opacity: 0.55; font-size: 18px; line-height: 26px; cursor: pointer; padding: 0; }
+.tclose:hover, .tclose:focus-visible { opacity: 1; background: rgba(127, 127, 127, 0.18); }
+#markcard { pointer-events: auto; }
+#markcard .tclose { top: 6px; right: 8px; }
+#caption .caphint, .hsay .caphint { display: block; margin-top: 10px; font-size: 13px; font-family: var(--body, inherit); font-weight: 400; opacity: 0.7; }
+.revealcount .rvcap { pointer-events: none; }
+.revealcount .rvgo { pointer-events: auto; margin-top: 14px; text-shadow: none; }
+/* sonder: a passerby's day, over their head */
+.pop.thought { white-space: normal; max-width: 210px; text-align: center; font-weight: 600; font-size: 14.5px; line-height: 1.25; padding: 4px 11px 5px; border-radius: 12px; background: rgba(20, 16, 26, 0.72); box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25); }
 @keyframes tin { from { opacity: 0; transform: translateY(-8px) scale(0.98); } }
 
 /* panels: creator, setup, shop, proposals, settings */
@@ -758,6 +770,7 @@ body.touch.slice .gb[data-g="look"] span { display: inline !important; }
 .daycard .dchoice .btn { min-width: 220px; }
 .daycard .dchoice .btn small { display: block; font-weight: 400; font-size: 12.5px; opacity: 0.8; margin-top: 2px; }
 .daycard .dstop { text-align: center; margin-top: 6px; }
+.daycard .dchoice .btn#dStop { background: transparent; }
 /* a hook mark beside a collection or an open loop, on paper-coloured cards */
 .jt .hk, .ev-open .hk, .toast .hk, #phone .small .hk { background: #fbefd2; vertical-align: -4px; margin-right: 2px; }
 .toast .hk { margin-left: 6px; }

@@ -177,10 +177,21 @@ export class Hearing {
     }
     this.resolve(id);
   }
+  // a line that carries meaning stays long enough to read (with "Until I close it", until you tap or press a key)
+  beat(text, min) {
+    const ui = this.G.ui;
+    if (FAST) return sleep(30);
+    if (!ui.holdText()) return sleep(ui.readMs(text, min));
+    return new Promise((r) => {
+      const s = this.el.querySelector('.hsay'); const h = document.createElement('small'); h.className = 'caphint'; h.textContent = (ui.touch ? 'Tap' : 'Click or press Space') + ' to continue'; if (s) s.appendChild(h);
+      const go = (ev) => { if (ev.type === 'keydown' && ev.key !== ' ' && ev.key !== 'Enter') return; ev.preventDefault(); window.removeEventListener('keydown', go, true); this.el.removeEventListener('pointerdown', go); h.remove(); r(); };
+      setTimeout(() => { window.addEventListener('keydown', go, true); this.el.addEventListener('pointerdown', go); }, 250);
+    });
+  }
   async resolve(id, witness) {
     const G = this.G, o = this.D.objections[this.i]; this.busy = true;
     const ok = o.accept.includes(id);
-    if (witness) { this.setSay(esc(this.D.witnesses[witness] || '…'), CAST[witness].name); G.audio.voice(CAST[witness].voice[0], CAST[witness].voice[1], this.D.witnesses[witness] || ''); await sleep(FAST ? 20 : 1700); }
+    if (witness) { this.setSay(esc(this.D.witnesses[witness] || '…'), CAST[witness].name); G.audio.voice(CAST[witness].voice[0], CAST[witness].voice[1], this.D.witnesses[witness] || ''); await this.beat(this.D.witnesses[witness] || '', 1700); }
     else this.spent[id] = 1;
     const seat = this.el.querySelectorAll('.hseat')[this.i];
     if (ok) {
@@ -188,7 +199,7 @@ export class Hearing {
       this.setSay(esc(o.yes), CAST[o.who].name); G.audio.voice(CAST[o.who].voice[0], CAST[o.who].voice[1], o.yes);
       seat.querySelector('.hvote').innerHTML = '<span class="stamp">YES</span>'; seat.classList.add('yes'); G.audio.sfx('stamp'); setTimeout(() => G.audio.sfx('yes'), 120);
       if (G.npcs[o.who]) G.setFace(o.who, 'happy');
-      await sleep(FAST ? 30 : 2300);
+      await this.beat(o.yes, 2300);
       this.busy = false; this.next(this.i + 1); return;
     }
     this.composure--; this.renderComp(); G.audio.sfx('miss');
@@ -200,7 +211,7 @@ export class Hearing {
     const left = this.hand().some((c) => !this.spent[c.id] && o.accept.includes(c.id)) || (this.witnessLeft > 0 && o.accept.some((a) => a.startsWith('witness:') && this.gallery().includes(a.slice(8))));
     if (this.composure <= 0 || !left) {
       this.votes[this.i] = 'no'; seat.querySelector('.hvote').innerHTML = '<span class="stamp no">NO</span>'; seat.classList.add('no'); G.audio.sfx('stamp');
-      await sleep(FAST ? 30 : 1600); this.busy = false; this.next(this.i + 1); return;
+      await this.beat(o.wrong, 1600); this.busy = false; this.next(this.i + 1); return;
     }
     this.busy = false;
   }
@@ -211,8 +222,9 @@ export class Hearing {
     this.el.querySelector('.hhand').innerHTML = ''; this.el.querySelector('.hbtns').hidden = true;
     const ob = this.el.querySelector('.hobj'); ob.innerHTML = `<div class="hresult ${passed ? 'pass' : 'fail'}">${passed ? 'Passed' : 'Not yet'}<small>${yes} of ${this.D.objections.length} votes</small></div>`;
     G.audio.sfx('gavel'); if (passed) setTimeout(() => G.audio.sfx('cheer'), 200);
-    this.setSay(passed ? 'The vote passes. Hollis brings the gavel down.' : 'Not this time. It goes on file for another meeting.');
-    await sleep(FAST ? 40 : 2200);
+    const outcome = passed ? 'The vote passes. Hollis brings the gavel down.' : 'Not this time. It goes on file for another meeting.';
+    this.setSay(outcome);
+    await this.beat(outcome, 2200);
     this.el.remove();
     this.done({ passed, yes, missing, consentSkipped: !!this.consentSkipped });
   }

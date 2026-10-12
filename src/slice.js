@@ -64,7 +64,7 @@ export class Slice {
     const S = this.S; S.cards = S.cards || {}; if (S.cards[id] || !CARDS[id]) return; S.cards[id] = S.day || 1;
     const c = CARDS[id];
     const label = c.kind === 'insight' ? 'Insight' : c.kind === 'deal' ? 'Agreed' : 'Their words';
-    this.ui.toast(`<span class="cardline"><span class="ck ${c.kind}">${label}</span><b>${esc(c.title)}</b></span><span class="tsub">${esc(c.text)}${c.src ? ' <em>' + esc(c.src) + '</em>' : ''}</span>`, 'cardt', 5200);
+    this.ui.toast(`<span class="cardline"><span class="ck ${c.kind}">${label}</span><b>${esc(c.title)}</b></span><span class="tsub">${esc(c.text)}${c.src ? ' <em>' + esc(c.src) + '</em>' : ''}</span><span class="tfoot">Kept in your phone's Fit Book</span>`, 'cardt', 5200);
     this.G.audio.sfx('ink');
     if (c.kind === 'insight' && this.st.fieldNote) this.st.fieldNote({ perceptible: 'ud', zoning: 'zoning', curb: 'curb', average: 'average' }[id] || id);
   }
@@ -143,15 +143,21 @@ export class Slice {
     G.mode = 'cine'; ui.letterbox(true); st.inPrologue = true;
     S.min = 17.4 * 60;
     if (!made) {
-      this.shot(new THREE.Vector3(66, 9, 70), new THREE.Vector3(57, 1.5, 30), 34, 0.6, true);
-      G.busRide = true;
-      await ui.caption('Your bus pulls into Larkspur. About a thousand people live here, and now you do too.', 3800);
+      // sonder first: from up high the town is one crowd; look closer and everyone in it has a day of their own. A town
+      // planned from up there gets built for one imagined person, which is where the Standard Resident comes in.
+      G.openingCrowd = true; G.busRide = true;
+      this.shot(new THREE.Vector3(30, 27, 60), new THREE.Vector3(30, 0, 27), 46, 0.6, true);
+      await sleep(FAST ? 10 : 1200);
+      await ui.caption('From up here, Larkspur looks like one crowd.', 2600);
+      const shown = G.sonder ? G.sonder.burst(6) : 0;
+      await ui.caption(shown ? 'Look closer. Everyone in it is in the middle of their own day.' : 'Up close, everyone in it is in the middle of their own day.', 4200);
+      if (G.sonder) G.sonder.clear();
       this.shot(new THREE.Vector3(35.5, 5.6, 31.5), new THREE.Vector3(30, 3.2, 24), 30, 0.5);
-      await ui.caption('The whole town was planned around one person, the Standard Resident.', 3200);
-      await ui.caption('That\'s its statue, in the square. Every step, door and light in town was made to fit it.', 4000);
-      G.busRide = false;
+      await ui.caption('But the whole town was planned for one person, the Standard Resident.', 3200);
+      await ui.caption('That\'s its statue. Every step, door and light in Larkspur was made to fit it.', 4000);
+      G.busRide = false; G.openingCrowd = false;
       this.shot(new THREE.Vector3(14, 6, 46), new THREE.Vector3(9.5, 1.5, 35), 34, 0.8);
-      await ui.caption('No. 2, Home Row. Your new home.', 2400);
+      await ui.caption('You just moved in. No. 2, Home Row.', 2400);
     }
     st.inPrologue = false; st.skipIntro = false;
     await G.stage.fadeTo(1, 700);
@@ -761,6 +767,8 @@ export class Slice {
     this.frame('wren');
     await this.say('wren', S.slice.guess === 'none' ? 'You guessed it. Nothing pinches the Standard, and not one of us fits it.' : 'Nothing pinches the Standard. Not one mark. And not one of us fits it. Not one person in Larkspur.');
     await this.say('wren', 'They built the whole town for somebody who isn\'t here. Today you made room for people who are.');
+    await this.say('wren', 'When a place pinches someone, most towns ask what\'s wrong with them. Today you asked what\'s wrong with the place.');
+    this.st.fieldNote('question');
     this.card('average');
     this.unframe();
     // the day's rewards, sorted: what did each one point you at? Then the postcard, and tomorrow.
@@ -808,7 +816,7 @@ export class Slice {
     await sleep(FAST ? 20 : 900);
     G.fx.ring(new THREE.Vector3(9.5, 0, 39.6), { color: '#c9b8a6', r: 9, dur: 2.2 });
     // each of you, and what doesn't fit them: a list under the number (readable on any screen), and on a wide screen
-    // a label over each head as well
+    // a name over each head as well (just the name, so the labels don't pile up on a crowded porch; the list says the rest)
     const wide = innerWidth / Math.max(1, innerHeight) >= 1.25;
     { const cap = document.createElement('p'); cap.className = 'rvcap'; cap.textContent = 'Where each of you differs from the Standard'; tag.appendChild(cap); }
     const list = document.createElement('ul'); list.className = 'rvlist'; tag.appendChild(list);
@@ -817,12 +825,19 @@ export class Slice {
       const icons = misfits(prof, id === 'you' ? S.wheels : CAST[id].cart).slice(0, 3);
       const label = (id === 'you' ? 'You' : CAST[id].name) + ': ' + icons.join(', ');
       const li = document.createElement('li'); li.textContent = label; list.appendChild(li);
-      if (wide) { const obj = id === 'you' ? G.player.root : G.npcs[id].c.root; G.fx.pop(obj.position.clone(), label, { kind: id === 'you' ? 'mark' : 'guest', ms: 3000, rise: 20, follow: obj, dy: 2.3 }); }
+      if (wide) { const obj = id === 'you' ? G.player.root : G.npcs[id].c.root; G.fx.pop(obj.position.clone(), id === 'you' ? 'You' : CAST[id].name, { kind: id === 'you' ? 'mark' : 'guest', ms: 3000, rise: 20, follow: obj, dy: 2.3 }); }
       G.audio.sfx('pop'); await sleep(FAST ? 2 : 300);
     }
     tag.querySelector('b').textContent = '0'; tag.querySelector('span').textContent = 'of ' + here.length + ' on your porch fit the Standard. Not even you.';
     this.ui.announce('None of the ' + here.length + ' on your porch fit the Standard. Not even you. Where each of you differs from it. ' + [...list.children].map((x) => x.textContent).join('. ') + '.');
-    await sleep(FAST ? 20 : 3200);
+    // the list waits long enough to read every name (or until you press Continue; with "Until I close it", until you do)
+    await new Promise((r) => {
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'btn primary rvgo'; b.textContent = 'Continue'; tag.appendChild(b); setTimeout(() => b.focus(), 60);
+      let done = false; const go = () => { if (done) return; done = true; clearTimeout(tm); window.removeEventListener('keydown', kh, true); r(); };
+      const kh = (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); ev.stopPropagation(); go(); } };
+      window.addEventListener('keydown', kh, true); b.onclick = go;
+      const tm = FAST ? setTimeout(go, 20) : ui.holdText() ? 0 : setTimeout(go, ui.readMs(tag.textContent, 6000));
+    });
     tag.remove();
   }
   // ---------- the hooks, sorted ----------
@@ -873,8 +888,7 @@ export class Slice {
       <div class="dbuilt">${built.map((f) => `<span>${esc(SIM.FIXES[f].name)}</span>`).join('')}</div>
       <p class="lede dtom"><i class="hk" title="A hook: unfinished business (an open loop)">${HOOK_SVG}</i>Tomorrow: the bus changes its route without warning, the Works is too bright for Gil, and Clover found something in the loft about how the Standard was made.</p>
       <p class="dq2">Choose how you'd like to play Tuesday. Neither option is picked for you.</p>
-      <div class="pfoot dchoice"><button class="btn" id="dGo">Keep playing<small>with the sparks and hook marks</small></button><button class="btn" id="dQuiet">Keep playing quietly<small>no hook marks, calm feedback</small></button></div>
-      <div class="dstop"><button class="linkbtn" id="dStop">Stop here for now</button></div>`);
+      <div class="pfoot dchoice"><button class="btn" id="dGo">Keep playing<small>with the sparks and hook marks</small></button><button class="btn" id="dQuiet">Keep playing quietly<small>no hook marks, calm feedback</small></button><button class="btn" id="dStop">Stop here for now<small>your game is saved</small></button></div>`);
     // (two equal ways on, and neither picked in advance: the game doesn't choose its own pulls for you)
     const k = await new Promise((r) => { p.querySelector('#dGo').onclick = () => r(0); p.querySelector('#dQuiet').onclick = () => r(2); p.querySelector('#dStop').onclick = () => r(1); if (FAST) setTimeout(() => r(0), 30); });
     ui.closePanel();

@@ -99,7 +99,8 @@ export class UI {
   // captions for sounds that carry information (the bus speaker, the noon bell, knocks)
   cc(text, ms = 3200) {
     if (this.set.captions === false || !text) return; const el = this.el('#cc'); el.textContent = text; el.classList.add('on');
-    clearTimeout(this._ccT); this._ccT = setTimeout(() => el.classList.remove('on'), FAST ? 300 : ms); this.announce(text);
+    // (long enough to read; these can't wait for a tap, so "Until I close it" gives them the longer time instead)
+    clearTimeout(this._ccT); this._ccT = setTimeout(() => el.classList.remove('on'), FAST ? 300 : Math.round(this.readMs(text, ms) * (this.holdText() ? 1.8 : 1))); this.announce(text);
   }
   key(e) {
     if (this.G.menus && this.G.menus.open) return;
@@ -225,19 +226,41 @@ export class UI {
   holdCancel() { const h = this.holding; if (!h) return; cancelAnimationFrame(h.raf); h.btn.querySelector('.fill').style.width = '0'; h.btn.classList.remove('holding'); const s = h.btn.querySelector('.hold'); if (s) s.textContent = 'Hold, or tap to start'; this.holding = null; this.G.onHold(false, false); }
   hideBarrier() { this.barrierEl.hidden = true; }
   // ---------- small things ----------
+  // ---------- reading time ----------
+  // Text that carries meaning stays up long enough to read at a gentle pace (about 180 words a minute, plus a moment to
+  // notice it), never shorter than the scene asked for. Settings > Reading time: Normal, Longer, or Until I close it.
+  // Hovering or focusing a notice pauses it, and every notice can be closed (WCAG 2.2.1, timing adjustable).
+  readMs(text, min = 0) {
+    const words = String(text == null ? '' : text).replace(/<[^>]*>/g, ' ').replace(/&[#a-z0-9]+;/gi, ' ').trim().split(/\s+/).filter(Boolean).length;
+    const k = this.G.settings && this.G.settings.readTime === 'long' ? 1.8 : 1;
+    return Math.max(min, Math.round((1300 + words * 330) * k));
+  }
+  holdText() { return !FAST && !!(this.G.settings && this.G.settings.readTime === 'hold'); }
   toast(html, kind = '', ms = 3600) {
     const box = this.el('#toasts');
     if (!FAST && box.children.length >= 2) { (this.tq = this.tq || []).push([html, kind, ms]); if (this.tq.length > 6) this.tq.shift(); return; }
-    const t = $(`<div class="toast ${kind}">${html}</div>`); box.appendChild(t); this.announce(html);
+    const t = $(`<div class="toast ${kind}">${html}<button type="button" class="tclose" aria-label="Close this notice">×</button></div>`); box.appendChild(t); this.announce(html);
     const all = box.children; if (all.length > 4) all[0].remove();
-    setTimeout(() => { t.classList.add('out'); setTimeout(() => { t.remove(); if (this.tq && this.tq.length) { const [h, k, m] = this.tq.shift(); this.toast(h, k, m); } }, 450); }, FAST ? 300 : ms);
+    // cards, notes and tips carry meaning: with "Until I close it" they wait for you; the rest fade once read
+    const keep = /\b(cardt|idea|note|keep|lantern)\b/.test(kind) && this.holdText();
+    let left = FAST ? 300 : this.readMs(html, ms), timer = 0, t0 = 0, gone = false;
+    const out = () => { if (gone) return; gone = true; clearTimeout(timer); t.classList.add('out'); setTimeout(() => { t.remove(); if (this.tq && this.tq.length) { const [h, k, m] = this.tq.shift(); this.toast(h, k, m); } }, 450); };
+    const run = () => { if (keep || gone || timer) return; t0 = performance.now(); timer = setTimeout(out, left); };
+    const pause = () => { if (!timer) return; clearTimeout(timer); timer = 0; left = Math.max(1500, left - (performance.now() - t0)); };
+    t.addEventListener('pointerenter', pause); t.addEventListener('pointerleave', run); t.addEventListener('focusin', pause); t.addEventListener('focusout', run);
+    t.querySelector('.tclose').onclick = (ev) => { ev.stopPropagation(); out(); };
+    run();
   }
+  // a caption stays long enough to read (a click, tap, Space or Enter moves on sooner); with "Until I close it", it waits
   caption(text, ms = 2600) {
-    const c = this.el('#caption'); c.textContent = text; c.classList.add('on');
+    const c = this.el('#caption'); c.textContent = text;
+    const hold = this.holdText() && !this.G.story.skipIntro;
+    if (hold) { const h = document.createElement('small'); h.className = 'caphint'; h.textContent = (this.touch ? 'Tap' : 'Click or press Space') + ' to continue'; c.appendChild(h); }
+    c.classList.add('on');
     return new Promise((r) => {
       let done = false;
       const finish = () => { if (done) return; done = true; clearTimeout(t1); this.capSkip = null; c.classList.remove('on'); setTimeout(r, FAST ? 20 : 450); };
-      const t1 = setTimeout(finish, FAST || this.G.story.skipIntro ? 40 : ms);
+      const t1 = hold ? 0 : setTimeout(finish, FAST || this.G.story.skipIntro ? 40 : this.readMs(text, ms));
       this.capSkip = finish;
     });
   }
@@ -292,7 +315,7 @@ export class UI {
     let b = this.bubblesMap[key];
     if (!b) { b = $('<div class="bubble"><div class="bt"></div></div>'); this.el('#bubbles').appendChild(b); this.bubblesMap[key] = b; }
     b.querySelector('.bt').textContent = text; b.style.setProperty('--tint', o.tint || '#3a3340'); b.classList.add('on');
-    clearTimeout(b._t); b._t = setTimeout(() => b.classList.remove('on'), FAST ? 300 : o.ms || clamp(text.length * 75, 2600, 6000));
+    clearTimeout(b._t); b._t = setTimeout(() => b.classList.remove('on'), FAST ? 300 : o.ms || this.readMs(text, 2600));
   }
   clearBubbles() { for (const k in this.bubblesMap) this.bubblesMap[k].classList.remove('on'); }
   placeBubbles(anchor) {

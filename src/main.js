@@ -9,6 +9,7 @@ import { UI } from './ui.js';
 import * as SIM from './sim.js';
 import { CAST, ROUTINES, BLEND } from './content.js';
 import { Story } from './story.js';
+import { Sonder } from './sonder.js';
 import { Guide } from './guide.js';
 import { updateLOD, warmLOD } from './lod.js';
 import { Feel, FITS } from './feel.js';
@@ -36,7 +37,7 @@ const PORTRAIT_CAM = {
 class Game {
   constructor(data = {}) {
     this.storage = SAVE.storageStatus();
-    const defaults = { fx: 1, reduceMotion: !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches), textSpeed: 'normal', textSize: 'm', holdToBend: true, quality: '', pace: 'steady', interrupts: 'usual', guide: 'full', blendPings: true, flicker: true,
+    const defaults = { fx: 1, reduceMotion: !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches), textSpeed: 'normal', textSize: 'm', readTime: 'normal', holdToBend: true, quality: '', pace: 'steady', interrupts: 'usual', guide: 'full', blendPings: true, flicker: true,
       moodTint: 'gentle', calmFx: false, quietHooks: false, pinchStrip: true, captions: true, lanternVoice: true, comfortSound: true, packs: 'show', feedContent: 'show', rueScenes: 'show', keys: Object.assign({}, DEFAULT_KEYS), vol: null, comfortDone: false };
     this.settings = SAVE.deepMerge(defaults, this.loadSettings()); this.settings.fx = 1;
     this.settings.keys = Object.assign({}, DEFAULT_KEYS, this.settings.keys);
@@ -56,7 +57,7 @@ class Game {
     this.timeScale = FAST ? 22 : 2.5; this.pinchNow = null; this.pinchT = 0; this.talking = null; this.target = null; this.phoneOpen = false; this.holdK = 0;
     this.tall = innerHeight > innerWidth * 1.1;
     window.addEventListener('resize', () => { const was = this.tall; this.tall = innerHeight > innerWidth * 1.1; if (was !== this.tall && this.loc !== 'town' && this.mode === 'play' && !this.talking) { const c = this.roomCam(this.loc); this.stage.shot(c.pos, c.look, c.fov, 3); } });
-    this.buildNPCs(); this.buildCrowd();
+    this.buildNPCs(); this.buildCrowd(); this.sonder = new Sonder(this);
     this.story = new Story(this);
     this.ui = new UI(this);
     this.fx = new FX(this); this.hooks = new Hooks(this); this.color = new StreetColor(this);
@@ -267,7 +268,7 @@ class Game {
     const want = {};
     for (const [zone, n] of CROWD_ZONES) {
       const L = SIM.levels(S, S.flags.festival && zone === 'market' ? 'festival' : zone, S.min);
-      want[zone] = S.flags.festival ? (zone === 'market' ? n : Math.round(n * 0.3)) : S.day === 0 ? Math.round(n * 0.3) : Math.round(n * clamp(L.people * 1.25));
+      want[zone] = this.openingCrowd ? n : S.flags.festival ? (zone === 'market' ? n : Math.round(n * 0.3)) : S.day === 0 ? Math.round(n * 0.3) : Math.round(n * clamp(L.people * 1.25));
     }
     const count = {};
     this.crowdPathBudget = 2;
@@ -717,6 +718,7 @@ class Game {
     this.movePlayer(dt);
     this.updateNPCs(dt);
     if (this.loc === 'town') this.updateCrowd(dt);
+    if (this.sonder) this.sonder.update(dt);
     for (const w of this.workers) if (this.loc === 'works') { w.update(dt); }
     if (this.loc === 'hall') for (const a of this.audience) if (a.root.visible) a.update(dt);
     if (!paused) this.story.tick();
