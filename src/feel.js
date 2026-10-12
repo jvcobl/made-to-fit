@@ -155,6 +155,6 @@ export class Feel {
     s.said = s.key; const [items, tags] = s.key.split('|');
     const list = items.split(',').map((x) => x.toLowerCase()); const t = tags ? ' (' + tags.split(',').join(', ') + ')' : '';
     const words = list.length > 1 ? list.slice(0, -1).join(', ') + ' and ' + list[list.length - 1] : list[0];
-    this.G.ui.announce(list.length === 1 && /fits you/.test(list[0]) ? 'This place fits you' + t + '.' : 'This place is ' + words + ' for you' + t + '.');
+    this.G.ui.announce(list.length === 1 && /fits you/.test(list[0]) ? 'This place fits you' + t + '.' : 'Here, for you: ' + words + t + '.');
   }
 }
