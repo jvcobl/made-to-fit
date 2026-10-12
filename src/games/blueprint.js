@@ -10,7 +10,7 @@ export const BLUEPRINTS = {
   quiet: {
     title: 'Market Square at noon', dim: 'sound', icon: '♪', lo: 'quiet', hi: 'loud',
     grid: [[4, 4, 4, 3, 3, 3], [4, 4, 4, 3, 3, 3], [3, 4, 3, 3, 3, 3], [3, 3, 3, 3, 3, 3]],
-    people: [['moss', 0, 1, [5, 3]], ['bea', 0, 2, [4, 2]], ['pip', 3, 4, [1, 1]], ['rue', 2, 4, [2, 0]], ['baby', 0, 1, [0, 3], 'Parent and baby', '#bfa9f0'], ['you', 0, 0, [3, 1]]],
+    people: [['moss', 0, 1, [5, 3]], ['bea', 0, 2, [4, 2]], ['pip', 3, 4, [1, 1]], ['rue', 2, 4, [2, 0]], ['pomeroy', 3, 4, [0, 0]], ['baby', 0, 1, [0, 3], 'Parent and baby', '#bfa9f0'], ['you', 0, 0, [3, 1]]],
     mods: [{ k: 'corner', name: 'Quiet corner', sub: 'much quieter here and next to it', n: 2, icon: '🌿' }, { k: 'down', name: 'Turn everything down', sub: 'a little quieter everywhere', n: 2, icon: '▼', global: true }, { k: 'stage', name: 'Music corner', sub: 'louder here and next to it', n: 1, icon: '♪' }],
     win: 'That\'s not a quieter market. That\'s a market with a quiet part.', lose: 'Somebody is still left without a spot. Try making places, not making everything the same.',
   },

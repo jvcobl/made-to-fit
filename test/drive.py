@@ -23,6 +23,7 @@ def drive_to(pg, until, budget=150, creator=None, choose=None):
         if 'creator' in panel:
             if creator and not did_creator: did_creator = True; creator(pg)
             pg.evaluate("document.querySelector('#done').click()"); continue
+        if 'taps' in panel: pg.evaluate("(() => { const b = document.querySelector('#panel .pick'); if (b) b.click(); })()"); pg.wait_for_timeout(350); continue
         if 'setup' in panel: pg.evaluate("document.querySelector('#next').click()"); continue
         if 'center' in panel:
             pg.evaluate("(() => { const g = document.querySelector('#panel #tgo') || document.querySelector('#panel #sleep') || document.querySelector('#panel #go') || document.querySelector('#panel #done'); if (g) g.click(); })()"); continue

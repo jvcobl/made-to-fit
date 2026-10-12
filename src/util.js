@@ -33,6 +33,8 @@ export function hexToRgb(h) { const n = parseInt(h.replace('#', ''), 16); return
 export function rgbToHex(r, g, b) { return '#' + [r, g, b].map((v) => Math.round(clamp(v, 0, 255)).toString(16).padStart(2, '0')).join(''); }
 export function mixHex(a, b, t) { const A = hexToRgb(a), B = hexToRgb(b); return rgbToHex(lerp(A[0], B[0], t), lerp(A[1], B[1], t), lerp(A[2], B[2], t)); }
 export function shadeHex(a, t) { return t < 0 ? mixHex(a, '#000000', -t) : mixHex(a, '#ffffff', t); }
+// toward a soft, slightly cool grey of the same lightness (a street that doesn't fit drains the colour from people on it)
+export function muteHex(a, t) { if (t <= 0) return a; const A = hexToRgb(a); const l = A[0] * 0.299 + A[1] * 0.587 + A[2] * 0.114; return rgbToHex(lerp(A[0], l * 0.97, t), lerp(A[1], l * 0.985, t), lerp(A[2], l * 1.04, t)); }
 
 export function fmtTime(min) {
   const h = Math.floor(min / 60) % 24, m = Math.floor(min % 60);

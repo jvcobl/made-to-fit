@@ -7,7 +7,7 @@
 //   too): one or two draws. It moves only by the root and rig (bob, squash, heading). Crowds, coworkers, the meeting
 //   audience, the founders, the statue and residents far from you use it; src/lod.js decides for residents.
 import * as THREE from 'three';
-import { clamp, lerp, noise3, mixHex, shadeHex, makeRng, angDamp, damp } from './util.js';
+import { clamp, lerp, noise3, mixHex, shadeHex, muteHex, makeRng, angDamp, damp } from './util.js';
 
 export const SHAPES = {
   round: { exp: 2.0, spike: 0, height: 1.0, blob: 0, width: 1.0 },
@@ -272,7 +272,7 @@ export class Creature {
     this.root.traverse((m) => { if (m.isMesh) m.userData.noOcc = true; });
   }
   get position() { return this.root.position; }
-  effLook() { const d = this.drift; return { color: mixHex(this.look.color, STANDARD.color, clamp(d * 1.1)), patAlpha: clamp(1 - d * 1.4), partScale: clamp(1 - d * 1.25), stdScale: clamp((d - 0.35) * 1.8) }; }
+  effLook() { const d = this.drift; return { color: muteHex(mixHex(this.look.color, STANDARD.color, clamp(d * 1.1)), this.mute || 0), patAlpha: clamp(1 - d * 1.4), partScale: clamp(1 - d * 1.25), stdScale: clamp((d - 0.35) * 1.8) }; }
   rebuild(full) {
     const p = lookParams(this.look, this.drift);
     const changed = !this.params || Object.keys(p).some((k) => Math.abs(p[k] - this.params[k]) > 0.015);
@@ -308,6 +308,8 @@ export class Creature {
   }
   setLook(look) { this.look = Object.assign({}, STANDARD, look); this.params = null; this.texKey = ''; this.rebuild(true); }
   setDrift(d) { d = clamp(d); if (Math.abs(d - this.drift) < 0.004) return; this.drift = d; this.rebuild(false); }
+  // colour only (never shape, carts or aids): how much a street that doesn't fit them has drained this resident
+  setMute(k) { k = clamp(k); if (Math.abs(k - (this.mute || 0)) < 0.004) return; this.mute = k; this.rebuild(false); if (this.cheeks) this.cheeks.visible = k < 0.4; }
   // 'near' or 'baked'; each form is built once (and again after placeParts) and then only shown or hidden
   setForm(f) {
     if (f === this.form) return;
@@ -490,7 +492,9 @@ export class Creature {
   // o.aid: reach for a hearing aid with one hand instead of covering both ears
   setReaction(kind, o = {}) { if (kind !== this.react) { this.react = kind; this.reactOn = 0; this.reactNext = 0.4 + Math.random() * 1.2; } this.reactO = o; }
   // level 0 (held in) to 1 (free); freq < 1 makes it come less often (after a lot of pushing through)
-  setComfort(kind, level, freq = 1) { this.comfortKind = kind || null; this.comfortLevel = level || 0; this.comfortFreq = freq; if (!level) this.comfortOn = 0; }
+  setComfort(kind, level, freq = 1) { this.comfortKind = kind || null; this.comfortLevel = level || 0; this.comfortFreq = freq; if (!level && !(this.toyOn > 0)) this.comfortOn = 0; }
+  // your comfort move once, now, whatever the place (the comfort key)
+  doComfort() { if (!this.comfortKind) this.comfortKind = this.look.comfort || 'hum'; this.toyOn = 1.7; this.comfortOn = this.comfortDur = 1.6; this.comfortStarted = this.comfortKind; }
   // the creator shows a move the moment you pick it, and keeps showing it while you look
   previewComfort(kind) { this.comfortKind = kind; this.comfortLevel = 1; this.comfortFreq = 3; this.comfortOn = 0; this.comfortNext = 0.05; }
   // one reaction, once, now (a glance at the phone when Blend pings)
@@ -527,7 +531,8 @@ export class Creature {
       default: break;
     }
     // the comfort move: only when standing still, never during hands-to-ears
-    const lvl = this.comfortLevel;
+    if (this.toyOn > 0) this.toyOn -= dt;
+    const lvl = this.toyOn > 0 ? 1 : this.comfortLevel;
     if (lvl > 0 && this.comfortKind && !moving) {
       if (this.comfortOn > 0) this.comfortOn -= dt;
       else { this.comfortNext -= dt * (lvl >= 1 ? 1 : 0.6); if (this.comfortNext <= 0 && !P.hands) { this.comfortOn = this.comfortDur = 1.2 + Math.random() * 0.8; this.comfortNext = (5 + Math.random() * 4) / Math.max(0.3, this.comfortFreq); this.comfortStarted = this.comfortKind; } }
@@ -570,8 +575,8 @@ export class Creature {
     this.rig.position.x = z.px; this.rig.position.z = z.pzz;
     // the chair rolls and turns with you (pace and spin on wheels); leans and looks stay in the body
     if (this.chair) { this.chair.position.z = this.look.wheels ? z.pzz : 0; this.chair.rotation.y = this.look.wheels ? P.spin : 0; }
-    this.rig.rotation.x = (moving ? 0.07 * Math.min(1, this.speed) : 0) + z.rx;
-    this.rig.rotation.z = z.rz; this.rig.rotation.y = z.ry + P.spin;
+    this.rig.rotation.x = (moving ? 0.07 * Math.min(1.6, this.speed) : 0) + z.rx;
+    this.rig.rotation.z = z.rz + (this.lean || 0); this.rig.rotation.y = z.ry + P.spin;
     this.root.rotation.y = angDamp(this.root.rotation.y, this.heading, 10, dt);
     // timers run in both forms; the parts that show them only in the near form
     this.waving = this.wave > 0; if (this.waving) this.wave -= dt;

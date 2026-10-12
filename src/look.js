@@ -89,7 +89,14 @@ export class Look {
   }
   toggle() { if (!this.unlocked || this.G.mode !== 'play' || this.G.busy || this.G.ui.waiter) return; if (this.raised) this.lower(); else this.raise(); }
   raise() {
-    const S = this.S; this.raised = true; this.G.audio.sfx('lantern'); this.list.hidden = false; this.refresh(true); this.G.ui.gearKey = '';
+    const S = this.S; this.raised = true; this.G.audio.sfx('lantern'); this.G.ui.gearKey = '';
+    // the first visit, with the town's colours to win back: the lantern shows marks (marks.js) instead of sights
+    if (this.G.marks && this.G.marks.active) {
+      if (!S.flags.markTip) { S.flags.markTip = 1; this.G.ui.toast(`<b>Marks</b> show what pinches people here. ${this.G.ui.touch ? 'Tap a mark' : 'Get close and press ' + this.G.keyOf('interact') + ', or click a mark,'} to tag it.`, 'idea', 6500); }
+      const sl = this.G.story.slice; if (sl && sl.on) sl.onRaise();
+      return;
+    }
+    this.list.hidden = false; this.refresh(true);
     if (!S.flags.lanternMeta) { S.flags.lanternMeta = 1; this.showCard({ name: 'Wren\'s lantern', line: META.lantern }); }
   }
   lower() { this.raised = false; this.list.hidden = true; this.closeCard(); this.G.ui.gearKey = ''; this.G.audio.sfx('back'); }
@@ -151,8 +158,9 @@ export class Look {
     this.k = damp(this.k, this.raised ? 1 : 0, 6, dt);
     const breathe = G.settings.reduceMotion ? 1 : 1 + 0.1 * Math.sin(this.t * Math.PI * 0.6); // 0.3 Hz, ±10%
     this.haloMat.opacity = 0.85 * this.k * breathe;
-    SIGHTS.forEach((s, i) => { this.halos[i].visible = this.k > 0.02 && this.inRange(s) && !s.mine; });
-    if (this.raised && (this.tr = (this.tr || 0) - dt) <= 0) { this.tr = 0.4; this.refresh(false); }
+    const v2 = !!(G.marks && G.marks.active);
+    SIGHTS.forEach((s, i) => { this.halos[i].visible = !v2 && this.k > 0.02 && this.inRange(s) && !s.mine; });
+    if (this.raised && !v2 && (this.tr = (this.tr || 0) - dt) <= 0) { this.tr = 0.4; this.refresh(false); }
     this.ghostK = damp(this.ghostK, this.ghostOn ? 1 : 0, 7.5, dt);
     this.ghostMat.opacity = 0.45 * this.ghostK; this.ghost.root.visible = this.ghostK > 0.01;
     if (this.ghost.root.visible) this.ghost.update(dt);

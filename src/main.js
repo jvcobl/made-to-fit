@@ -13,6 +13,10 @@ import { Guide } from './guide.js';
 import { updateLOD, warmLOD } from './lod.js';
 import { Feel, FITS } from './feel.js';
 import { Look } from './look.js';
+import { FX } from './fx.js';
+import { Hooks } from './hooks.js';
+import { StreetColor } from './color.js';
+import { Marks } from './marks.js';
 import { Feed } from './games/feed.js';
 import { sampleCarry } from './returns.js';
 import * as SAVE from './save.js';
@@ -33,7 +37,7 @@ class Game {
   constructor(data = {}) {
     this.storage = SAVE.storageStatus();
     const defaults = { fx: 1, reduceMotion: !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches), textSpeed: 'normal', textSize: 'm', holdToBend: true, quality: '', pace: 'steady', interrupts: 'usual', guide: 'full', blendPings: true, flicker: true,
-      moodTint: 'gentle', pinchStrip: true, captions: true, lanternVoice: true, comfortSound: true, packs: 'show', feedContent: 'show', rueScenes: 'show', keys: Object.assign({}, DEFAULT_KEYS), vol: null, comfortDone: false };
+      moodTint: 'gentle', calmFx: false, pinchStrip: true, captions: true, lanternVoice: true, comfortSound: true, packs: 'show', feedContent: 'show', rueScenes: 'show', keys: Object.assign({}, DEFAULT_KEYS), vol: null, comfortDone: false };
     this.settings = SAVE.deepMerge(defaults, this.loadSettings()); this.settings.fx = 1;
     this.settings.keys = Object.assign({}, DEFAULT_KEYS, this.settings.keys);
     const mobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) || Math.min(innerWidth, innerHeight) < 560;
@@ -55,10 +59,12 @@ class Game {
     this.buildNPCs(); this.buildCrowd();
     this.story = new Story(this);
     this.ui = new UI(this);
+    this.fx = new FX(this); this.hooks = new Hooks(this); this.color = new StreetColor(this);
     this.menus = new Menus(this, this.ui);
     this.guide = new Guide(this);
     this.feed = new Feed(this);
     this.feel = new Feel(this);
+    this.marks = new Marks(this);
     this.look = new Look(this); this.look.warm(); this.warmCreatures();
     this.applySettings();
     this.bindInput();
@@ -99,7 +105,7 @@ class Game {
   met(id) { return !!this.S.met[id]; }
   goals() { return this.story.goals(); }
   roomCam(id) { const r = this.rooms[id]; return this.tall && PORTRAIT_CAM[id] ? PORTRAIT_CAM[id] : r.cam; }
-  followOpts(o = {}) { return Object.assign(this.tall ? { dist: 17.5, fov: 44, pitch: 0.9 } : { dist: 14.5 }, o); }
+  followOpts(o = {}) { return Object.assign(this.tall ? { dist: 18.5, fov: 44, pitch: 0.92 } : { dist: 16.5, pitch: 0.88, fov: 35 }, o); }
   // ---------- residents ----------
   // every resident's near rig built once and its shaders compiled now (behind the loading screen, or a visit's opening
   // fade), so nobody's first close-up stalls a frame; then everyone goes back to the form they had
@@ -107,6 +113,7 @@ class Game {
     const back = [];
     for (const n of Object.values(this.npcs)) { const c = n.c; back.push([c, c.form, c.root.parent]); if (!c.root.parent) this.town.scene.add(c.root); c.setForm('near'); c.ensureNote(); }
     this.player.ensureNote(); warmLOD(this);
+    if (this.fx) this.fx.warm([this.town.scene, ...Object.values(this.rooms).map((r) => r.scene)]);
     // a note sprite in every scene too (rooms light things differently, so each needs its own compile)
     const scenes = [this.town.scene, ...Object.values(this.rooms).map((r) => r.scene)];
     const temp = this.player.note ? scenes.map((sc) => { const sp = new THREE.Sprite(this.player.note.material); sc.add(sp); return [sc, sp]; }) : [];
@@ -266,6 +273,7 @@ class Game {
     this.crowdPathBudget = 2;
     const p = this.player.root.position;
     for (const a of this.crowd) {
+      if (a.held) continue; // borrowed by a scene (the first pram down a new ramp)
       const c = a.c; const far = Math.hypot(c.root.position.x - p.x, c.root.position.z - p.z) > 22 || !inTown;
       count[a.zone] = (count[a.zone] || 0);
       if (!a.active && count[a.zone] < want[a.zone] && (far || !c.root.visible)) { const q = this.randomIn(a.zone); if (q) { a.active = true; c.root.position.set(q[0], 0, q[1]); c.root.visible = true; } }
@@ -468,12 +476,13 @@ class Game {
       // a key that just closed the last line of a conversation (the dialog handles it first) doesn't also start the
       // conversation again
       if (e.defaultPrevented) return;
-      if (act === 'interact' || k === 'enter' || k === ' ') { e.preventDefault(); this.interact(); }
+      if (act === 'interact' || k === 'enter' || k === ' ') { e.preventDefault(); if (this.target || k !== ' ') this.interact(); else this.hop(); }
       if (act === 'way') this.showWay();
       if (act === 'headphones') this.toggleGear('headphones');
       if (act === 'shades') this.toggleGear('shades');
       if (act === 'look' && this.look) this.look.toggle();
       if (act === 'smooth') { if (this.S.blend.has && !this.S.blend.deleted) this.setSmooth(!this.S.blend.smooth); }
+      if (act === 'comfort' && !e.repeat) this.comfortMove();
     });
     window.addEventListener('keyup', (e) => { this.keys[keyName(e).toLowerCase()] = false; });
     window.addEventListener('blur', () => { this.keys = {}; });
@@ -490,6 +499,7 @@ class Game {
     if (this.busy || this.mode !== 'play' || this.phoneOpen || this.settingsOpen || this.ui.waiter || this.mgActive) return;
     const ndc = new THREE.Vector2(x / innerWidth * 2 - 1, -(y / innerHeight) * 2 + 1);
     const ray = new THREE.Raycaster(); ray.setFromCamera(ndc, this.stage.camera);
+    { const m = this.marks.hit(ray); if (m) { const p = this.player.root.position; if (Math.hypot(m.at[0] - p.x, m.at[2] - p.z) < 7.5) { this.path = []; this.marks.tag(m.id); } else { this.walkTo(m.at[0], m.at[2] + 1.2); this.pendingTalk = null; } return; } }
     const bodies = Object.values(this.npcs).filter((n) => n.c.root.visible && n.c.root.parent === this.player.root.parent).map((n) => n.c.body);
     const hit = ray.intersectObjects(bodies, false)[0];
     if (hit) {
@@ -515,10 +525,13 @@ class Game {
     for (const n of Object.values(this.npcs)) { if (!n.c.root.visible || n.c.root.parent !== this.player.root.parent) continue; if (n.id === 'bea' && this.beaWay) continue; const raw = Math.hypot(n.c.root.position.x - p.x, n.c.root.position.z - p.z); const d = raw - (want && CAST[n.id].name === want ? 1 : 0); if (raw < 2.1 && d < bd) { bd = d; best = { kind: 'npc', id: n.id, label: (this.S.met[n.id] ? 'Talk to ' : 'Say hi to ') + CAST[n.id].name, obj: n.c.root.position }; } }
     const list = this.loc === 'town' ? this.town.inter : this.rooms[this.loc].inter;
     for (const it of list) { if (it.kind === 'set' || it.hidden) continue; const d = Math.hypot(it.x - p.x, it.z - p.z); const prio = it.id === 'statue' && this.S.flags.festival && !this.S.flags.released; if (d < it.r + (prio ? 0.6 : 0) && (d < bd - 0.4 || prio)) { bd = prio ? -1 : d; best = { kind: it.kind, id: it.id, label: this.labelFor(it), obj: new THREE.Vector3(it.x, 0, it.z) }; } }
+    // with the lantern up, a mark you could tag, unless a door or a person is nearer than it is
+    { const m = this.marks.near; if (m) { const dm = Math.hypot(m.at[0] - p.x, m.at[2] - p.z); if (!best || dm < 2.5 || dm < bd) best = { kind: 'mark', id: m.id, label: 'Tag: ' + m.name, obj: new THREE.Vector3(m.at[0], Math.max(0, m.at[1] - 1.9), m.at[2]) }; } }
     return best;
   }
   labelFor(it) {
     const S = this.S;
+    if (this.story.slice && this.story.slice.on) { const l = this.story.slice.label(it); if (l) return l; }
     if (this.story.ret) { const l = this.story.ret.label(it); if (l) return l; }
     if (it.id === 'statue' && S.flags.festival) return 'Release your lantern';
     if (it.id === 'statue' && S.flags.statue_seen) return S.w && S.w.standard_solved ? 'Read the plaque' : 'Work out the Standard\'s room';
@@ -534,6 +547,8 @@ class Game {
   async handle(t) {
     const S = this.S, st = this.story;
     if (t.kind === 'npc') return st.talkTo(t.id);
+    if (t.kind === 'mark') { this.marks.tag(t.id); return; }
+    if (st.slice && st.slice.on && (await st.slice.handle(t))) return;
     const id = t.id;
     if (st.ret && (await st.ret.handle(t))) return;
     if (id === 'home') { if (st.bedtime()) { await this.stage.fadeTo(1, 600); st.finishDay('sleep'); return; } return this.enterRoom('home'); }
@@ -577,23 +592,34 @@ class Game {
     let dx = 0, dz = 0; const K = this.keys;
     if (free) { if (K.w || K.arrowup) dz -= 1; if (K.s || K.arrowdown) dz += 1; if (K.a || K.arrowleft) dx -= 1; if (K.d || K.arrowright) dx += 1; }
     const following = !(dx || dz) && this.path.length && (free || this.busy || this.mode === 'cine');
+    let toGo = 1e9;
     if (dx || dz) { this.path = []; this.pendingTalk = null; const l = Math.hypot(dx, dz); dx /= l; dz /= l; }
     else if (following) {
       const [tx, tz] = this.path[0]; const ddx = tx - p.x, ddz = tz - p.z; const d = Math.hypot(ddx, ddz);
       if (d < 0.22) { this.path.shift(); this.stuckT = 0; if (!this.path.length && this.pendingTalk && free) { const id = this.pendingTalk; this.pendingTalk = null; this.run(() => this.story.talkTo(id)); } }
-      else { dx = ddx / d; dz = ddz / d; }
+      else { dx = ddx / d; dz = ddz / d; if (this.path.length === 1) toGo = d; }
     }
-    const speed = (this.loc === 'town' ? (this.S.wheels ? 4.4 : 4.0) : 2.6) * (this.S.energy < 15 ? 0.75 : 1);
+    // jog: hold Shift, or a long walk to somewhere you tapped (never on low energy, never indoors)
+    const town = this.loc === 'town';
+    if (following && this.path.length) { let L = 0, a = [p.x, p.z]; for (const q of this.path) { L += Math.hypot(q[0] - a[0], q[1] - a[1]); a = q; } this.pathLen = L; }
+    const jog = town && (dx || dz) && this.S.energy > 10 && (K.shift || (following && this.pathLen > 16 && this.mode === 'play'));
+    const top = (town ? (this.S.wheels ? 4.4 : 4.0) : 2.6) * (this.S.energy < 15 ? 0.75 : 1) * (jog ? 1.6 : 1);
+    // speed eases in and out (a fifth of a second to get going, a little less to stop), so walking has weight
+    const want = dx || dz ? top : 0; const was = this.spd || 0;
+    this.spd = FAST ? want : damp(was, want, want > was ? 10 : 16, dt);
+    if (dx || dz) this.moveDir = [dx, dz];
+    const dir = this.moveDir || [0, 0];
     let moved = false;
-    if (dx || dz) {
-      const step = speed * dt; const ox = p.x, oz = p.z;
-      const nx = p.x + dx * step, nz = p.z + dz * step;
+    if (this.spd > 0.05 && (dir[0] || dir[1])) {
+      const step = Math.min(this.spd * dt, toGo); const ox = p.x, oz = p.z;
+      const mx = dir[0], mz = dir[1];
+      const nx = p.x + mx * step, nz = p.z + mz * step;
       if (this.canStand(nx, nz)) { p.x = nx; p.z = nz; }
       else {
         if (this.canStand(nx, p.z)) p.x = nx;
         if (this.canStand(p.x, nz)) p.z = nz;
         // still pinned against a corner: try sliding along it at an angle
-        if (p.x === ox && p.z === oz) for (const a of [0.7, -0.7, 1.3, -1.3]) { const c = Math.cos(a), s = Math.sin(a); const rx = dx * c - dz * s, rz = dx * s + dz * c; if (this.canStand(p.x + rx * step, p.z + rz * step)) { p.x += rx * step; p.z += rz * step; break; } }
+        if (p.x === ox && p.z === oz) for (const a of [0.7, -0.7, 1.3, -1.3]) { const c = Math.cos(a), s = Math.sin(a); const rx = mx * c - mz * s, rz = mx * s + mz * c; if (this.canStand(p.x + rx * step, p.z + rz * step)) { p.x += rx * step; p.z += rz * step; break; } }
       }
       moved = Math.hypot(p.x - ox, p.z - oz) > step * 0.3;
       if (following) {
@@ -602,10 +628,37 @@ class Game {
         if (this.stuckT > 0.35 && this.walkGoal && this.loc === 'town' && !this.repathed) { const g = this.walkGoal; const np = this.town.findPath(p.x, p.z, g[0], g[1], this.S.wheels); this.repathed = true; this.stuckT = 0; if (np.length) this.path = np; }
         else if (this.stuckT > 0.6) { this.path.shift(); this.stuckT = 0; this.repathed = false; }
       }
-      this.player.heading = Math.atan2(dx, dz);
-    }
-    this.player.speed = moved ? 1 : 0;
-    if (moved && !this.S.wheels) { this.stepT -= dt; if (this.stepT <= 0) { this.stepT = 0.34; this.audio.sfx('step', { v: 0.7 }); } }
+      // lean into turns, a little
+      const h0 = this.player.heading, h1 = Math.atan2(mx, mz); let dh = h1 - h0; while (dh > Math.PI) dh -= Math.PI * 2; while (dh < -Math.PI) dh += Math.PI * 2;
+      if (dx || dz) this.player.heading = h1;
+      this.leanT = clamp(-dh / Math.max(dt, 1e-3) * 0.012, -0.16, 0.16) * Math.min(1, this.spd / 4);
+      if (!moved) this.spd *= 0.5;
+    } else this.leanT = 0;
+    this.player.lean = damp(this.player.lean || 0, this.settings.reduceMotion ? 0 : this.leanT || 0, 8, dt);
+    this.player.speed = moved ? this.spd / 4 : 0;
+    const feet = () => new THREE.Vector3(p.x - (this.moveDir ? this.moveDir[0] : 0) * 0.25, 0.12, p.z - (this.moveDir ? this.moveDir[1] : 0) * 0.25);
+    // a puff of dust as you set off, and now and then while you jog
+    if (moved && was < 0.6 && this.spd >= 0.6 && town && this.fx) this.fx.dust(feet(), { n: 4 });
+    if (moved && jog && town && this.fx) { this.dustT = (this.dustT || 0) - dt; if (this.dustT <= 0) { this.dustT = 0.3; this.fx.dust(feet(), { n: 2 }); } }
+    if (moved && !this.S.wheels) { this.stepT -= dt; if (this.stepT <= 0) { this.stepT = jog ? 0.24 : 0.34; this.audio.sfx('step', { v: jog ? 0.85 : 0.7 }); } }
+    // a hop's landing
+    if (this.hopLand != null) { this.hopLand -= dt; if (this.hopLand <= 0) { this.hopLand = null; if (town && this.fx) this.fx.dust(new THREE.Vector3(p.x, 0.1, p.z), { n: 6, force: true }); } }
+  }
+  // Space with nothing to use: a little hop (a toy, nothing more)
+  hop() {
+    if (this.mode !== 'play' || this.busy || this.ui.waiter || (this.player.hopT || 0) > 0.05) return;
+    this.player.hop(); this.hopLand = 0.42; this.audio.sfx('hop');
+  }
+  // your comfort move, on its key (C): a toy. In a part of town that fits people again it plays in key, and Wren's
+  // lantern hums back
+  comfortMove() {
+    if (this.mode !== 'play' || this.busy || this.ui.waiter || this.phoneOpen || this.mgActive) return;
+    const c = this.player; if ((c.toyOn || 0) > 0.3) return;
+    c.doComfort();
+    const p = c.root.position; const k = this.loc === 'town' && this.color ? this.color.at(p.x, p.z) : 1;
+    if (this.settings.comfortSound !== false) this.audio.toy(this.S.look.comfort || 'hum', k, this.S.look.voice);
+    this.S.stats.toy = (this.S.stats.toy || 0) + 1;
+    if (this.story.onToy) this.story.onToy(k);
   }
   // ---------- the felt part ----------
   // A place shows on your creature (feel.js) and in words (the pinch strip), never on your own eyes and ears. What is
@@ -675,8 +728,10 @@ class Game {
     this.computeFx(dt);
     this.feel.update(dt);
     this.look.update(dt);
+    this.marks.update(dt);
     this.player.setDrift(this.drift() * 0.92);
     this.player.update(dt);
+    this.color.update(dt);
     updateLOD(this);
     // the world
     if (this.loc === 'town') {
@@ -688,6 +743,7 @@ class Game {
       if (st.rig.mode !== 'orbit' && (st.rig.mode !== 'follow' || st.rig.target !== this.player.root.position) && !this.talking && this.mode === 'play' && !this.busy) st.follow(this.player.root.position, this.followOpts());
     } else this.rooms[this.loc].update(dt, S.min / 60, { settings: this.settings });
     this.guide.update(dt);
+    this.fx.update(dt);
     st.update(dt);
     if (this.talking && this.talkMid) st.setOccluder(this.talkMid, true, 0.32);
     else st.setOccluder(this.player.root.position, this.loc === 'town' && st.rig.mode === 'follow' && this.player.root.visible);
@@ -741,6 +797,8 @@ window.__wb = {
   // start a later visit from a carry (the real path: storage, then a reload), e.g. __wb.gotoAct(2, { built: ['quiet', 'dim', 'ramp'] })
   gotoAct: (n, o = {}) => { const c = sampleCarry(o); c.act = n - 1; SAVE.writeCarry({ acts: { [String(n - 1)]: c } }); try { sessionStorage.setItem('mtf.next', JSON.stringify({ act: n, name: o.name || 'Sam' })); } catch (e) { /* the address carries it */ } location.hash = 'return=' + n + (o.viaHash ? '&v=' + SAVE.encodeVisit(c) : ''); location.reload(); },
   ret: () => (G.story.ret ? { act: G.story.ret.act } : null),
+  // tests: jump the first day to a stage, as if everything before it went the usual way
+  sliceTo: (stage, o) => G.story.slice.debugTo(stage, o),
   // a visit code for a sample carry (to test typing a code on the title)
   visitCode: (n, o = {}) => { const c = sampleCarry(o); c.act = n; return SAVE.encodeVisit(c); },
   G: null,

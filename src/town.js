@@ -5,7 +5,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { PAL } from './palette.js';
 import { makeRng, clamp, lerp, smoothstep, noise2, now } from './util.js';
 import { Creature, STANDARD } from './creature.js';
-import { Daylight, addOcclusion } from './render.js';
+import { Daylight, patchTown } from './render.js';
 
 export const GW = 64, GD = 48;
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _e = new THREE.Euler(), _p = new THREE.Vector3(), _s = new THREE.Vector3();
@@ -127,8 +127,11 @@ export class Town {
     // warm pools of light: a few real lights follow you to the nearest street lamps
     this.lampLights = [];
     for (let i = 0; i < 6; i++) { const l = new THREE.PointLight('#ffc27a', 0, 10, 1.5); l.position.set(0, -50, 0); this.scene.add(l); this.lampLights.push(l); }
-    const skip = new Set([this.ground, this.water]);
-    this.scene.traverse((o) => { if (o.isMesh && !skip.has(o) && o.material && o.material.isMeshStandardMaterial && !o.userData.noOcc) addOcclusion(o.material); });
+    // every surface gets the see-through circle and street colour, except: the ground and the pond (colour only),
+    // creatures (they colour themselves, creature.js setMute) and the Blend kiosk, which stays bright in a grey town
+    const flat = new Set([this.ground, this.water]);
+    const inCreature = (o) => { for (let q = o; q; q = q.parent) if (q.userData && q.userData.creature) return true; return false; };
+    this.scene.traverse((o) => { if (!o.isMesh || !o.material || !o.material.isMeshStandardMaterial || inCreature(o)) return; patchTown(o.material, { occ: !flat.has(o) && !o.userData.noOcc, color: !o.userData.noColor }); });
   }
   block(x0, z0, x1, z1, v = 1) { for (let z = Math.floor(z0); z < Math.ceil(z1); z++) for (let x = Math.floor(x0); x < Math.ceil(x1); x++) if (x >= 0 && z >= 0 && x < GW && z < GD) this.grid[z * GW + x] = v; }
   cell(x, z) { const cx = Math.floor(x), cz = Math.floor(z); if (cx < 1 || cz < 1 || cx >= GW - 1 || cz >= GD - 1) return 1; return this.grid[cz * GW + cx]; }
@@ -449,7 +452,7 @@ export class Town {
     ring.rotation.x = Math.PI / 2; ring.position.set(kx, 1.05, kz); this.scene.add(ring);
     const screen = signMesh('blend', 1.1, 0.62, { bg: '#ff5fa2', fg: '#ffffff', border: false, size: 84, weight: 700, glow: 1.2, radius: 40 });
     screen.position.set(kx, 1.75, kz + 0.87); this.scene.add(screen);
-    this.kiosk = { ring, screen };
+    this.kiosk = { ring, screen }; pod.userData.noColor = ring.userData.noColor = screen.userData.noColor = true;
     this.block(kx - 1, kz - 1, kx + 1, kz + 1);
     this.addInter({ id: 'kiosk', kind: 'prop', x: kx - 0.2, z: kz + 1.6, r: 1.4, label: 'Look at the Blend kiosk' });
     this.spots.kiosk = [kx + 1.3, kz + 1.1];
@@ -459,6 +462,15 @@ export class Town {
     this.planter(cx - 4, cz + 4.6, 1.2, 1.2, ['#f3a0c2', '#e2b34c']); this.planter(cx + 4, cz + 4.6, 1.2, 1.2, ['#bfa9f0', '#fff4d6']);
     this.spots.square = [cx, cz + 3.4]; this.spots.squareW = [cx - 4, cz + 2.5]; this.spots.squareE = [cx + 4, cz + 2.5]; this.spots.statueSide = [cx - 2.4, cz + 1.4];
     for (const [lx, lz] of [[22, 22], [38, 22], [22, 30], [38, 30]]) this.lamp(lx, lz);
+    // a loudspeaker on every lamp around the square, all pointed at the middle (the quiet corner turns one away)
+    this.speakers = {};
+    { const sm = new THREE.MeshStandardMaterial({ color: '#5b6470', roughness: 0.6 });
+      for (const [lx, lz] of [[22, 22], [38, 22], [22, 30], [38, 30]]) {
+        const g = new THREE.Group(); g.position.set(lx, 2.35, lz); g.rotation.y = Math.atan2(cx - lx, cz - lz);
+        const box = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.3, 0.22), sm); g.add(box);
+        const horn = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.08, 0.34, 12, 1, true), sm); horn.rotation.x = Math.PI / 2; horn.position.z = 0.26; g.add(horn);
+        box.castShadow = true; this.scene.add(g); this.speakers[lx + ',' + lz] = g;
+      } }
   }
   buildCommons() {
     this.house(52, 7.5, 6, 4.6, 3.3, '#c97f5a', '#7a4e3c', { cols: 1, door: false, side: false, roofH: 1.9 });
@@ -634,25 +646,30 @@ export class Town {
       const b = signMesh('NEXT BUS 5:40\nTODAY: VIA ELM ST', 1.5, 0.6, { size: 40, bg: '#13202e', fg: '#9ef2e4', border: '#4fb3a9', glow: 1.3 }); b.position.set(53.6, 2.0, 22.95); g.add(b);
       const p = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.7, 0.08), mat('#2f3a4a')); p.position.set(53.6, 2.0, 22.88); g.add(p);
     }
-    // porch lanterns: teal circle means come say hi, amber square means not now
+    // porch lanterns: teal circle means come say hi, amber square means not now (each house sets its own)
     {
-      const g = G('lanterns'); this.porch = [];
+      const g = G('lanterns'); this.porchLights = [];
       const spots = [[4, 36.3], [9.5, 36.3], [15, 36.3], [23, 36.3], [48.6, 41.0]];
-      const lights = { on: [], off: [] };
+      const teal = mat('#4fd1c5', { emissive: '#4fd1c5', emissiveIntensity: 1.4 }), amber = mat('#f2a33a', { emissive: '#f2a33a', emissiveIntensity: 1.4 });
+      this.porchMats = [teal, amber]; this.porch = [];
+      const sph = new THREE.SphereGeometry(0.17, 14, 10), box = new THREE.BoxGeometry(0.3, 0.3, 0.3);
       spots.forEach(([x, z], i) => {
         const post = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 1.4, 6), mat(PAL.woodDark)); post.position.set(x - 1.0, 0.7, z + 0.2); g.add(post);
-        const on = i % 2 === 0;
-        lights[on ? 'on' : 'off'].push((on ? new THREE.SphereGeometry(0.17, 14, 10) : new THREE.BoxGeometry(0.3, 0.3, 0.3)).translate(x - 1.0, 1.55, z + 0.2));
+        const t = new THREE.Mesh(sph, teal), a = new THREE.Mesh(box, amber); for (const m of [t, a]) { m.position.set(x - 1.0, 1.55, z + 0.2); m.userData.keep = true; g.add(m); }
+        this.porchLights.push({ t, a }); this.setPorch(i, i % 2 === 0 ? 'teal' : 'amber');
       });
-      for (const [k, c] of [['on', '#4fd1c5'], ['off', '#f2a33a']]) { const lt = new THREE.Mesh(mergeGeometries(lights[k], false), mat(c, { emissive: c, emissiveIntensity: 1.4 })); lights[k].forEach((q) => q.dispose()); g.add(lt); this.porch.push(lt); }
       mergeProps(g, { occ: true, name: 'lanternPosts' });
     }
   }
+  // one house's porch lantern: 'teal' (come say hi), 'amber' (not now), or off
+  setPorch(i, mode) { const L = this.porchLights && this.porchLights[i]; if (!L) return; L.t.visible = mode === 'teal'; L.a.visible = mode === 'amber'; }
   setPlaque(solved) { if (this.plaque && this.plaque2) { this.plaque.visible = !solved; this.plaque2.visible = !!solved; } }
   setFix(id, on) {
     if (id === 'dim') { this.glassWorks.emissive.set(on ? '#ffd9a0' : '#e9f6ff'); this.glassWorks.color.set(on ? '#e9dcc5' : '#cfe4ef'); this.worksDim = on; return; }
     if (this.fixGroups[id]) this.fixGroups[id].visible = on;
     if (id === 'ramp') { if (on) this.block(13.6, 10.5, 18.8, 11.9, 0); }
+    // the quiet corner turns the speaker over the benches to face away from them
+    if (id === 'quiet' && this.speakers) { const g = this.speakers['22,30']; if (g) g.rotation.y = on ? Math.atan2(-1, -0.3) : Math.atan2(30 - 22, 24 - 30); }
   }
 
   // ---------- the festival ----------
@@ -721,7 +738,7 @@ export class Town {
     } else this.lampLights.forEach((l) => { l.intensity = 0; });
     this.glassWorks.emissiveIntensity = (this.worksDim ? 0.45 : 0.75) + night * (this.worksDim ? 0.9 : 1.6);
     for (const l of this.paperLanterns) l.material.emissiveIntensity = 0.35 + night * 2.2;
-    if (this.porch) for (const l of this.porch) l.material.emissiveIntensity = 0.8 + night * 2;
+    if (this.porchMats) for (const m of this.porchMats) m.emissiveIntensity = 0.8 + night * 2;
     const t = now() / 1000;
     this.kiosk.ring.material.emissiveIntensity = 1.4 + Math.sin(t * 3.2) * 0.5 + night;
     if (this.flag) this.flag.rotation.y = Math.sin(t * 1.3) * 0.15;

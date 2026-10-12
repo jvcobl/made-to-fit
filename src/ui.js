@@ -8,6 +8,8 @@ import { PLAQUE as PLAQUE_TEXT } from './look.js';
 const SETUP_NAMES = { lamp: 'Lamp', radio: 'Radio', sign: 'Door sign', note: 'House rules', clock: 'Clock', calendar: 'Calendar' };
 import { FIXES, pinch, fixState, supporters, approvedCount, SEASON_CAP } from './sim.js';
 import { ZONES } from './town.js';
+import { CARDS } from './hearing.js';
+import { MARKS, STREETS, KINDS } from './marks.js';
 import { FISH } from './games/pond.js';
 import { PACK_PRICE, SINGLE_PRICE, MORE_MAX, cardName, cardTile, drawPack, addCards, packLine, packSentence, moreSentence } from './packs.js';
 
@@ -42,7 +44,7 @@ export class UI {
       <div id="caption"></div>
       <div id="bubbles"></div>
       <div id="hud" hidden>
-        <div class="clock"><div class="dial"></div><div class="cl"><div class="when"></div><div class="obj"></div><button class="way" id="wayBtn" hidden>${ICON.way}<span>Show the way</span></button><div class="pstrip" role="group" aria-label="How this place fits you" hidden></div></div></div>
+        <div class="clock"><div class="dial"></div><div class="cl"><div class="when"></div><div class="obj"></div><button class="way" id="wayBtn" hidden>${ICON.way}<span>Show the way</span></button><div class="pstrip" role="group" aria-label="How this place fits you" hidden></div><div class="gstrip" role="status" aria-label="Lantern night guests" hidden></div></div></div>
         <div class="hudbtns"><button class="btn hb" id="phoneBtn" aria-label="Phone">${ICON.phone}<span class="lbl">Phone</span>${this.touch ? '' : '<kbd class="kphone"></kbd>'}</button><button class="btn hb" id="setBtn" aria-label="Menu: pause and settings">${ICON.cog}<span class="lbl">Menu</span></button></div>
         <div class="dock"><div class="energy" title="Energy for today"><svg viewBox="0 0 36 36"><circle class="track" cx="18" cy="18" r="14" fill="none" stroke-width="5"/><circle class="bar" cx="18" cy="18" r="14" fill="none" stroke-width="5" stroke-linecap="round" stroke-dasharray="88" stroke-dashoffset="0"/></svg><span class="elabel">Energy</span></div><div class="gearbtns"></div></div>
       </div>
@@ -489,6 +491,8 @@ export class UI {
   phoneTabs() {
     const S = this.G.S; const tabs = [['today', 'Today', '☰'], ['map', 'Map', '◉'], ['notebook', 'Notebook', '✎'], ['fix', 'Fix-It', '⚒'], ['texts', 'Texts', '✉']];
     if (S.blend.has && !S.blend.deleted) tabs.splice(1, 0, ['blend', 'Blend', 'b']);
+    // the first visit's new way of playing keeps what you gather in a Fit Book (and the hooks, named)
+    if (S.v2 && (S.act || 1) === 1) tabs.splice(1, 0, ['fitbook', 'Fit Book', '✦']);
     return tabs;
   }
   renderPhone() {
@@ -508,6 +512,7 @@ export class UI {
     on('#pback', () => { this.personOpen = null; this.renderPhone(); });
     { const kt = this.phoneEl.querySelector('#keeptr'); if (kt) kt.onchange = () => { S.lantern.off = S.lantern.off || {}; if (kt.checked) delete S.lantern.off[kt.dataset.who]; else S.lantern.off[kt.dataset.who] = 1; }; }
     on('#pway', () => { this.G.togglePhone(true); this.G.showWay(); });
+    this.phoneEl.querySelectorAll('[data-fb]').forEach((b) => { b.onclick = () => { this.fbSub = b.dataset.fb; this.G.audio.sfx('select'); this.renderPhone(); }; });
     this.phoneEl.querySelectorAll('[data-g]').forEach((b) => { b.onclick = () => { const g = b.dataset.g; if (g === 'smooth') G.setSmooth(!S.blend.smooth); else G.toggleGear(g); this.gearKey = ''; this.renderPhone(); }; });
     if (this.phoneTab === 'blend' && G.feed) G.feed.mount(this.phoneEl.querySelector('.feedmount'));
   }
@@ -615,6 +620,24 @@ export class UI {
     const p = this.openPanel('center postcard', `<div class="pc"><img src="${d.img}" alt=""><div class="pct"><div class="tday">A moment with ${esc(d.name)}</div><p>${esc(d.text)}</p></div></div><div class="pfoot"><button class="btn primary" id="pck">Keep this</button></div>`);
     this.G.audio.sfx('page');
     return new Promise((r) => { const go = () => { window.removeEventListener('keydown', kh); this.closePanel(); r(); }; const kh = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } }; p.querySelector('#pck').onclick = go; setTimeout(() => window.addEventListener('keydown', kh), 300); if (FAST) setTimeout(go, 30); });
+  }
+  // what you've gathered: people's words, insights and deals (your hand at a hearing), the marks by street, the hooks
+  tab_fitbook(S) {
+    const G = this.G; const sub = this.fbSub || 'cards';
+    const tabs = `<div class="subtabs">${[['cards', 'Cards'], ['marks', 'Marks'], ['hooks', 'Hook Log']].map(([k, n]) => `<button class="chip ${k === sub ? 'on' : ''}" data-fb="${k}">${n}</button>`).join('')}</div>`;
+    let body = '';
+    if (sub === 'cards') {
+      const ids = Object.keys(S.cards || {}).filter((id) => CARDS[id]);
+      const label = { story: 'Their words', insight: 'Insight', deal: 'Agreed' };
+      body = ids.length ? '<div class="fbcards">' + ids.map((id) => { const c = CARDS[id]; return `<div class="fbcard ${c.kind}"><span class="fbk">${label[c.kind]}</span><b>${esc(c.title)}</b><p>${esc(c.text)}</p>${c.src ? `<span class="fbsrc">${esc(c.src)}</span>` : ''}</div>`; }).join('') + '</div><p class="small">These are your hand at a hearing. Someone\'s own words are theirs: ask before you use them.</p>' : '<p>No cards yet. Listen to people, and you\'ll gather some.</p>';
+    } else if (sub === 'marks') {
+      body = Object.keys(STREETS).map((z) => {
+        const list = MARKS.filter((m) => m.street === z && !m.fit); if (!list.length) return '';
+        const c = G.marks.count(z);
+        return `<h4 class="ph4">${esc(STREETS[z].name)} · ${c.done}/${c.total}</h4>` + list.map((m) => { const on = G.marks.tagged(m.id); const K = KINDS[m.kind]; return `<div class="fbmark ${on ? '' : 'off'}"><span class="mi" style="--mk:${K[1]}">${on ? K[0] : '?'}</span><div><b>${on ? esc(m.name) : m.rare ? 'A rare one' : 'Not found yet'}</b>${on ? `<span>${esc(m.line)}</span>` : m.rare ? '<span>Only shows at a certain time of day.</span>' : ''}</div></div>`; }).join('');
+      }).join('');
+    } else body = G.hooks.logHtml(FIELD_NOTES);
+    return `<h3>Fit Book</h3>${tabs}${body}`;
   }
   tab_fix(S) { return `<h3>Fix-It</h3><div class="list">${this.proposals(S)}</div>`; }
   tab_texts(S) { return '<h3>Texts</h3>' + (this.G.texts.slice().reverse().map(([w, t]) => `<div class="msg"><b>${esc(w)}</b>${esc(t)}</div>`).join('') || '<p>No messages.</p>'); }

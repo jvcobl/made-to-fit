@@ -19,6 +19,7 @@ import { PaintGame } from './games/paint.js';
 import { TeachUnit } from './games/teach.js';
 import { FestivalMail } from './games/mail.js';
 import { Return, stateFromCarry } from './returns.js';
+import { Slice } from './slice.js';
 
 // where objectives point: a spot just in front of each door
 const T = { works: [12, 13.9], shed: [52, 11.8], hall: [32, 14.1], home: [9.5, 37.7], square: [30, 27.2], statue: [30, 26.6], farend: [50, 42.3], pond: [52.4, 43.9] };
@@ -56,7 +57,7 @@ const MINE_TOO = { gil: 'Ha. This one\'s mine too.', pip: 'Oh, that one\'s me to
 const ASK_NOT = { time: 'nobody here can move the hours for you', talk: 'it\'s how people talk here, not a switch', change: 'nobody here can stop things changing' };
 
 export class Story {
-  constructor(G) { this.G = G; this.endDay = null; }
+  constructor(G) { this.G = G; this.endDay = null; this.slice = new Slice(this); }
   get S() { return this.G.S; }
   get ui() { return this.G.ui; }
 
@@ -107,6 +108,8 @@ export class Story {
     // a new visit: the comfort check first (tests skip it unless they ask for it)
     if (!G.settings.comfortDone && (!G.test || params.get('comfort') === '1')) await G.menus.comfort();
     seedRng(this.S.seed);
+    // (?v1=1 plays the first day the old way, for comparison and older tests)
+    if (params.get('v1') !== '1') this.slice.init();
     await this.prologue();
     await this.days(1, 'morning');
   }
@@ -154,7 +157,7 @@ export class Story {
   finalDay() { return this.ret ? true : this.S.day >= 3; }
   // the day can end at home from five o'clock, except on Tuesday before the town meeting (at six): going to bed then
   // would skip it without a word, so the bed is for a rest until the meeting is over
-  bedtime() { const S = this.S; if (this.finalDay() || S.day < 1 || S.min < 1020) return false; return !(S.day === 2 && !S.flags.councilDone); }
+  bedtime() { const S = this.S; if (this.slice.on || this.finalDay() || S.day < 1 || S.min < 1020) return false; return !(S.day === 2 && !S.flags.councilDone); }
   defaultText(id) { return DEFAULTS[id] ? DEFAULTS[id].t.toLowerCase() : ''; }
   // ten or twenty years on: an accessory, a richer pattern, or nothing (never the faded look)
   async changeAnything() {
@@ -177,6 +180,8 @@ export class Story {
   // the visit's days; a save is written before each morning, so Continue replays that morning exactly
   async days(first, phase) {
     for (let d = first; d <= 3; d++) {
+      // the first day of a new game is its own story (slice.js), with its own evening
+      if (d === 1 && this.S.v2) { await this.slice.day(d === first ? phase : 'morning'); continue; }
       if (d === first && phase !== 'morning') this.resumeDay(phase);
       else { this.saveNow('morning', d); await this.morning(d); }
       await new Promise((r) => { this.endDay = r; this.G.mode = 'play'; this.G.busy = 0; });
@@ -546,6 +551,7 @@ export class Story {
   }
   // from = 'setup': the creature was made last time (it was saved then), so this starts at the room
   async prologue(from) {
+    if (this.S.v2) return this.slice.prologue(from);
     const G = this.G, S = this.S, ui = this.ui; const made = from === 'setup';
     G.mode = 'cine'; ui.letterbox(true); this.inPrologue = true;
     S.min = 17.2 * 60;
@@ -705,6 +711,7 @@ export class Story {
   }
   objective() {
     if (this.ret) return this.ret.objective();
+    if (this.slice.on) return this.slice.objective();
     const S = this.S, d = S.day, m = S.min;
     if (d === 0) return ob('Make yourself at home.');
     if (S.flags.festival) return S.flags.released ? ob('') : ob('Enjoy the festival. When you are ready, release your lantern at the statue.', T.statue, 'The statue');
@@ -765,6 +772,7 @@ export class Story {
   }
   goals() {
     if (this.ret) return this.ret.goals();
+    if (this.slice.on) return this.slice.goals();
     const S = this.S, d = S.day; const met = Object.keys(S.met).filter((k) => CAST[k] && !CAST[k].minor).length;
     if (d === 1) return [{ t: 'Get to the Works by 9:00', done: !!S.flags.shift1 }, { t: 'Meet at least four neighbors (' + Math.min(4, met) + '/4)', done: met >= 4 }, { t: 'Find the Fix-It Shed', done: !!S.met.clover }, { t: 'Home by 10 PM', done: false }];
     if (d === 2) return [{ t: 'Weekly sync at the Works, 9:00', done: !!S.flags.shift2 }, { t: 'See what Clover found', done: !!S.flags.statue_seen }, { t: 'Turn an idea into a proposal at the Shed', done: Object.values(S.fixes).some((v) => v !== 'idea') }, { t: 'Town meeting, 6 PM', done: !!S.flags.councilDone }];
@@ -774,6 +782,7 @@ export class Story {
   // called by the game loop every frame while playing
   tick() {
     const G = this.G, S = this.S; if (G.busy || G.mode !== 'play') return;
+    if (this.slice.on) { this.slice.tick(); return; }
     const m = S.min, d = S.day; const a1 = !this.ret;
     if (!a1 && this.ret.tick()) return;
     if (a1) {
@@ -1122,6 +1131,7 @@ export class Story {
     }
   }
   async talkTo(id) {
+    if (this.slice.on && (await this.slice.talk(id))) return;
     const G = this.G, S = this.S; const T = TALK[id] || {}; const firstMeet = !S.met[id];
     G.talkFrame(id); this.ui.letterbox(true);
     if (S.flags.festival) { await this.festivalLine(id); }

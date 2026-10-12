@@ -97,22 +97,57 @@ export class Daylight {
 
 // See-through circle: anything closer to the camera than you, near you on screen, dithers away.
 export const OCC = { uOccPos: { value: new THREE.Vector2(0.5, 0.5) }, uOccDepth: { value: 0 }, uOccR: { value: 0 }, uOccAspect: { value: 1 }, uOccRes: { value: new THREE.Vector2(1, 1) } };
-export function addOcclusion(material) {
-  if (material.userData.occ) return; material.userData.occ = true;
-  material.onBeforeCompile = (shader) => {
-    Object.assign(shader.uniforms, OCC);
-    shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nvarying float vOccDepth;').replace('#include <project_vertex>', '#include <project_vertex>\nvOccDepth = -mvPosition.z;');
-    shader.fragmentShader = shader.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vOccDepth; uniform vec2 uOccPos; uniform float uOccDepth; uniform float uOccR; uniform float uOccAspect; uniform vec2 uOccRes;')
-      .replace('void main() {', `void main() {
-        if (uOccR > 0.0 && vOccDepth < uOccDepth - 1.4) {
-          vec2 q = (gl_FragCoord.xy / uOccRes - uOccPos) * vec2(uOccAspect, 1.0);
-          float d = length(q);
-          if (d < uOccR) { float edge = smoothstep(uOccR, uOccR * 0.45, d); ivec2 b = ivec2(mod(floor(gl_FragCoord.xy * 0.5), 4.0)); int i = b.x + b.y * 4; float m[16] = float[16](0.0, 8.0, 2.0, 10.0, 12.0, 4.0, 14.0, 6.0, 3.0, 11.0, 1.0, 9.0, 15.0, 7.0, 13.0, 5.0); float t = (m[i] + 0.5) / 16.0; if (t < edge * 0.97) discard; }
-        }`);
-  };
-  material.customProgramCacheKey = () => 'occ1';
+function occShader(shader) {
+  Object.assign(shader.uniforms, OCC);
+  shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nvarying float vOccDepth;').replace('#include <project_vertex>', '#include <project_vertex>\nvOccDepth = -mvPosition.z;');
+  shader.fragmentShader = shader.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vOccDepth; uniform vec2 uOccPos; uniform float uOccDepth; uniform float uOccR; uniform float uOccAspect; uniform vec2 uOccRes;')
+    .replace('void main() {', `void main() {
+      if (uOccR > 0.0 && vOccDepth < uOccDepth - 1.4) {
+        vec2 q = (gl_FragCoord.xy / uOccRes - uOccPos) * vec2(uOccAspect, 1.0);
+        float d = length(q);
+        if (d < uOccR) { float edge = smoothstep(uOccR, uOccR * 0.45, d); ivec2 b = ivec2(mod(floor(gl_FragCoord.xy * 0.5), 4.0)); int i = b.x + b.y * 4; float m[16] = float[16](0.0, 8.0, 2.0, 10.0, 12.0, 4.0, 14.0, 6.0, 3.0, 11.0, 1.0, 9.0, 15.0, 7.0, 13.0, 5.0); float t = (m[i] + 0.5) / 16.0; if (t < edge * 0.97) discard; }
+      }`);
+}
+// Street colour: every part of town is drawn muted until a fix makes room there; a wave of colour rolls out from
+// the fix (src/color.js drives these). Nine rectangles, lowest priority first, each with how restored it is (0 to 1);
+// anywhere outside them uses uTStreet. The wave restores its own rectangle out to its radius, and its front glows.
+export const TOWN = {
+  uTRect: { value: Array.from({ length: 9 }, () => new THREE.Vector4(-9, -9, -8, -8)) }, uTK: { value: new Array(9).fill(1) },
+  uTStreet: { value: 1 }, uTMuted: { value: 0.3 }, uTOn: { value: 0 }, uTWave: { value: new THREE.Vector4(0, 0, -1, -1) }, uTGlow: { value: 0 },
+};
+function colorShader(shader) {
+  Object.assign(shader.uniforms, TOWN);
+  shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vTownWP;').replace('#include <project_vertex>', `#include <project_vertex>
+    { vec4 tw = vec4(transformed, 1.0);
+    #ifdef USE_INSTANCING
+      tw = instanceMatrix * tw;
+    #endif
+    vTownWP = (modelMatrix * tw).xyz; }`);
+  shader.fragmentShader = shader.fragmentShader.replace('#include <common>', `#include <common>
+    varying vec3 vTownWP; uniform vec4 uTRect[9]; uniform float uTK[9]; uniform float uTStreet, uTMuted, uTOn, uTGlow; uniform vec4 uTWave;
+    float tIn(vec4 r, vec2 p) { float d = min(min(p.x - r.x, r.z - p.x), min(p.y - r.y, r.w - p.y)); return smoothstep(-1.4, 1.4, d); }`)
+    .replace('#include <opaque_fragment>', `#include <opaque_fragment>
+      if (uTOn > 0.5) {
+        vec2 p = vTownWP.xz; float k = uTStreet; float wz = 0.0;
+        for (int i = 0; i < 9; i++) { float w = tIn(uTRect[i], p); k = mix(k, uTK[i], w); if (abs(float(i) - uTWave.w) < 0.5) wz = w; }
+        float wd = distance(p, uTWave.xy);
+        if (uTWave.z > 0.0) k = mix(k, 1.0, wz * smoothstep(uTWave.z + 0.8, uTWave.z - 0.8, wd));
+        vec3 c = gl_FragColor.rgb; float l = dot(c, vec3(0.2126, 0.7152, 0.0722));
+        c = mix(vec3(l) * vec3(0.96, 0.98, 1.04), c, mix(uTMuted, 1.07, k));
+        c = mix(c, c * 0.9 + l * 0.08, (1.0 - k) * 0.4);
+        if (uTWave.z > 0.0) { float ring = exp(-pow((wd - uTWave.z) / 1.2, 2.0)); c += vec3(1.0, 0.8, 0.48) * ring * uTGlow * wz * 0.5; }
+        gl_FragColor.rgb = c;
+      }`);
+}
+// o.occ: the see-through circle; o.color: street colour
+export function patchTown(material, o = {}) {
+  const occ = o.occ !== false, col = o.color !== false; if (!occ && !col) return;
+  if (material.userData.tp) return; material.userData.tp = (occ ? 'o' : '') + (col ? 'c' : '');
+  material.onBeforeCompile = (shader) => { if (occ) occShader(shader); if (col) colorShader(shader); };
+  const key = 'tp-' + material.userData.tp; material.customProgramCacheKey = () => key;
   material.needsUpdate = true;
 }
+export function addOcclusion(material) { patchTown(material, { occ: true, color: false }); }
 const _v = new THREE.Vector3();
 
 const FX_KEYS = ['sat', 'contrast', 'vignette', 'aberr', 'grain', 'tint', 'bloom', 'exposure', 'warm'];
@@ -230,7 +265,7 @@ export class Stage {
       this.camera.position.x += noise2(this.time * 2.1, 3.3) * s; this.camera.position.y += noise2(this.time * 1.7, 9.1) * s;
     }
     this.camera.lookAt(this.camLook);
-    if (Math.abs(this.camera.fov - this.curFov) > 0.01) { this.camera.fov = this.curFov; this.camera.updateProjectionMatrix(); }
+    { const f = this.curFov - (this.reduceMotion ? 0 : (this.kick || 0) * 2.4); if (Math.abs(this.camera.fov - f) > 0.01) { this.camera.fov = f; this.camera.updateProjectionMatrix(); } }
     for (const key of FX_KEYS) this.fx[key] = damp(this.fx[key], this.fxT[key], 2.5, dt);
     if (this.fadeT < 1) {
       this.fadeT = Math.min(1, this.fadeT + dt / this.fadeDur);

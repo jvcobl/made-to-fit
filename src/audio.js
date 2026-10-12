@@ -148,6 +148,18 @@ export class Audio {
     }
     return n * (o.rate || 0.062);
   }
+  // the comfort key: a short phrase in the music's own key; where the town fits people again (k near 1), fuller,
+  // and the lantern hums a third above, a moment later
+  toy(kind, k = 1, voice = 'hum') {
+    if (!this.ready || this.muted) return; const c = this.ctx, t = c.currentTime + 0.02; const S = SCENES[this.scene] || SCENES.town;
+    const sc = S.scale && S.scale.length ? S.scale : [62, 64, 66, 69, 71, 74]; const ty = (VOICES[voice] || VOICES.hum).type === 'square' ? 'triangle' : (VOICES[voice] || VOICES.hum).type;
+    const i0 = Math.floor(Math.random() * Math.max(1, sc.length - 3)); const ph = [sc[i0], sc[i0 + 1] || sc[i0], sc[i0 + 2] || sc[i0]];
+    const vol = 0.035 + 0.035 * k; const B = this.sfxBus;
+    if (kind === 'tap') [0, 0.18, 0.36].forEach((d, i) => this.blip(mtof(ph[i] + 12), t + d, 0.08, vol, 'triangle', B));
+    else if (kind === 'charm') [0, 0.12, 0.24].forEach((d, i) => this.blip(mtof(ph[i] + 24), t + d, 0.25, vol * 0.6, 'sine', B));
+    else ph.forEach((m, i) => this.blip(mtof(m), t + i * 0.22, 0.38, vol, ty, B));
+    if (k > 0.6) ph.forEach((m, i) => this.blip(mtof(m + 4), t + 0.7 + i * 0.22, 0.4, vol * 0.5, 'sine', B));
+  }
   announce(text) { if (!this.ready) return; this.voice('hum', 1.0, text, { gain: 0.32 * (1 - this.muffle * 0.85), rate: 0.07, count: 30 }); this.blip(660, this.ctx.currentTime, 0.4, 0.08, 'sine', this.sfxBus); this.blip(880, this.ctx.currentTime + 0.25, 0.5, 0.08, 'sine', this.sfxBus); }
   sfx(name, o = {}) {
     if (!this.ready) return; const c = this.ctx, t = c.currentTime + 0.01, B = this.sfxBus; const bl = (f, dt, d, v, ty) => this.blip(f, t + dt, d, v, ty || 'sine', B);
@@ -189,6 +201,17 @@ export class Audio {
         break;
       }
       case 'drop': bl(mtof(76), 0, 0.08, 0.05, 'triangle'); bl(mtof(72), 0.05, 0.1, 0.04, 'triangle'); break;
+      // a mark tagged: a bell that climbs a pentatonic step for each one in a street's set (a rare find sparkles)
+      case 'tag': { const sc = [72, 74, 76, 79, 81, 84, 86, 88, 91]; const m = sc[Math.min(sc.length - 1, o.n || 0)]; bl(mtof(m), 0, 0.5, 0.075, 'triangle'); bl(mtof(m + 12), 0.01, 0.35, 0.03, 'sine'); bl(mtof(m + 7), 0.07, 0.4, 0.03, 'sine'); if (o.rare) [0, 4, 7, 12, 16].forEach((d, i) => bl(mtof(m + 12 + d), 0.12 + i * 0.05, 0.3, 0.025, 'sine')); break; }
+      case 'hop': { const o2 = c.createOscillator(); o2.type = 'sine'; o2.frequency.setValueAtTime(330, t); o2.frequency.exponentialRampToValueAtTime(620, t + 0.12); const g = c.createGain(); o2.connect(g); g.connect(B); this.env(g, t, 0.005, 0.05, 0.14); o2.start(t); o2.stop(t + 0.2); break; }
+      // colour coming back to a street: a rising chord that blooms, and a shimmer on top
+      case 'wave': { [60, 64, 67, 72, 76, 79, 84].forEach((m, i) => { bl(mtof(m), i * 0.11, 1.6, 0.05, 'triangle'); bl(mtof(m + 12), i * 0.11 + 0.02, 1.2, 0.018, 'sine'); }); [96, 100, 103, 108].forEach((m, i) => bl(mtof(m), 0.9 + i * 0.07, 0.5, 0.012, 'sine'));
+        const s2 = c.createBufferSource(); s2.buffer = this.noise.pink; const f = c.createBiquadFilter(); f.type = 'bandpass'; f.frequency.setValueAtTime(400, t); f.frequency.exponentialRampToValueAtTime(3000, t + 1.4); const g = c.createGain(); s2.connect(f); f.connect(g); g.connect(B); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.06, t + 0.6); g.gain.exponentialRampToValueAtTime(0.0001, t + 2.2); s2.start(t); s2.stop(t + 2.3); break; }
+      case 'gavel': { const o2 = c.createOscillator(); o2.frequency.setValueAtTime(220, t); o2.frequency.exponentialRampToValueAtTime(70, t + 0.08); const g = c.createGain(); o2.connect(g); g.connect(B); this.env(g, t, 0.001, 0.35, 0.12); o2.start(t); o2.stop(t + 0.16); const s2 = c.createBufferSource(); s2.buffer = this.noise.white; const f = c.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 1800; f.Q.value = 3; const g2 = c.createGain(); s2.connect(f); f.connect(g2); g2.connect(B); this.env(g2, t, 0.001, 0.2, 0.05); s2.start(t); s2.stop(t + 0.08); break; }
+      case 'objection': bl(mtof(67), 0, 0.14, 0.07, 'square'); bl(mtof(74), 0.1, 0.3, 0.07, 'square'); bl(mtof(79), 0.1, 0.3, 0.04, 'triangle'); break;
+      case 'yes': [72, 76, 79, 84].forEach((m, i) => bl(mtof(m), i * 0.04, 0.6, 0.05, 'triangle')); break;
+      case 'miss': bl(mtof(62), 0, 0.2, 0.06, 'triangle'); bl(mtof(58), 0.12, 0.35, 0.05, 'triangle'); break;
+      case 'guest': [79, 84, 88].forEach((m, i) => bl(mtof(m), i * 0.08, 0.45, 0.05, 'sine')); bl(mtof(96), 0.3, 0.6, 0.02, 'sine'); break;
       case 'whoosh': { const s = c.createBufferSource(); s.buffer = this.noise.pink; const f = c.createBiquadFilter(); f.type = 'bandpass'; f.frequency.setValueAtTime(300, t); f.frequency.exponentialRampToValueAtTime(2000, t + 0.35); const g = c.createGain(); s.connect(f); f.connect(g); g.connect(B); this.env(g, t, 0.15, 0.12, 0.3); s.start(t); s.stop(t + 0.6); break; }
       case 'cheer': { const s = c.createBufferSource(); s.buffer = this.noise.pink; const f = c.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 1100; const g = c.createGain(); s.connect(f); f.connect(g); g.connect(B); this.env(g, t, 0.3, 0.12, 1.6); s.start(t); s.stop(t + 2); break; }
       default: break;
