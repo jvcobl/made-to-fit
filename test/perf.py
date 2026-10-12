@@ -217,10 +217,10 @@ def run(q):
         res['later'] = {}
         for n in LATER:
             # Acts 2 and 3 start by a reload (the carry in storage), as in the game
-            # (wait for the reload itself before looking: a look during the navigation can land on the old page)
-            with pg.expect_navigation(timeout=60000):
-                ev("__wb.gotoAct(%d, { built: ['quiet', 'dim', 'ramp', 'lanterns'] })" % n)
-            pg.wait_for_load_state('load'); pg.wait_for_timeout(1500)
+            # (the page is reloaded from here, not from inside the page, so the test waits for exactly that navigation)
+            h = ev("__wb.prepAct(%d, { built: ['quiet', 'dim', 'ramp', 'lanterns'] })" % n)
+            ev("(h) => { history.replaceState(null, '', location.pathname + location.search + '#' + h); }", h)
+            pg.reload(wait_until='load'); pg.wait_for_timeout(1500)
             try: pg.wait_for_function('window.__wb && __wb.G && __wb.ret && __wb.ret()', timeout=150000)
             except Exception:
                 print('reload into act %d did not start: url %s; state %s; errors %s' % (n, pg.url, ev("window.__wb && __wb.G ? [__wb.mode(), __wb.busy(), __wb.panel(), __wb.waiter(), __wb.state().act] : 'no game'"), res['errors'][:6]), flush=True)

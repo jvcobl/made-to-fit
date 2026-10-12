@@ -802,7 +802,9 @@ window.__wb = {
   // ?fixedstep=1 only: advance exactly n frames of 1/60 s (see Game.stepFrames); returns the stepped frame count
   step: (n = 1, drawAll = true) => G.stepFrames(Math.max(0, Math.floor(n)), drawAll !== false), fixed: FIXED, frame: () => clock.frame,
   // start a later visit from a carry (the real path: storage, then a reload), e.g. __wb.gotoAct(2, { built: ['quiet', 'dim', 'ramp'] })
-  gotoAct: (n, o = {}) => { const c = sampleCarry(o); c.act = n - 1; SAVE.writeCarry({ acts: { [String(n - 1)]: c } }); try { sessionStorage.setItem('mtf.next', JSON.stringify({ act: n, name: o.name || 'Sam' })); } catch (e) { /* the address carries it */ } location.hash = 'return=' + n + (o.viaHash ? '&v=' + SAVE.encodeVisit(c) : ''); location.reload(); },
+  gotoAct: (n, o = {}) => { location.hash = window.__wb.prepAct(n, o); location.reload(); },
+  // the same, without the reload, for a test that reloads the page itself (returns the address's hash)
+  prepAct: (n, o = {}) => { const c = sampleCarry(o); c.act = n - 1; SAVE.writeCarry({ acts: { [String(n - 1)]: c } }); try { sessionStorage.setItem('mtf.next', JSON.stringify({ act: n, name: o.name || 'Sam' })); } catch (e) { /* the address carries it */ } return 'return=' + n + (o.viaHash ? '&v=' + SAVE.encodeVisit(c) : ''); },
   ret: () => (G.story.ret ? { act: G.story.ret.act } : null),
   // tests: jump the first day to a stage, as if everything before it went the usual way
   sliceTo: (stage, o) => G.story.slice.debugTo(stage, o),

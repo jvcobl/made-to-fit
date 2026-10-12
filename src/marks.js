@@ -15,11 +15,11 @@ export const KINDS = {
 };
 // streets with a list: the fix each one is ready for once you have seen what pinches there
 export const STREETS = {
-  homerow: { name: 'Home Row', fix: 'lanterns' },
-  market: { name: 'Market Square', fix: 'quiet' },
-  works: { name: 'The Works', fix: 'ramp' },
-  transit: { name: 'The bus stop', fix: 'board' },
-  hall: { name: 'Town Hall', fix: null },
+  homerow: { name: 'Home Row', fix: 'lanterns', where: 'on Home Row' },
+  market: { name: 'Market Square', fix: 'quiet', where: 'in Market Square' },
+  works: { name: 'The Works', fix: 'ramp', where: 'at the Works' },
+  transit: { name: 'The bus stop', fix: 'board', where: 'at the bus stop' },
+  hall: { name: 'Town Hall', fix: null, where: 'at Town Hall' },
 };
 // at: [x, y, z]. who: residents it pinches. pinches you when your own dial is on the wrong side (you: [dim, 'over'|'under']).
 // pre: Wren tagged it already. rare: [from, to] minutes, the only time it shows.
@@ -153,12 +153,16 @@ export class Marks {
     else {
       const left = c.total - c.done;
       G.fx.pop(at, (st ? st.name + ' ' : '') + c.done + '/' + c.total, { kind: 'mark', hook: 'juice', hookCtx: { what: 'A mark tagged: ' + m.name, point } });
-      if (left === 1) setTimeout(() => G.fx.chipPop('1 left in ' + (st ? st.name : 'this street') + '!', { kind: 'mark', hook: 'gradient', hookCtx: { what: '"1 left" in ' + (st ? st.name : 'a street'), point: 'the last thing on ' + (st ? st.name : 'that street') + '\'s list that pinches someone' }, ms: 1900 }), 700);
+      if (left === 1) setTimeout(() => G.fx.chipPop('1 left ' + (st ? st.where : 'here') + '!', { kind: 'mark', hook: 'gradient', hookCtx: { what: '"1 left" ' + (st ? st.where : 'here'), point: 'the last thing ' + (st ? st.where : 'here') + ' that pinches someone' }, ms: 1900 }), 700);
     }
     this.showCard(m);
     G.story.fieldNote && m.kind === 'steps' && G.story.fieldNote('curb');
     if (G.story.slice && G.story.slice.on) G.story.slice.onMark(m, this.count(m.street));
-    else if (!G.story.ret && this.complete(m.street)) { const f = (STREETS[m.street] || {}).fix; if (f && (S.fixes[f] || 'none') === 'none') G.story.addIdea(f); }
+    else if (!G.story.ret && this.complete(m.street)) {
+      const f = (STREETS[m.street] || {}).fix; if (f && (S.fixes[f] || 'none') === 'none') G.story.addIdea(f);
+      // (you've just looked at this place properly: it doesn't ask "who adjusts?" on top of that today)
+      S.handled = S.handled || {}; S.handled[(S.day || 1) + ':' + m.street] = 1;
+    }
     this.refreshChip(true);
   }
   // the card for a mark: what it is and who it pinches (a moment, then it tucks itself away; it never stops play)

@@ -128,7 +128,7 @@ export class Slice {
     else if (past('market')) tagAll('market');
     if (past('rue')) { S.guests.rue = 1; S.slice.blend = o.blend ? 'yes' : 'no'; S.flags.rue_pitched = 1; if (o.blend) G.installBlend(); }
     // (whoever the day had you speak with by now)
-    for (const [st, ids] of [['porch', ['bea', 'clover']], ['moss', ['moss', 'pomeroy']], ['rue', ['rue']], ['gil', ['gil']], ['hearing', ['hollis', 'pip']]]) if (past(st)) for (const id of ids) S.met[id] = true;
+    for (const [st, ids] of [['porch', ['bea', 'clover']], ['moss', ['moss', 'pomeroy']], ['rue', ['rue']], ['gil', ['gil']], ['hearing', ['hollis', 'pip']], ['tonight', ['wren']]]) if (past(st)) for (const id of ids) S.met[id] = true;
     if (past('worksmarks')) { tagAll('works'); S.cards.bea_steps = 1; }
     if (past('gil')) { S.stakes = Object.assign(S.stakes || {}, { ramp: 'listened' }); S.cards.curb = 1; S.slice.gil = 'asked'; }
     if (past('hearing')) { S.flags.hearingDone = 1; S.fixes.ramp = 'built'; S.fixVia = Object.assign(S.fixVia || {}, { ramp: 'slice' }); G.applyFix('ramp'); S.color.works = 1; S.color.street = 0.72; Object.assign(S.guests, { pip: 1, gil: 1, hollis: 1 }); }
