@@ -83,7 +83,9 @@ export class UI {
   // the screen-reader announcer: each line, choice list and notice is read once, in full (never the typewriter)
   announce(text) {
     const el = this.el('#sr'); if (!el || !text) return;
-    const t = String(text).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim(); if (!t) return;
+    let t = String(text).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim(); if (!t) return;
+    // (text that came from markup reads as characters, not as "&quot;")
+    if (t.includes('&')) { const d = this._srDec || (this._srDec = document.createElement('textarea')); d.innerHTML = t; t = d.value; }
     // several things said in the same moment are read together, in order, rather than the last one winning
     this._srQ = this._srPending ? this._srQ + ' ' + t : t; this._srPending = true;
     clearTimeout(this._srT); el.textContent = ''; this._srT = setTimeout(() => { this._srPending = false; el.textContent = this._srQ; }, 40);

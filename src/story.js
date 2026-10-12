@@ -665,7 +665,7 @@ export class Story {
   todayCard(d) {
     const S = this.S;
     if (d === 1) return { day: 'Monday', title: 'Your first day', items: [{ t: 'Get to the Works by 9:00', sub: 'Bea from next door is heading that way.' }, { t: 'Say hi to your neighbors' }, { t: 'Find the Fix-It Shed', sub: 'In the Commons, past Town Hall.' }], note: 'When a place pinches, you choose who adjusts.' };
-    if (d === 2 && S.v2) return { day: 'Tuesday', title: 'A full day', items: [{ t: 'Weekly sync at the Works, 9:00' }, { t: 'The bus stop', sub: 'Something there changes without a word. Take the lantern.' }, { t: 'Clover found something in the loft', sub: 'The Fix-It Shed.' }, { t: 'Town meeting, 6 PM, Town Hall', sub: 'Ideas with two backers get a hearing.' }], note: 'Two more fixes fit in this season\'s budget. Monday\'s were made on the spot.' };
+    if (d === 2 && S.v2) return { day: 'Tuesday', title: 'A full day', items: [{ t: 'The bus stop, before work', sub: 'Something there changes without a word. Take the lantern.' }, { t: 'Weekly sync at the Works, 9:00' }, { t: 'Clover found something in the loft', sub: 'The Fix-It Shed.' }, { t: 'Town meeting, 6 PM, Town Hall', sub: 'Ideas with two backers get a hearing.' }], note: 'Two more fixes fit in this season\'s budget. Monday\'s were made on the spot.' };
     if (d === 2) { const open = this.openThread(); return { day: 'Tuesday', title: 'A full day', items: [{ t: 'Weekly sync at the Works, 9:00' }, { t: 'Clover found something in the loft', sub: 'The Fix-It Shed.' }, { t: 'Town meeting, 6 PM, Town Hall', sub: 'Proposals with two backers get a vote.' }], note: open ? 'Still open from yesterday: ' + open : 'Listen to people. They tell you what pinches them, if you let them.' }; }
     // Wednesday: the fixes in use first, then Wren's lanterns and the festival
     const items = [];
@@ -739,10 +739,12 @@ export class Story {
     }
     if (d === 2) {
       if (S.flags.councilDone) return ob(m >= 1170 ? 'That is enough for today. Head home when you like.' : 'The meeting is over. The evening is yours.', T.home, 'Home', m >= 1170 ? { inside: 'home', spot: 'bed', spotLabel: 'Bed' } : { inside: 'home' });
+      // the new game's Tuesday: the bus stop first, before the sync (Monday's postcard promised it), then the loft
+      const bus = this.busList();
+      if (bus && m < 520) return bus;
       if (shiftOpen(2)) return ob(this.G.loc === 'works' ? 'Sit at your desk for the weekly sync.' : 'Weekly sync at the Works, 9:00.', this.G.loc === 'works' ? null : T.works, 'The Works', { inside: 'works', spot: 'mydesk', spotLabel: 'Your desk' });
       if (m >= 1020) return ob('Town meeting at 6 PM, Town Hall.', T.hall, 'Town Hall', { inside: 'hall' });
-      // the new game's Tuesday: the bus stop's list first (Monday's postcard promised it), then the loft
-      { const bus = this.busList(); if (bus) return bus; }
+      if (bus) return bus;
       if (!S.flags.statue_seen && m >= 600 && this.G.npcs.clover.place === 'town') return ob('Clover found something in the loft. Visit the Fix-It Shed.', T.shed, 'Fix-It Shed');
       if (hasIdea) return ob(Object.keys(SIM.FIXES).filter((f) => SIM.fixState(S, f) === 'idea').length > 1 ? 'Take your ideas to Clover at the Fix-It Shed.' : 'Take your idea to Clover at the Fix-It Shed.', T.shed, 'Fix-It Shed');
       if (S.flags.rue_invite && !S.flags.rue_pond && m >= 945 && m < 1050) return ob('Rue asked to meet at the pond.', T.pond, 'The pond');
@@ -788,7 +790,7 @@ export class Story {
     if (this.ret) return this.ret.goals();
     if (this.slice.on) return this.slice.goals();
     const S = this.S, d = S.day; const met = Object.keys(S.met).filter((k) => CAST[k] && !CAST[k].minor).length;
-    if (d === 2 && S.v2 && this.G.marks) { const c = this.G.marks.count('transit'); return [{ t: 'Weekly sync at the Works, 9:00', done: !!S.flags.shift2 }, { t: 'What pinches at the bus stop (' + Math.min(c.done, c.total) + '/' + c.total + ')', done: c.done >= c.total }, { t: 'See what Clover found', done: !!S.flags.statue_seen }, { t: 'Take an idea to the Shed, and find its backers', done: Object.values(S.fixes).some((v) => v === 'ready' || v === 'proposal') || !!S.flags.councilDone }, { t: 'Town meeting, 6 PM', done: !!S.flags.councilDone }]; }
+    if (d === 2 && S.v2 && this.G.marks) { const c = this.G.marks.count('transit'); return [{ t: 'What pinches at the bus stop (' + Math.min(c.done, c.total) + '/' + c.total + ')', done: c.done >= c.total }, { t: 'Weekly sync at the Works, 9:00', done: !!S.flags.shift2 }, { t: 'See what Clover found', done: !!S.flags.statue_seen }, { t: 'Take an idea to the Shed, and find its backers', done: Object.values(S.fixes).some((v) => v === 'ready' || v === 'proposal') || !!S.flags.councilDone }, { t: 'Town meeting, 6 PM', done: !!S.flags.councilDone }]; }
     if (d === 1) return [{ t: 'Get to the Works by 9:00', done: !!S.flags.shift1 }, { t: 'Meet at least four neighbors (' + Math.min(4, met) + '/4)', done: met >= 4 }, { t: 'Find the Fix-It Shed', done: !!S.met.clover }, { t: 'Home by 10 PM', done: false }];
     if (d === 2) return [{ t: 'Weekly sync at the Works, 9:00', done: !!S.flags.shift2 }, { t: 'See what Clover found', done: !!S.flags.statue_seen }, { t: 'Turn an idea into a proposal at the Shed', done: Object.values(S.fixes).some((v) => v !== 'idea') }, { t: 'Town meeting, 6 PM', done: !!S.flags.councilDone }];
     if (d === 3) return [{ t: 'See the fixes in use', done: Object.keys(S.felt || {}).length > 0 || !Object.values(S.fixes).includes('built') }, { t: 'Paint three lanterns with Wren', done: !!S.flags.painted }, { t: 'The Lantern Festival, 8 PM', done: !!S.flags.released }];
@@ -847,8 +849,10 @@ export class Story {
     if (a1 && d === 1 && !S.flags.shift1 && m < 600 && z !== 'works') return;
     if (z === 'homerow' && G.pinchNow && !['people', 'talk'].includes(G.pinchNow.top)) return;
     if (!S.handled[key]) {
-      const p = G.pinchNow; const need = z === 'street' || z === 'homerow' ? 0.45 : 0.3;
-      const calm = FAST || now() - (G.lastBarrier || -1e9) > 30000;
+      // (the new game, after its first day: fewer cards, further apart; the first day already made the point once)
+      const light = S.v2 && a1 && d >= 2;
+      const p = G.pinchNow; const need = z === 'street' || z === 'homerow' ? 0.45 : light ? 0.4 : 0.3;
+      const calm = FAST || now() - (G.lastBarrier || -1e9) > (light ? 75000 : 30000);
       if (p && p.total >= need && (G.zoneTime || 0) > 0.6 && calm) { S.handled[key] = 1; G.run(() => this.barrier(z)); }
     }
   }
@@ -1615,6 +1619,8 @@ export class Story {
   // Tuesday after work: everything that's on this afternoon, and a reminder that it won't all fit
   async afternoon() {
     const S = this.S; const items = [];
+    if (this.busList()) items.push({ t: 'The bus stop, with the lantern', sub: 'What pinches people there. A few minutes.' });
+    else if (S.v2 && SIM.fixState(S, 'board') === 'idea') items.push({ t: 'Take the bus board to Clover', sub: 'The Fix-It Shed, until six.' });
     if (!S.flags.statue_seen) items.push({ t: 'Clover found something in the loft', sub: 'The Fix-It Shed, until six.' });
     items.push({ t: 'Wren could use a hand folding lanterns', sub: 'The Far End, 2 to 4. About an hour.' });
     if (S.flags.rue_invite) items.push({ t: 'Rue asked to meet at the pond', sub: 'Half past four to half past five. About 45 minutes.' });

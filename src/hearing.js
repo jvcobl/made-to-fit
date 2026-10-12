@@ -98,14 +98,15 @@ export class Hearing {
     ui.root.appendChild(el); this.el = el;
     const face = (id) => G.ui.face(id, this.S);
     el.innerHTML = `<div class="hbench">${this.D.objections.map((o, i) => `<div class="hseat" data-i="${i}"><img alt="" src="${face(o.who)}"><b>${esc(CAST[o.who].name)}</b><span class="hkind">${esc(o.kind)}</span><span class="hvote"></span></div>`).join('')}</div>
-      <div class="hstage"><div class="htitle">Hearing · ${esc(this.D.title)}</div><div class="hobj"></div><div class="hsay" aria-live="polite"></div>
+      <div class="hstage"><div class="htitle">Hearing · ${esc(this.D.title)}</div><div class="hobj"></div><div class="hsay"></div>
       <div class="hbtns"><button class="btn" id="hWhy">Ask why <small>free once</small></button><button class="btn" id="hWit">Call a witness <small>once</small></button><span class="hcomp" aria-label="Composure"></span></div></div>
       <div class="htabs" role="tablist"></div><div class="hhand" role="group" aria-label="Your cards"></div>`;
     this.renderComp();
     return new Promise((resolve) => { this.done = resolve; this.next(0); });
   }
   renderComp() { const c = this.el.querySelector('.hcomp'); c.innerHTML = 'Composure ' + '<i class="on"></i>'.repeat(this.composure) + '<i></i>'.repeat(3 - this.composure); c.setAttribute('aria-label', 'Composure ' + this.composure + ' of 3'); }
-  setSay(html, who) { const s = this.el.querySelector('.hsay'); s.innerHTML = (who ? `<b>${esc(who)}:</b> ` : '') + html; this.G.ui.announce((who ? who + ': ' : '') + html.replace(/<[^>]+>/g, '')); }
+  // (the screen-reader feed gets plain words: tags out, and entities like &quot; read as the characters they stand for)
+  setSay(html, who) { const s = this.el.querySelector('.hsay'); s.innerHTML = (who ? `<b>${esc(who)}:</b> ` : '') + html; const d = document.createElement('div'); d.innerHTML = html; this.G.ui.announce((who ? who + ': ' : '') + d.textContent); }
   async next(i) {
     this.i = i; const G = this.G;
     if (i >= this.D.objections.length || this.composure <= 0) return this.finish();

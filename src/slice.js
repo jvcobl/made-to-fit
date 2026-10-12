@@ -114,14 +114,16 @@ export class Slice {
     const past = (s) => k > order.indexOf(s);
     S.flags.lantern = 1; G.rooms.home.setLantern(false); S.guests = { wren: 1 };
     const tagAll = (z) => { for (const m of MARKS) if (m.street === z && !m.rare && !m.fit) S.marks[m.id] = { day: 1, min: 600 }; };
-    if (past('porch')) { tagAll('homerow'); S.slice.porch = 'teal'; S.stakes = Object.assign(S.stakes || {}, { lanterns: 'listened' }); S.fixes.lanterns = 'built'; G.town.setFix('lanterns', true); this.porchColors(); S.color.homerow = 1; S.color.street = 0.28; S.guests.bea = 1; S.cards.bea_knock = 1; S.cards.perceptible = 1; }
+    if (past('porch')) { tagAll('homerow'); S.slice.porch = 'teal'; S.stakes = Object.assign(S.stakes || {}, { lanterns: 'listened' }); S.fixes.lanterns = 'built'; S.fixVia = Object.assign(S.fixVia || {}, { lanterns: 'slice' }); G.town.setFix('lanterns', true); this.porchColors(); S.color.homerow = 1; S.color.street = 0.28; S.guests.bea = 1; S.cards.bea_knock = 1; S.cards.perceptible = 1; }
     else if (past('homerow')) tagAll('homerow');
-    if (past('moss')) { tagAll('market'); S.fixes.quiet = 'built'; G.applyFix('quiet'); S.sketch = { quiet: 'zoned' }; S.stakes = { quiet: 'listened' }; S.color.market = 1; S.color.street = 0.5; Object.assign(S.guests, { moss: 1, pomeroy: 1 }); Object.assign(S.cards, { moss_kettle: 1, pomeroy_loud: 1, zoning: 1 }); }
+    if (past('moss')) { tagAll('market'); S.fixes.quiet = 'built'; S.fixVia = Object.assign(S.fixVia || {}, { quiet: 'slice' }); G.applyFix('quiet'); S.sketch = { quiet: 'zoned' }; S.stakes = { quiet: 'listened' }; S.color.market = 1; S.color.street = 0.5; Object.assign(S.guests, { moss: 1, pomeroy: 1 }); Object.assign(S.cards, { moss_kettle: 1, pomeroy_loud: 1, zoning: 1 }); }
     else if (past('market')) tagAll('market');
-    if (past('rue')) { S.guests.rue = 1; S.slice.blend = o.blend ? 'yes' : 'no'; if (o.blend) G.installBlend(); }
+    if (past('rue')) { S.guests.rue = 1; S.slice.blend = o.blend ? 'yes' : 'no'; S.flags.rue_pitched = 1; if (o.blend) G.installBlend(); }
+    // (whoever the day had you speak with by now)
+    for (const [st, ids] of [['porch', ['bea', 'clover']], ['moss', ['moss', 'pomeroy']], ['rue', ['rue']], ['gil', ['gil']], ['hearing', ['hollis', 'pip']]]) if (past(st)) for (const id of ids) S.met[id] = true;
     if (past('worksmarks')) { tagAll('works'); S.cards.bea_steps = 1; }
     if (past('gil')) { S.stakes = Object.assign(S.stakes || {}, { ramp: 'listened' }); S.cards.curb = 1; S.slice.gil = 'asked'; }
-    if (past('hearing')) { S.flags.hearingDone = 1; S.fixes.ramp = 'built'; G.applyFix('ramp'); S.color.works = 1; S.color.street = 0.72; Object.assign(S.guests, { pip: 1, gil: 1, hollis: 1 }); }
+    if (past('hearing')) { S.flags.hearingDone = 1; S.fixes.ramp = 'built'; S.fixVia = Object.assign(S.fixVia || {}, { ramp: 'slice' }); G.applyFix('ramp'); S.color.works = 1; S.color.street = 0.72; Object.assign(S.guests, { pip: 1, gil: 1, hollis: 1 }); }
     S.min = { wake: 520, homerow: 545, porch: 560, tomarket: 690, market: 705, moss: 730, rue: 790, works: 800, worksmarks: 810, gil: 830, hearing: 850, tonight: 1110, night: 1150 }[stage];
     this.stage = stage; this.restore(); this.renderGuests();
     if (stage === 'works' || stage === 'worksmarks' || stage === 'gil') this.walkIn('bea', [13.4, 14.2], [13.4, 14.2], true);
@@ -133,14 +135,14 @@ export class Slice {
     G.mode = 'cine'; ui.letterbox(true); st.inPrologue = true;
     S.min = 17.4 * 60;
     if (!made) {
-      G.stage.shot(new THREE.Vector3(66, 9, 70), new THREE.Vector3(57, 1.5, 30), 34, 0.6, true);
+      this.shot(new THREE.Vector3(66, 9, 70), new THREE.Vector3(57, 1.5, 30), 34, 0.6, true);
       G.busRide = true;
       await ui.caption('The 5:40 into Larkspur. About a thousand people, give or take you.', 3000);
-      G.stage.shot(new THREE.Vector3(35.5, 5.6, 31.5), new THREE.Vector3(30, 3.2, 24), 30, 0.5);
+      this.shot(new THREE.Vector3(35.5, 5.6, 31.5), new THREE.Vector3(30, 3.2, 24), 30, 0.5);
       await ui.caption('The whole town was planned around one resident. That one.', 3000);
       await ui.caption('The Standard Resident. Larkspur\'s measure.', 2800);
       G.busRide = false;
-      G.stage.shot(new THREE.Vector3(14, 6, 46), new THREE.Vector3(9.5, 1.5, 35), 34, 0.8);
+      this.shot(new THREE.Vector3(14, 6, 46), new THREE.Vector3(9.5, 1.5, 35), 34, 0.8);
       await ui.caption('No. 2, Home Row. Yours.', 2200);
     }
     st.inPrologue = false; st.skipIntro = false;
@@ -520,7 +522,12 @@ export class Slice {
   }
   // a fix goes up: hammering, sparks, and the afternoon passing
   // the camera frames somewhere for a moment (a build, a wave), then comes back to you
-  frameAt(at, o = {}) { const G = this.G; G.stage.shot(new THREE.Vector3(at[0] + (o.dx == null ? 5 : o.dx), o.h || 9.5, at[1] + (o.dz == null ? 11 : o.dz)), new THREE.Vector3(at[0], 0.8, at[1]), o.fov || 40, 2.6); }
+  // your porch with everyone on it: on a phone held upright, from high enough to see over the trees, wide enough for
+  // the whole porch
+  porchShot(pos, look, fov, k, snap) { if (innerWidth / Math.max(1, innerHeight) < 1.25) { pos = pos.clone().set(9.5, 13.9, 49.2); look = look.clone().set(9.5, 0.8, 40.0); fov = 63; } this.G.stage.shot(pos, look, fov, k, snap); }
+  // a town shot, kept as wide on a phone held upright (see Stage.fit)
+  shot(pos, look, fov, k, snap) { const [p, l, f] = this.G.stage.fit(pos, look, fov); this.G.stage.shot(p, l, f, k, snap); }
+  frameAt(at, o = {}) { const G = this.G; this.shot(new THREE.Vector3(at[0] + (o.dx == null ? 5 : o.dx), o.h || 9.5, at[1] + (o.dz == null ? 11 : o.dz)), new THREE.Vector3(at[0], 0.8, at[1]), o.fov || 40, 2.6); }
   unframeAt() { const G = this.G; G.stage.follow(G.player.root.position, G.followOpts()); }
   async build(f, at, to, caption) {
     const G = this.G; const g = G.town.fixGroups[f];
@@ -551,6 +558,7 @@ export class Slice {
       await this.say('rue', 'Yay! Turn on Smooth Mode whenever a place gets to you. Every place you push through in a row adds to your streak!');
       S.slice.blend = 'yes';
     } else { await this.say('rue', 'Suit yourself! It\'s always there if you change your mind.'); S.slice.blend = 'no'; }
+    S.flags.rue_pitched = 1;
     await this.say('rue', 'Oh, and Bea\'s been stuck outside the Works for ages. Something about steps?');
     this.unframe(); this.release('rue');
     this.addGuest('rue', true); this.renderGuests('rue');
@@ -696,12 +704,12 @@ export class Slice {
     if (G.loc !== 'town') { await G.stage.fadeTo(1, 400); G.setLoc('town'); G.place([9.5, 38.4]); G.audio.setScene('town'); await G.stage.fadeTo(0, 400); }
     // the afternoon goes by over the streets you made room in
     ui.letterbox(true);
-    G.stage.shot(new THREE.Vector3(26, 44, 66), new THREE.Vector3(24, 0, 28), 44, 1.8);
+    this.shot(new THREE.Vector3(26, 44, 66), new THREE.Vector3(24, 0, 28), 44, 1.8);
     await this.timelapse(Math.max(S.min, 1170), 'The afternoon goes gold over the streets you made room in.');
     await sleep(FAST ? 10 : 1000);
     await G.stage.fadeTo(1, 500);
     G.place([9.5, 38.4]); G.player.heading = Math.PI;
-    G.stage.shot(new THREE.Vector3(9.5, 4.6, 46.5), new THREE.Vector3(9.5, 1.3, 38.6), 34, 3, true);
+    this.porchShot(new THREE.Vector3(9.5, 4.6, 46.5), new THREE.Vector3(9.5, 1.3, 38.6), 34, 3, true);
     G.audio.setScene('night');
     await G.stage.fadeTo(0, 600);
     // a text that leaves tomorrow open (on purpose: it's one of the pulls, and it says so)
@@ -772,7 +780,7 @@ export class Slice {
       window.addEventListener('keydown', kh, true); b.onclick = done; if (FAST) setTimeout(done, 20);
     });
     // (high enough to hold the whole town: every street's marks at once)
-    G.stage.shot(new THREE.Vector3(32, 60, 62), new THREE.Vector3(32, 0, 23), 46, 2.6);
+    this.shot(new THREE.Vector3(32, 60, 62), new THREE.Vector3(32, 0, 23), 46, 2.6);
     M.showAll = true; if (!G.look.raised) { G.look.raised = true; G.ui.gearKey = ''; }
     const tag = document.createElement('div'); tag.className = 'revealcount'; ui.root.appendChild(tag);
     const set = (n, t) => { tag.innerHTML = `<b>${n}</b><span>${t}</span>`; };
@@ -785,7 +793,7 @@ export class Slice {
     await sleep(FAST ? 20 : 2200);
     M.showAll = false; M.fade = null; G.look.raised = false; G.ui.gearKey = '';
     // the porch: each of you, and what doesn't fit you about a town built for the Standard
-    G.stage.shot(new THREE.Vector3(9.5, 5.2, 47.5), new THREE.Vector3(9.5, 1.2, 39.4), 38, 2.4);
+    this.porchShot(new THREE.Vector3(9.5, 5.2, 47.5), new THREE.Vector3(9.5, 1.2, 39.4), 38, 2.4);
     const here = ['you'].concat(Object.keys(S.guests || {}).filter((id) => G.npcs[id] && G.npcs[id].c.root.visible && Math.hypot(G.npcs[id].c.root.position.x - 9.5, G.npcs[id].c.root.position.z - 39.6) < 9));
     set('?', 'of the people on your porch fit the Standard');
     await sleep(FAST ? 20 : 900);

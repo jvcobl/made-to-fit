@@ -143,6 +143,11 @@ class Human:
         if s['ov']: self.overlay(s); return False
         if s['panel']: return self.panel(s)
         if s['mg']: self.task(s); return False
+        if self.pg.evaluate("!!document.querySelector('#hearing')"):
+            # a hearing (the new game): the hearing's own auto-player stands in for hands, as with tasks
+            self.snap('hearing_d%d' % s['day'])
+            self.pg.evaluate("(() => { const st = __wb.G.story; const h = st.hearingNow || (st.slice && st.slice.hearingNow); if (h && !h.busy) h.auto(); })()"); self.pg.wait_for_timeout(500)
+            return False
         if s['waiter'] == 'line': self.pg.wait_for_timeout(rnd.randint(150, 400)); self.key('Space') if not self.touch else self.click('#dialog'); return False
         if s['waiter'] == 'choice': self.choice(s); return False
         if s['waiter'] == 'barrier': self.card(s); return False
@@ -166,6 +171,11 @@ class Human:
             self.panelSeen[cls] = txt[:300]; say('PANEL', cls + ' | ' + txt.replace('\n', ' / ')[:2500]); self.snap('panel_' + cls.replace('panel', '').strip().replace(' ', '_') + '_d%d' % s['day'])
         if 'title' in cls: return self.title(s)
         if 'creator' in cls: self.creator(); return False
+        if 'taps' in cls:
+            # the new game's room setup: two pictures a time, pick one
+            n = self.pg.locator('#panel .pick').count()
+            if n: self.pg.wait_for_timeout(rnd.randint(300, 900)); self.click('#panel .pick', rnd.randrange(n))
+            return False
         if 'setup' in cls: self.setup(); return False
         if 'ending' in cls: return self.ending(s)
         if 'standard' in cls: self.standard(); return False

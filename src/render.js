@@ -211,6 +211,17 @@ export class Stage {
     g.dist = o.dist || 14.5; g.pitch = o.pitch || 0.82; g.yaw = o.yaw || 0; g.fov = o.fov || 36; g.lookY = o.lookY == null ? 0.9 : o.lookY; g.bounds = o.bounds || null;
     if (o.snap) { g.focus.copy(target); this.place(1); }
   }
+  // a town shot framed on a laptop, on a phone held upright: a wider lens, a step back if that isn't enough (a little
+  // cropping at the sides is fine), and a little more from above, so the sky and the trees in front take less of it
+  fit(pos, look, fov) {
+    const a = window.innerWidth / Math.max(1, window.innerHeight); if (a >= 1.25) return [pos, look, fov];
+    const dx = pos.x - look.x, dy = pos.y - look.y, dz = pos.z - look.z; let L = Math.hypot(dx, dy, dz);
+    const yaw = Math.atan2(dx, dz); const phi = Math.min(Math.atan2(dy, Math.hypot(dx, dz)) + 0.21, 1.31);
+    let tv = Math.tan(fov * Math.PI / 360) * 1.6 / a; const cap = Math.tan(31 * Math.PI / 180);
+    if (tv > cap) { L *= Math.min(1.3, tv / cap); tv = cap; }
+    const p = look.clone().set(look.x + Math.sin(yaw) * Math.cos(phi) * L, look.y + Math.sin(phi) * L, look.z + Math.cos(yaw) * Math.cos(phi) * L);
+    return [p, look, Math.max(fov, Math.atan(tv) * 360 / Math.PI)];
+  }
   shot(pos, look, fov = 32, k = 3, snap = false) {
     const g = this.rig; g.mode = 'shot'; g.shotPos.copy(pos); g.shotLook.copy(look); g.shotFov = fov; g.shotK = k;
     if (snap) { this.camPos.copy(pos); this.camLook.copy(look); this.curFov = fov; }

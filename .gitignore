@@ -16,3 +16,4 @@ test/shots_recap/
 test/shots_decided/
 test/shots_phone/
 test/shots_props/
+__pycache__/
