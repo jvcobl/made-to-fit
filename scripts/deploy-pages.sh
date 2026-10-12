@@ -24,7 +24,8 @@ cleanup() { git worktree remove --force "$WT" >/dev/null 2>&1 || true; rm -rf "$
 trap cleanup EXIT
 
 if git ls-remote --exit-code --heads "$REMOTE" gh-pages >/dev/null 2>&1; then
-  git fetch -q "$REMOTE" gh-pages
+  # name the ref explicitly: a shallow or single-branch clone doesn't track gh-pages on its own
+  git fetch -q "$REMOTE" "+refs/heads/gh-pages:refs/remotes/$REMOTE/gh-pages"
   git worktree add -q -B gh-pages "$WT" "$REMOTE/gh-pages"
 else
   # first deploy: start gh-pages with no history from main
