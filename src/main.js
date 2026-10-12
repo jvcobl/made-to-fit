@@ -492,7 +492,19 @@ class Game {
     const ray = new THREE.Raycaster(); ray.setFromCamera(ndc, this.stage.camera);
     const bodies = Object.values(this.npcs).filter((n) => n.c.root.visible && n.c.root.parent === this.player.root.parent).map((n) => n.c.body);
     const hit = ray.intersectObjects(bodies, false)[0];
-    if (hit) { const n = Object.values(this.npcs).find((q) => q.c.body === hit.object); const q = n.c.root.position; this.walkTo(q.x + 0.9, q.z + 0.9); this.pendingTalk = n.id; return; }
+    if (hit) {
+      const n = Object.values(this.npcs).find((q) => q.c.body === hit.object); const q = n.c.root.position; const p = this.player.root.position;
+      // (Bea on the first morning's walk is showing you the way, not stopping to chat)
+      if (n.id === 'bea' && this.beaWay) { this.pendingTalk = null; this.walkTo(q.x + 0.9, q.z + 0.9); return; }
+      // already beside them: talk now
+      if (Math.hypot(p.x - q.x, p.z - q.z) < 2.2) { this.pendingTalk = null; this.path = []; this.run(() => this.story.talkTo(n.id)); return; }
+      // otherwise stand beside them, on the side you are coming from, wherever there is room (a counter, a stall or a
+      // wall can be in the way on the other side)
+      const a0 = Math.atan2(p.z - q.z, p.x - q.x); let spot = null;
+      for (const r of [0.95, 1.3, 1.7]) { for (let i = 0; i < 12 && !spot; i++) { const a = a0 + (i % 2 ? 1 : -1) * Math.ceil(i / 2) * Math.PI / 6; const x = q.x + Math.cos(a) * r, z = q.z + Math.sin(a) * r; if (this.canStand(x, z)) spot = [x, z]; } if (spot) break; }
+      spot = spot || [q.x + 0.9, q.z + 0.9];
+      this.walkTo(spot[0], spot[1]); this.pendingTalk = n.id; return;
+    }
     const pt = new THREE.Vector3(); if (ray.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), pt)) { this.pendingTalk = null; this.walkTo(pt.x, pt.z); }
   }
   // what is in reach, and what pressing E would do
@@ -617,6 +629,8 @@ class Game {
     const still = this.settings.reduceMotion;
     const push = still ? 0 : Math.max(this.barrierFocus ? 0.18 : 0, this.holding ? this.holdK * 0.25 : 0);
     st.rig.push = damp(st.rig.push, push, 2.2, dt); st.shake = 0;
+    // while "Who adjusts?" is open, you stay in view above the card: that is your creature reacting to the place
+    { const lift = this.barrierFocus && this.loc === 'town' ? (this.tall ? 3.6 : 2.4) : 0; st.rig.lift = still ? lift : damp(st.rig.lift || 0, lift, 3, dt); }
     // bracing while you hold "Push through"; a straight back while you hide it
     const masked = S.masking && S.maskZone === this.zone;
     this.player.tense = this.holding ? this.holdK : damp(this.player.tense, masked || smooth ? 0.12 : 0, 3, dt);

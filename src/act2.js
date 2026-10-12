@@ -344,7 +344,8 @@ export const ACT2 = {
   objective(R) {
     const S = R.S, m = S.min;
     if (S.flags.festival) return S.flags.released ? ob('') : ob('Enjoy the festival. When you are ready, release your lantern at the statue.', [30, 26.6], 'The statue');
-    if (S.flags.councilDone) return ob('The festival starts at 8, in the square.', T.square, 'Market Square');
+    // (between the meeting and the walk to the festival, the time is yours: the way to the square shows from seven)
+    if (S.flags.councilDone) return m >= 1140 ? ob('The festival starts at 8, in the square.', T.square, 'Market Square') : ob('The meeting is over. The festival starts at 8, in the square. Until then, the evening is yours.');
     if (m >= 1020) return ob('Town meeting at 6 PM, Town Hall.', T.hall, 'Town Hall', { inside: 'hall' });
     if (!S.flags.works2 && m < 700) return ob(R.G.loc === 'works' ? 'Gil is waiting by your old desk.' : 'Festival mail at the Works. Gil asked you back.', R.G.loc === 'works' ? null : T.works, 'The Works', { inside: 'works' });
     if (!S.flags.cross2 && m >= 760 && m < 975) return ob('Bea is at the crossing by the bus stop.', T.crossing, 'The crossing');

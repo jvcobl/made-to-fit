@@ -40,6 +40,8 @@ export const DOOR = { home: [9.5, 38.7], works: [12, 13.8], hall: [32, 14.4] };
 // what someone in charge can change when you ask: the sound, the light, the company. Not the hours, how people talk,
 // or how often things change; those say why instead.
 const ASKABLE = ['sound', 'light', 'people'];
+// when the next one is still a while off
+const FELT_LATER = { quiet: 'Around noon, the quiet corner is in use.', board: 'Around four, the bus board is in use.', lanterns: 'From nine, the porch lanterns are in use on Home Row.', ramp: 'From nine, the ramp is in use.', dim: 'From nine to eleven, the dimmable lights are on at the Works.', plain: 'From nine to eleven, the plain notes are up at the Works.' };
 // where to see each fix in use on festival day: objective text, where to walk, its label, and the room it is in
 const FELT_WAY = {
   quiet: ['The quiet corner is up. See it in use at noon, in Market Square.', [23.6, 30.2], 'The quiet corner'],
@@ -216,7 +218,16 @@ export class Story {
     S.resumeAt = { loc: G.loc, x: Math.round(p.x * 100) / 100, z: Math.round(p.z * 100) / 100, h: Math.round((G.player.heading || 0) * 100) / 100 };
     const ok = this.saveNow('free', S.day);
     // once per device: say that it saves by itself
-    if (ok && !G.settings.savedTip && !FAST) { G.settings.savedTip = true; G.saveSettings(); setTimeout(() => this.ui.toast('<b>Saved.</b> The game saves as you play. Close it any time: Continue picks up where you were.', 'good', 6500), 600); }
+    // (shown at a calm moment, so it never sits on top of a card or a conversation)
+    if (ok && !G.settings.savedTip && !FAST && !this.tipWait) {
+      this.tipWait = true;
+      const tip = (n) => setTimeout(() => {
+        const calm = G.mode === 'play' && !G.busy && !G.ui.waiter && G.ui.panel.hidden && !G.mgActive && !G.phoneOpen;
+        if (calm) { G.settings.savedTip = true; G.saveSettings(); this.ui.toast('<b>Saved.</b> The game saves as you play. Close it any time: Continue picks up where you were.', 'good', 6500); this.tipWait = false; }
+        else if (n < 40) tip(n + 1); else this.tipWait = false;
+      }, n ? 1500 : 600);
+      tip(0);
+    }
     return ok;
   }
   // a conversation or a card just ended: save at the next calm moment (but not more than every 15 seconds)
@@ -744,8 +755,10 @@ export class Story {
       }
       if (!S.flags.statue_seen && this.G.npcs.clover.place === 'town') return ob('Clover found something. Visit the Fix-It Shed.', T.shed, 'Fix-It Shed');
       if (!S.flags.painted && this.G.npcs.wren.place === 'town') return ob('Wren needs three lanterns painted, at the Far End.', T.farend, 'The Far End');
+      // the next fix in use: point there once its hour is near; until then, say when, and leave the time to you
       const feltNext = Object.keys(FELT).filter((f) => FELT_WAY[f] && !seen(f) && m < FELT[f].to).sort((a, b) => FELT[a].from - FELT[b].from)[0];
-      if (feltNext) return feltOb(feltNext);
+      if (feltNext && FELT[feltNext].from - m <= 45) return feltOb(feltNext);
+      if (feltNext) return ob('Festival day. ' + FELT_LATER[feltNext] + ' Until then, the day is yours.');
       return ob('Festival day. The lanterns go up at 8.');
     }
     return ob('');
@@ -1095,7 +1108,11 @@ export class Story {
       if (k === 1) continue;
       S.flags['gilasked_' + f] = 1;
       await this.say('you', SIM.FIXES[f].what);
-      if ((S.bonds.gil || 0) >= 1 || (f === 'dim' && S.flags.gil_head) || (S.sketch || {})[f] === 'zoned') {
+      // Gil signs a Works fix off himself only with a reason of his own: the soft lights once he has admitted the
+      // panels give him headaches (or he knows you very well); the others once he knows you, or once you changed the
+      // design for him. Otherwise it is "let's think about it", and the fix goes to the town meeting.
+      const gb = S.bonds.gil || 0; const heardGil = (S.stakes || {})[f] === 'listened' && STAKES[f] && STAKES[f].who === 'gil';
+      if ((S.sketch || {})[f] === 'zoned' || (f === 'dim' ? !!S.flags.gil_head || gb >= 4 : gb >= 2 || heardGil)) {
         await this.say('gil', 'Okay. Yes. Let\'s do it. Don\'t tell corporate. Actually, tell corporate.');
         this.approve(f, 'owner', true);
         this.ui.toast(`<b>Gil approved it</b><br>${SIM.FIXES[f].name}. ${S.day >= 3 ? 'It goes up on Thursday.' : 'Up by tomorrow.'} ${this.capLine()}`, 'good'); this.G.audio.sfx('fix');

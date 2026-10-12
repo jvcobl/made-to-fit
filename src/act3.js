@@ -280,7 +280,8 @@ export const ACT3 = {
   objective(R) {
     const S = R.S, m = S.min, G = R.G;
     if (S.flags.festival) return S.flags.released ? ob('') : ob('Enjoy the festival. When you are ready, release your lantern at the statue.', [30, 26.6], 'The statue');
-    if (S.flags.councilDone) return ob('The festival starts at 8, in the square.', T.square, 'Market Square');
+    // (between the meeting and the walk to the festival, the time is yours: the way to the square shows from seven)
+    if (S.flags.councilDone) return m >= 1140 ? ob('The festival starts at 8, in the square.', T.square, 'Market Square') : ob('The meeting is over. The festival starts at 8, in the square. Until then, the evening is yours.');
     if (m >= 1020) return ob('Town meeting at 6 PM, Town Hall.', T.hall, 'Town Hall', { inside: 'hall' });
     if (!S.flags.square3 && m >= 660) return ob('Moss\'s lease is up. She\'s at her cart in the square.', T.square, 'Market Square');
     const nb = R.st.needBackers(); if (nb.length) { const near = R.st.nearestOf([...new Set(nb.map((x) => x[1]))]); if (near) { const f = nb.find((x) => x[1] === near.id)[0]; return ob('Ask ' + CAST[near.id].name + ' to back the ' + SIM.FIXES[f].short + '. The meeting is at 6.', near.at, CAST[near.id].name); } }

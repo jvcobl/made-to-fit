@@ -141,7 +141,7 @@ export class Stage {
     this.grade.uniforms.uRes.value.set(size.x, size.y);
     this.scene = null;
     this.precompileTarget = rt;
-    this.rig = { mode: 'follow', target: new THREE.Vector3(), focus: new THREE.Vector3(), yaw: 0, dist: 12.5, pitch: 0.82, push: 0, fov: 36, lookY: 0.9,
+    this.rig = { mode: 'follow', target: new THREE.Vector3(), focus: new THREE.Vector3(), yaw: 0, dist: 12.5, pitch: 0.82, push: 0, lift: 0, fov: 36, lookY: 0.9,
       shotPos: new THREE.Vector3(), shotLook: new THREE.Vector3(), shotFov: 32, shotK: 3, orbitC: new THREE.Vector3(), orbitR: 34, orbitH: 20, orbitT: 0, orbitSpeed: 0.035, bounds: null };
     this.camPos = new THREE.Vector3(30, 30, 60); this.camLook = new THREE.Vector3(30, 0, 24); this.curFov = 36;
     this.fx = { sat: 1, contrast: 1, vignette: 0.22, aberr: 0, grain: 0.02, tint: 0, bloom: 0.3, exposure: 1, warm: 0 };
@@ -195,7 +195,8 @@ export class Stage {
     if (g.mode === 'follow') {
       const d = lerp(g.dist, g.dist * 0.56, g.push);
       const p = lerp(g.pitch, 0.42, g.push);
-      const ly = lerp(g.lookY, 1.15, g.push);
+      // (lift: look a little below you, so you stand in the upper half of the screen, above a card)
+      const ly = lerp(g.lookY, 1.15, g.push) - (g.lift || 0);
       const fx = g.focus;
       const want = new THREE.Vector3(fx.x + Math.sin(g.yaw) * Math.cos(p) * d, fx.y + Math.sin(p) * d, fx.z + Math.cos(g.yaw) * Math.cos(p) * d);
       const look = new THREE.Vector3(fx.x, fx.y + ly, fx.z);

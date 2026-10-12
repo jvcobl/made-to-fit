@@ -41,6 +41,8 @@ URL parameters for local runs: `?test=1` (lighter rendering), `fast=1` (fast tim
 Headless Chromium renders with SwiftShader: run browser tests one at a time on a small machine.
 
 ## Known gaps
-- No cold human playtests yet; the automated players stand in for them.
+- No cold human playtests yet; the automated players stand in for them (they play at 2.5 times the clock, so they tire faster than a person does).
 - Mini-game timing was tuned in headless SwiftShader; check it on real phones and laptops.
+- On a phone, a "Who adjusts?" card covers most of the screen, so your creature is out of view while you choose.
+- Saves live in the browser (plus the save code and file); there are no accounts. Accounts would need a host of its own (for example GitHub Pages) and a sign-in service.
 - Each resident has a few short conversations; a release would want more writing, and the Korean translation.
