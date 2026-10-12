@@ -4,7 +4,7 @@ import json, sys, time
 from playwright.sync_api import sync_playwright
 sys.path.insert(0, '/home/claude/wb4/test')
 from drive import ARGS, BASE, drive_to, free, STATE_JS
-URL = BASE + '?test=1&fast=1&mute=1&seed=8'
+URL = BASE + '?test=1&v1=1&fast=1&mute=1&seed=8'
 out = {'ok': True, 'checks': []}
 def check(name, cond, info=''):
     out['checks'].append([name, bool(cond), info])

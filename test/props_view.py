@@ -32,7 +32,7 @@ with sync_playwright() as p:
     b = p.chromium.launch(args=ARGS)
     # the first visit, with the fixes up
     pg = b.new_page(viewport={'width': 1280, 'height': 760}); pg.on('pageerror', lambda e: errors.append(str(e)[:300]))
-    pg.goto(BASE + '?test=1&fast=1&mute=1&seed=21'); pg.wait_for_function('window.__wb && __wb.panel() !== null', timeout=60000)
+    pg.goto(BASE + '?test=1&v1=1&fast=1&mute=1&seed=21'); pg.wait_for_function('window.__wb && __wb.panel() !== null', timeout=60000)
     free(pg, 1)
     pg.evaluate("(() => { const G = __wb.G; for (const f of ['quiet', 'lanterns', 'ramp', 'board', 'plain']) G.town.setFix(f, true); })()")
     shot(pg, 'a1_quiet', (29.5, 5, 34), (23.5, 1.2, 31.2), 720)
@@ -41,7 +41,7 @@ with sync_playwright() as p:
     pg.close()
     for act in (2, 3):
         pg = b.new_page(viewport={'width': 1280, 'height': 760}); pg.on('pageerror', lambda e: errors.append(str(e)[:300]))
-        pg.goto(BASE + '?test=1&fast=1&mute=1&seed=21'); pg.wait_for_function('window.__wb && __wb.panel() !== null', timeout=60000)
+        pg.goto(BASE + '?test=1&v1=1&fast=1&mute=1&seed=21'); pg.wait_for_function('window.__wb && __wb.panel() !== null', timeout=60000)
         pg.evaluate("__wb.gotoAct(%d, { built: ['quiet', 'dim', 'ramp', 'lanterns', 'board'] })" % act)
         pg.wait_for_function('window.__wb && __wb.G && __wb.ret && __wb.ret()', timeout=90000)
         free(pg, act)

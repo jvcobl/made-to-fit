@@ -1,6 +1,6 @@
 import sys, time
 from playwright.sync_api import sync_playwright
-url = 'file:///home/claude/wb4/dist/who-bends.html?test=1&mute=1&seed=3' + (sys.argv[1] if len(sys.argv) > 1 else '')
+url = 'file:///home/claude/wb4/dist/who-bends.html?test=1&v1=1&mute=1&seed=3' + (sys.argv[1] if len(sys.argv) > 1 else '')
 ARGS = ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist']
 with sync_playwright() as p:
     b = p.chromium.launch(args=ARGS)

@@ -46,7 +46,7 @@ with sync_playwright() as p:
     pg = ctx.new_page(); errors = []
     pg.on('pageerror', lambda e: errors.append(str(e)[:400]))
     pg.on('console', lambda m: errors.append('console ' + m.text[:300]) if m.type == 'error' else None)
-    pg.goto(BASE + '?test=1&fast=1&mute=1&seed=61'); pg.wait_for_function("window.__wb && __wb.panel() && __wb.panel().includes('title')", timeout=60000)
+    pg.goto(BASE + '?test=1&v1=1&fast=1&mute=1&seed=61'); pg.wait_for_function("window.__wb && __wb.panel() && __wb.panel().includes('title')", timeout=60000)
     pg.evaluate('localStorage.clear(); sessionStorage.clear()'); pg.reload(); pg.wait_for_function("window.__wb && __wb.panel() && __wb.panel().includes('title')", timeout=60000)
     snap(pg, '01_title')
     # the recap

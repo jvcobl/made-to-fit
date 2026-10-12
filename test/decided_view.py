@@ -20,7 +20,7 @@ with sync_playwright() as p:
     ]:
         pg = b.new_page(viewport={'width': 1280, 'height': 760}); errors = []
         pg.on('pageerror', lambda e: errors.append(str(e)[:300]))
-        pg.goto(BASE + '?test=1&mute=1&seed=71'); pg.wait_for_function('window.__wb && __wb.panel() !== null', timeout=60000)
+        pg.goto(BASE + '?test=1&v1=1&mute=1&seed=71'); pg.wait_for_function('window.__wb && __wb.panel() !== null', timeout=60000)
         pg.evaluate("__wb.gotoAct(%d, { built: ['quiet', 'ramp', 'board'] })" % act)
         pg.wait_for_function('window.__wb && __wb.G && __wb.ret && __wb.ret()', timeout=90000)
         # play the arrival through (lines, the first open option, the today card) until you are free to walk

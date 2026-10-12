@@ -59,7 +59,7 @@ SAMPLE = """async ([n, gap]) => { const G = __wb.G, st = G.stage; const out = []
   return out; }"""
 
 def run(q):
-    url = 'file://%s?test=1&fast=1&mute=1&seed=%d&q=%s' % (HTML, SEED, q)
+    url = 'file://%s?test=1&v1=1&fast=1&mute=1&seed=%d&q=%s' % (HTML, SEED, q)
     res = {'quality': q, 'scenes': {}, 'errors': []}
     with sync_playwright() as p:
         b = p.chromium.launch(args=ARGS)

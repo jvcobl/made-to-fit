@@ -6,7 +6,7 @@ from playwright.sync_api import sync_playwright
 sys.path.insert(0, '/home/claude/wb4/test')
 from drive import ARGS, BASE
 # autosave=0: these checks are about the story's own checkpoints (test/autosave.py covers saving as you play)
-URL = BASE + '?test=1&fast=1&mute=1&seed=37&autosave=0'
+URL = BASE + '?test=1&v1=1&fast=1&mute=1&seed=37&autosave=0'
 out = {'ok': True, 'checks': []}
 def check(name, cond, info=''):
     out['checks'].append([name, bool(cond), info])

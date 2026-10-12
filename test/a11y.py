@@ -7,7 +7,7 @@ from playwright.sync_api import sync_playwright
 sys.path.insert(0, '/home/claude/wb4/test')
 from drive import ARGS, BASE
 AXE = sys.argv[1] if len(sys.argv) > 1 else '/tmp/claude-0/-home-claude/cfac4721-fa9f-5c02-916d-61cf7c10d7ce/scratchpad/v12/axe/node_modules/axe-core/axe.min.js'
-URL = BASE + '?test=1&fast=1&mute=1&seed=12'
+URL = BASE + '?test=1&v1=1&fast=1&mute=1&seed=12'
 out = {'ok': True, 'panels': {}}
 def until(pg, js, t=40, pick=None):
     t0 = time.time()

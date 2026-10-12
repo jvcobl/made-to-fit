@@ -13,7 +13,7 @@ import json, sys, time, os, tempfile
 from playwright.sync_api import sync_playwright
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from drive import ARGS, BASE, drive_to
-URL = BASE + '?test=1&fast=1&mute=1&seed=23'
+URL = BASE + '?test=1&v1=1&fast=1&mute=1&seed=23'
 out = {'ok': True, 'checks': []}
 def check(name, cond, info=''):
     out['checks'].append([name, bool(cond), info])

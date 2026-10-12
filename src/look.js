@@ -92,6 +92,7 @@ export class Look {
     const S = this.S; this.raised = true; this.G.audio.sfx('lantern'); this.G.ui.gearKey = '';
     // the first visit, with the town's colours to win back: the lantern shows marks (marks.js) instead of sights
     if (this.G.marks && this.G.marks.active) {
+      if (this.G.loc !== 'town') { this.G.ui.toast('The lantern shows what pinches people out in the streets. Try it outside.', '', 3600); return; }
       if (!S.flags.markTip) { S.flags.markTip = 1; this.G.ui.toast(`<b>Marks</b> show what pinches people here. ${this.G.ui.touch ? 'Tap a mark' : 'Get close and press ' + this.G.keyOf('interact') + ', or click a mark,'} to tag it.`, 'idea', 6500); }
       const sl = this.G.story.slice; if (sl && sl.on) sl.onRaise();
       return;

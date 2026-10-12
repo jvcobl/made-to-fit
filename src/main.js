@@ -37,7 +37,7 @@ class Game {
   constructor(data = {}) {
     this.storage = SAVE.storageStatus();
     const defaults = { fx: 1, reduceMotion: !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches), textSpeed: 'normal', textSize: 'm', holdToBend: true, quality: '', pace: 'steady', interrupts: 'usual', guide: 'full', blendPings: true, flicker: true,
-      moodTint: 'gentle', calmFx: false, pinchStrip: true, captions: true, lanternVoice: true, comfortSound: true, packs: 'show', feedContent: 'show', rueScenes: 'show', keys: Object.assign({}, DEFAULT_KEYS), vol: null, comfortDone: false };
+      moodTint: 'gentle', calmFx: false, quietHooks: false, pinchStrip: true, captions: true, lanternVoice: true, comfortSound: true, packs: 'show', feedContent: 'show', rueScenes: 'show', keys: Object.assign({}, DEFAULT_KEYS), vol: null, comfortDone: false };
     this.settings = SAVE.deepMerge(defaults, this.loadSettings()); this.settings.fx = 1;
     this.settings.keys = Object.assign({}, DEFAULT_KEYS, this.settings.keys);
     const mobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) || Math.min(innerWidth, innerHeight) < 560;
@@ -697,7 +697,8 @@ class Game {
     const L = SIM.levels(S, this.zone, S.min, this.sub); const z = this.zone; const day = S.min > 400 && S.min < 1170;
     const blendOn = S.blend.has && !S.blend.deleted;
     this.audio.setMix({ crowd: z === 'home' ? 0 : L.people * (z === 'farend' ? 0.3 : 1), chatter: z === 'home' || z === 'farend' ? 0 : L.people, traffic: z === 'transit' ? 0.8 : z === 'street' || z === 'market' ? 0.25 : 0.05, hum: z === 'works' ? 1 : 0, birds: day && ['commons', 'farend', 'homerow', 'street'].includes(z) ? (blendOn ? 0.3 : S.blend.deleted ? 0.85 : 0.6) : 0.05, water: z === 'farend' ? 1 : 0, wind: this.loc === 'town' ? 0.6 : 0.05 });
-    this.audio.setState({ muffle: S.wearing.headphones ? 0.8 : 0, smooth: smooth ? 1 : 0, self: S.self / 100 });
+    { const C = S.color; const pp = this.player.root.position; const fit = this.loc === 'town' && this.color ? this.color.at(pp.x, pp.z) : 1;
+      this.audio.setState({ muffle: S.wearing.headphones ? 0.8 : 0, smooth: smooth ? 1 : 0, self: S.self / 100, fit, voices: C ? { homerow: C.homerow >= 1, market: C.market >= 1, works: C.works >= 1 } : null }); }
   }
   update(dt) {
     const S = this.S; const st = this.stage;
@@ -754,13 +755,19 @@ class Game {
     this.audio.update();
     // interface
     this.ui.updateHud(S, this.story.objective());
+    { const sl = !!(this.story.slice && this.story.slice.on); if (sl !== this._slOn) { this._slOn = sl; document.body.classList.toggle('slice', sl); } }
     const canAct = this.mode === 'play' && !this.busy && !this.ui.waiter && !this.phoneOpen && !this.mgActive && this.ui.panel.hidden;
     this.target = canAct ? this.findTarget() : null;
     if (this.target) { const v = this.target.obj.clone(); v.y = 1.9; v.project(st.camera); this.ui.prompt(this.target.label, (v.x + 1) / 2 * innerWidth, (1 - v.y) / 2 * innerHeight); } else this.ui.prompt(null);
     this.ui.act(this.target ? this.target.label : null);
     this.ui.placeBubbles((k) => this.anchorOf(k));
     if (this.phoneOpen && (this._pt = (this._pt || 0) - dt) <= 0) { this._pt = 1; this.ui.refreshPhone(); }
-    if ((this._hb = (this._hb || 0) - dt) <= 0) { this._hb = 1; const ck = document.querySelector('#hud .clock'); this.hudBottom = ck && !this.ui.el('#hud').hidden ? ck.getBoundingClientRect().bottom : 0; }
+    if ((this._hb = (this._hb || 0) - dt) <= 0) {
+      this._hb = 1; const ck = document.querySelector('#hud .clock'); this.hudBottom = ck && !this.ui.el('#hud').hidden ? ck.getBoundingClientRect().bottom : 0;
+      // on a narrow screen the clock box spans the top: notices go just under it, never over the objective
+      const ts = this.ui.el('#toasts'); const narrow = innerWidth < 700; const top = narrow && this.hudBottom ? Math.round(this.hudBottom + 8) + 'px' : '';
+      if (ts.style.top !== top) ts.style.top = top;
+    }
   }
   // Fixed-step test mode: advance the whole game by exactly n frames of 1/60 s, synchronously: the clock, the
   // simulation and the 3D render, then the open task's update and draw (the same order as two rAF callbacks).
@@ -799,6 +806,7 @@ window.__wb = {
   ret: () => (G.story.ret ? { act: G.story.ret.act } : null),
   // tests: jump the first day to a stage, as if everything before it went the usual way
   sliceTo: (stage, o) => G.story.slice.debugTo(stage, o),
+  sliceSkip: (o) => { G.story.slice.debugTo('night', o); G.story.slice.S.flags.hooksShown = 1; G.story.finishDay('night'); },
   // a visit code for a sample carry (to test typing a code on the title)
   visitCode: (n, o = {}) => { const c = sampleCarry(o); c.act = n; return SAVE.encodeVisit(c); },
   G: null,

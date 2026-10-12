@@ -5,7 +5,7 @@ import json, sys, time
 from playwright.sync_api import sync_playwright
 sys.path.insert(0, '/home/claude/wb4/test')
 from drive import ARGS, BASE, drive_to, free
-URL = BASE + '?test=1&fast=1&mute=1&seed=5'
+URL = BASE + '?test=1&v1=1&fast=1&mute=1&seed=5'
 out = {'ok': True, 'checks': []}
 def check(name, cond, info=''):
     out['checks'].append([name, bool(cond), info])
@@ -73,6 +73,9 @@ with sync_playwright() as p:
     # Mood tint Off: no tint and no low-colour desaturation
     pg.evaluate("(() => { const G = __wb.G; G.settings.moodTint = 'off'; G.S.self = 20; })()")
     at('square', 750, {'sound': 0.1, 'light': 0.1, 'people': 0.1}); pg.wait_for_timeout(9000)
+    # (it eases with a 2.5 s time constant on the game's clock; a slow software renderer can need a little longer)
+    try: pg.wait_for_function("__wb.G.stage.fxT.sat > 0.995 && Math.abs(__wb.G.stage.fxT.warm) < 0.02", timeout=8000)
+    except Exception: pass
     st5 = pg.evaluate("(() => { const G = __wb.G; return { sat: G.stage.fxT.sat, warm: G.stage.fxT.warm } })()")
     check('tint off: eases back to full colour', st5['sat'] > 0.995 and abs(st5['warm']) < 0.02, st5)
     # strip off

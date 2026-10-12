@@ -33,20 +33,30 @@ export class FX {
   // ---------- words that float up ----------
   // at: a THREE.Vector3 in the world, or { x, y } on screen. o: { kind: 'good' | 'mark' | 'rare' | 'blend' | 'guest', hook: id, big, ms }
   pop(at, text, o = {}) {
+    // played quietly (chosen on the first day's postcard): the game's own pulls are left out ("1 left!", the head start,
+    // the teaser), and what's left carries no hook mark; Blend, the app in the story, still does what it does
+    const S = this.G.S; const quiet = (this.G.settings && this.G.settings.quietHooks) || (S && S.flags && S.flags.quietHooks);
+    if (quiet && o.hook && !(o.hookCtx && o.hookCtx.by === 'blend')) {
+      if (['gradient', 'endowed', 'openloop'].includes(o.hook)) return null;
+      o = Object.assign({}, o, { hook: null, big: false });
+    }
     const el = document.createElement('div'); el.className = 'pop ' + (o.kind || '') + (o.big ? ' big' : '');
     const hook = o.hook && this.G.hooks ? this.G.hooks.fire(o.hook, o.hookCtx) : '';
     el.innerHTML = `<span class="pt">${o.html ? text : esc(text)}</span>` + (hook ? `<i class="hk" title="A hook: ${esc(hook)}">${HOOK_SVG}</i>` : '');
     this.layer.appendChild(el);
-    const p = { el, at: at && at.isVector3 ? at.clone() : null, sx: at && !at.isVector3 ? at.x : 0, sy: at && !at.isVector3 ? at.y : 0, t: 0, ms: (o.ms || 1500) / 1000, rise: o.rise == null ? 54 : o.rise, dx: o.dx || 0 };
+    const p = { el, follow: o.follow || null, dy: o.dy == null ? 2.4 : o.dy, at: at && at.isVector3 ? at.clone() : null, sx: at && !at.isVector3 ? at.x : 0, sy: at && !at.isVector3 ? at.y : 0, t: 0, ms: (o.ms || 1500) / 1000, rise: o.rise == null ? 54 : o.rise, dx: o.dx || 0 };
     this.pops.push(p); if (this.pops.length > 12) { const old = this.pops.shift(); old.el.remove(); }
     this.place(p);
     return el;
   }
   place(p) {
     let x = p.sx, y = p.sy;
+    if (p.follow) { if (!p.at) p.at = new THREE.Vector3(); p.at.copy(p.follow.position); p.at.y += p.dy; }
     if (p.at) { const v = p.at.clone().project(this.G.stage.camera); if (v.z > 1) { p.el.style.opacity = '0'; return; } x = (v.x + 1) / 2 * innerWidth; y = (1 - v.y) / 2 * innerHeight; }
-    if (!p.w) p.w = p.el.offsetWidth || 160; x = clamp(x, p.w / 2 + 8, innerWidth - p.w / 2 - 8);
-    const t = clamp(p.t / p.ms); const up = (1 - Math.pow(1 - t, 3)) * p.rise;
+    if (!p.w) { p.w = p.el.offsetWidth || 160; p.h = p.el.offsetHeight || 34; } x = clamp(x, p.w / 2 + 8, innerWidth - p.w / 2 - 8);
+    const t = clamp(p.t / p.ms); let up = (1 - Math.pow(1 - t, 3)) * p.rise;
+    // a pop over someone near the top of the screen stays below the top bar instead of riding up under it
+    if (p.at) { const minY = p.h + 62; if (y - up < minY) { y = minY; up = 0; } }
     const s = this.calm ? 1 : t < 0.12 ? 0.6 + t / 0.12 * 0.55 : t < 0.24 ? 1.15 - (t - 0.12) / 0.12 * 0.15 : 1;
     p.el.style.transform = `translate(${Math.round(x + p.dx * t)}px, ${Math.round(y - up)}px) translate(-50%, -100%) scale(${s.toFixed(3)})`;
     p.el.style.opacity = String(t > 0.72 ? 1 - (t - 0.72) / 0.28 : 1);
@@ -93,7 +103,9 @@ export class FX {
   update(dt) {
     const st = this.G.stage;
     // pops
-    for (let i = this.pops.length - 1; i >= 0; i--) { const p = this.pops[i]; p.t += dt; if (p.t >= p.ms) { p.el.remove(); this.pops.splice(i, 1); continue; } this.place(p); }
+    // (a cut to black ends them, and so does a panel opening: a pop belongs to the moment it came from)
+    const dark = st.fade > 0.8 || (this.G.ui && this.G.ui.panel && !this.G.ui.panel.hidden);
+    for (let i = this.pops.length - 1; i >= 0; i--) { const p = this.pops[i]; p.t += dt; if (p.t >= p.ms || dark) { p.el.remove(); this.pops.splice(i, 1); continue; } this.place(p); }
     // sparks
     const cam = st.camera; this.mat.uniforms.uPx.value = st.renderer.domElement.height / (2 * Math.tan(cam.fov * Math.PI / 360));
     let live = false;

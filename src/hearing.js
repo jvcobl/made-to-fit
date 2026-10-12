@@ -4,7 +4,7 @@
 // The right card turns a vote: a YES stamp lands. A card that doesn't answer it is spent, and costs you some
 // composure. You can ask "why?" once for free, and call one witness from the gallery. Two votes of three carry it.
 // Losing is soft: the motion goes on file, and Clover tells you what was missing.
-import { CAST } from './content.js';
+import { CAST, STAKES } from './content.js';
 import { KINDS, markById } from './marks.js';
 import { esc, sleep, FAST } from './util.js';
 
@@ -15,7 +15,6 @@ export const CARDS = {
   pomeroy_loud: { kind: 'story', who: 'pomeroy', title: 'Pomeroy, about his apples', text: 'Half my sales are folk who hear me before they see me!' },
   bea_steps: { kind: 'story', who: 'bea', title: 'Bea, at the Works steps', text: 'My cart doesn\'t do steps. So I go round the back with the parcels, and the dock opens at ten.' },
   pip_cart: { kind: 'story', who: 'pip', title: 'Pip, about her mornings', text: 'I take the bread cart round by the loading dock every morning. Takes ages. Never mind!' },
-  gil_planter: { kind: 'deal', who: 'gil', title: 'Gil\'s planter, moved', text: 'The ramp goes where Gil\'s planter stands. His idea: the planter moves to the top of the ramp. "Basil likes a view."' },
   perceptible: { kind: 'insight', title: 'Say it more than one way', text: 'A design principle: information should reach people however they take it in. A light by a door says "come in" or "not now" without a word.', src: 'Center for Universal Design, 1997' },
   zoning: { kind: 'insight', title: 'Zones, not sameness', text: 'Quiet places beside lively ones, rather than one level for everybody. Design guidance for neurodivergent people recommends it; the evidence is mostly expert consensus so far.', src: 'BSI PAS 6463, 2022; Mostafa, 2014' },
   curb: { kind: 'insight', title: 'The curb-cut effect', text: 'Curb cuts won by wheelchair users turned out to help parents with strollers, travellers with suitcases and workers with carts. Changes made for some often help many more.', src: 'Blackwell, 2017' },
@@ -33,23 +32,49 @@ export const RAMP = {
       wrong: 'I don\'t quite see what that has to do with the steps.' },
     { who: 'pip', kind: 'Money', t: 'A whole ramp, for Bea? That\'s a lot of the Works budget for one person!', weak: 'for one person',
       why: 'We get one build at the Works this year. It should help the most people it can.', hint: 'Who else comes and goes on wheels?',
-      accept: ['curb', 'pip_cart', 'witness:moss'],
+      accept: ['wk_dock', 'pip_cart', 'curb', 'witness:moss'],
       yes: 'Oh! The bread cart. I go round by the dock every single morning. That\'s me as well, isn\'t it?',
       wrong: 'Sorry, I don\'t see how that helps anyone else.' },
     { who: 'clover', kind: 'Fairness', t: 'Every fix costs somebody something. Who did you ask about what this one costs?', weak: 'what this one costs',
-      why: 'The ramp goes right where Gil\'s planter stands. He planted it himself.', hint: 'Did anyone ask Gil?',
-      accept: ['gil_planter', 'witness:gil'],
+      why: 'The ramp goes right where Gil\'s tomato planters stand. Nine years, those tomatoes.', hint: 'Did anyone ask Gil?',
+      accept: ['deal_ramp', 'witness:gil'],
       yes: 'Good. You asked the person it costs, and the plan got better for it. That\'s the whole job.',
       wrong: 'That\'s who it helps. I asked who it costs.' },
   ],
   witnesses: {
     bea: 'My cart doesn\'t do steps, Hollis. I go round with the parcels and wait for the dock. Nobody asked me to write in.',
     moss: 'I\'d use it with the tea urn. So would every pram on Home Row.',
-    gil: 'Oh! Me? The planter could go at the top. Basil likes a view, honestly.',
+    gil: 'Oh! Me? Could it run along the rail, with my tomatoes beside it? A bit narrower. Still fits a cart. I measured. Twice.',
     pip: 'I\'d use it with the bread cart, every morning.',
   },
   missing: { hollis: 'what the steps do to people who can\'t use them', pip: 'who else it helps', clover: 'who it costs, and what they said' },
 };
+
+// the bus board, at Tuesday's town meeting
+export const BOARD = {
+  fix: 'board', title: 'A bus board that shows changes', street: 'transit',
+  objections: [
+    { who: 'hollis', kind: 'Tradition', t: 'Route changes have been announced over the speaker since the buses began. People manage.', weak: 'People manage',
+      why: 'Well. One hears it, or one asks somebody who did.', hint: 'Who misses a thing that\'s only said once?',
+      accept: ['tr_speaker', 'tr_bus', 'witness:bea'], yes: 'Said once, over a crackle, while the bus pulls in. Put like that, "manage" is generous.', wrong: 'I\'m not sure that\'s about the buses.' },
+    { who: 'pip', kind: 'Money', t: 'A screen at the bus stop costs the same as all the festival bunting! Is it worth that?', weak: 'Is it worth that',
+      why: 'Only a few people miss the announcements, surely.', hint: 'Who else is helped when it\'s written down as well as said?',
+      accept: ['perceptible', 'curb', 'witness:rue'], yes: 'Visitors, anyone with headphones in, anyone who was talking when it crackled. That\'s loads of people!', wrong: 'Hmm. That doesn\'t tell me who it helps.' },
+    { who: 'clover', kind: 'Fairness', t: 'It comes out of the bunting budget. Who did you ask about that?', weak: 'Who did you ask',
+      why: 'Hollis chairs the bunting committee. He does love the bunting.', hint: 'Did anyone ask Hollis what would make it work?',
+      accept: ['deal_board'], yes: 'Bus changes first, festival news second, and the committee can call it theirs. Good. You asked.', wrong: 'That\'s who it helps. I asked who it costs.' },
+  ],
+  witnesses: {
+    bea: 'I was on the wrong bus twice last month, Hollis. The speaker said Elm Street. I heard "helm treat".',
+    rue: 'Half the people at that stop have headphones in. I do. The board would tell us.',
+    moss: 'I miss it every time the kettle\'s on.',
+    gil: 'Ooh. I never catch the announcements. I just get on whatever comes.',
+  },
+  missing: { hollis: 'what it\'s like to miss an announcement', pip: 'who else it helps', clover: 'who it costs, and what they said' },
+};
+export const HEARINGS = { ramp: RAMP, board: BOARD };
+// a deal: what the person a fix costs said would make it work (you listened, and the design changed)
+export function dealCard(f) { const T = STAKES[f]; if (!T || !T.listened) return null; return { id: 'deal_' + f, kind: 'deal', who: T.who, title: CAST[T.who].name + ': ' + T.change, text: T.listened.t }; }
 
 export class Hearing {
   constructor(G, def, o = {}) { this.G = G; this.D = def; this.o = o; this.votes = []; this.spent = {}; this.composure = 3; this.whyFree = 1; this.witnessLeft = 1; this.consent = {}; }
@@ -58,6 +83,8 @@ export class Hearing {
   hand() {
     const S = this.S; const out = [];
     for (const id of Object.keys(S.cards || {})) { const c = CARDS[id]; if (c) out.push(Object.assign({ id }, c)); }
+    // (a deal belongs to its own fix: only this hearing's is in your hand)
+    { const f = this.D.fix; if ((S.stakes || {})[f] === 'listened') { const d = dealCard(f); if (d) out.push(d); } }
     const marks = Object.keys(S.marks || {}).map(markById).filter((m) => m && !m.fit && m.street === this.D.street);
     for (const m of marks) out.push({ id: m.id, kind: 'mark', mark: m, title: m.name, text: m.line, who: m.who });
     const order = { mark: 0, story: 1, deal: 2, insight: 3 };
@@ -73,7 +100,7 @@ export class Hearing {
     el.innerHTML = `<div class="hbench">${this.D.objections.map((o, i) => `<div class="hseat" data-i="${i}"><img alt="" src="${face(o.who)}"><b>${esc(CAST[o.who].name)}</b><span class="hkind">${esc(o.kind)}</span><span class="hvote"></span></div>`).join('')}</div>
       <div class="hstage"><div class="htitle">Hearing · ${esc(this.D.title)}</div><div class="hobj"></div><div class="hsay" aria-live="polite"></div>
       <div class="hbtns"><button class="btn" id="hWhy">Ask why <small>free once</small></button><button class="btn" id="hWit">Call a witness <small>once</small></button><span class="hcomp" aria-label="Composure"></span></div></div>
-      <div class="hhand" role="group" aria-label="Your cards"></div>`;
+      <div class="htabs" role="tablist"></div><div class="hhand" role="group" aria-label="Your cards"></div>`;
     this.renderComp();
     return new Promise((resolve) => { this.done = resolve; this.next(0); });
   }
@@ -99,7 +126,13 @@ export class Hearing {
     if (!G.ui.touch) setTimeout(() => { const b = this.el.querySelector('.hcard:not(.spent)'); if (b) b.focus(); }, 60);
   }
   renderHand() {
-    const box = this.el.querySelector('.hhand'); const cards = this.hand();
+    const box = this.el.querySelector('.hhand'); const all = this.hand();
+    const KIND = [['mark', 'Marks'], ['story', 'Their words'], ['deal', 'Agreed'], ['insight', 'Insights']].filter(([k]) => all.some((c) => c.kind === k));
+    if (!this.tab || !KIND.some(([k]) => k === this.tab)) this.tab = KIND.length ? KIND[0][0] : 'mark';
+    const tabs = this.el.querySelector('.htabs');
+    tabs.innerHTML = KIND.map(([k, n]) => `<button class="chip ${k === this.tab ? 'on' : ''}" role="tab" aria-selected="${k === this.tab}" data-k="${k}">${n} <span>${all.filter((c) => c.kind === k && !this.spent[c.id]).length}</span></button>`).join('');
+    tabs.querySelectorAll('[data-k]').forEach((b) => { b.onclick = () => { this.tab = b.dataset.k; this.G.audio.sfx('select'); this.renderHand(); }; });
+    const cards = all.filter((c) => c.kind === this.tab);
     box.innerHTML = cards.map((c) => {
       const spent = this.spent[c.id]; const K = c.kind === 'mark' ? KINDS[c.mark.kind] : null;
       const icon = c.kind === 'mark' ? `<span class="hci" style="--mk:${K[1]}">${K[0]}</span>` : c.kind === 'insight' ? '<span class="hci ins">✦</span>' : `<img class="hcf" alt="" src="${this.G.ui.face(c.who, this.S)}">`;
@@ -109,6 +142,7 @@ export class Hearing {
     box.querySelectorAll('.hcard').forEach((b) => { b.onclick = () => { if (b.getAttribute('aria-disabled') === 'true') { this.G.ui.nudge(b, 'Already used.'); return; } this.present(b.dataset.id); }; });
   }
   async askWhy() {
+    if (this.busy || this.over) return;
     const o = this.D.objections[this.i]; const G = this.G;
     if (this.whyAsked === this.i) { this.setSay(esc(o.why) + ' <em>' + esc(o.hint) + '</em>', CAST[o.who].name); return; }
     if (this.whyFree > 0) this.whyFree--; else { this.composure--; this.renderComp(); if (this.composure <= 0) return this.finish(); }
@@ -163,6 +197,7 @@ export class Hearing {
     this.busy = false;
   }
   async finish() {
+    if (this.over) return; this.over = true;
     const G = this.G; const yes = this.votes.filter((v) => v === 'yes').length; const passed = yes >= 2;
     const missing = this.D.objections.map((o, i) => (this.votes[i] === 'yes' ? null : o.who)).filter(Boolean);
     this.el.querySelector('.hhand').innerHTML = ''; this.el.querySelector('.hbtns').hidden = true;

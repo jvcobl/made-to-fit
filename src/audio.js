@@ -70,17 +70,27 @@ export class Audio {
   setMuted(v) { this.muted = v; this.applyVolumes(); }
   setScene(name) { this.wantScene = name; }
   setMix(o) { Object.assign(this.mix, o); }
-  setState(o) { if ('muffle' in o) this.muffle = o.muffle; if ('smooth' in o) this.smooth = o.smooth; if ('self' in o) this.self = o.self; }
+  setState(o) { if ('muffle' in o) this.muffle = o.muffle; if ('smooth' in o) this.smooth = o.smooth; if ('self' in o) this.self = o.self; if ('fit' in o) this.fit = o.fit; if ('voices' in o) this.voices = o.voices; }
+  // the lantern's hum: higher and a little louder as an unfound mark comes into line with its beam (0 is silent)
+  lanternHum(k) {
+    if (!this.ready) return; const c = this.ctx, t = c.currentTime;
+    if (!this.lh) { const o = c.createOscillator(), o2 = c.createOscillator(), g = c.createGain(); o.type = 'sine'; o2.type = 'triangle'; g.gain.value = 0; o.connect(g); o2.connect(g); g.connect(this.sfxBus); o.start(); o2.start(); this.lh = { o, o2, g }; }
+    const f = 196 + k * 196; this.lh.o.frequency.setTargetAtTime(f, t, 0.08); this.lh.o2.frequency.setTargetAtTime(f * 1.5, t, 0.08);
+    this.lh.g.gain.setTargetAtTime(k > 0.03 ? 0.006 + 0.022 * k : 0, t, 0.15);
+  }
+  // a moment of quiet in the street (a sound mark, tagged): what a fix could do, for a couple of seconds
+  preview(sec = 2) { this.duckUntil = (this.ctx ? this.ctx.currentTime : 0) + sec; }
   // called every frame: glide everything toward its targets
   update() {
     if (!this.ready) return; const c = this.ctx, t = c.currentTime;
     // a place sounds the same for everyone: no loudness or treble scaled to how it fits you. Headphones muffle
     // (lower and duller) for whoever wears them, and Smooth Mode's hush is the story's sign of losing yourself.
     const Mu = this.muffle, Sm = this.smooth;
-    const ambVol = this.vol.amb * (1 - Sm * 0.6) * (1 - Mu * 0.5);
+    const duck = this.duckUntil && t < this.duckUntil ? 1 : 0;
+    const ambVol = this.vol.amb * (1 - Sm * 0.6) * (1 - Mu * 0.5) * (1 - duck * 0.85);
     this.amb.gain.setTargetAtTime(ambVol, t, 0.4);
     this.ambShelf.gain.setTargetAtTime(-Sm * 6, t, 0.4);
-    const lp = Mu > 0.01 ? lerp(18000, 650, Mu) : 18000;
+    const lp = duck ? 900 : Mu > 0.01 ? lerp(18000, 650, Mu) : 18000;
     this.ambLP.frequency.setTargetAtTime(lp, t, 0.2); this.musicLP.frequency.setTargetAtTime(Mu > 0.01 ? lerp(18000, 2200, Mu) : 18000, t, 0.2);
     const L = this.layers, x = this.mix;
     L.crowd.g.gain.setTargetAtTime(x.crowd * 0.5 * (1 + 0.25 * Math.sin(t * 0.7)), t, 0.5);
@@ -108,7 +118,13 @@ export class Audio {
       chord.forEach((m, i) => { if (i === 0 && S.bass) this.bass(mtof(m - 12), t, dur, S.bass); if (S.pad) this.pad(mtof(m), t, dur, S.pad / chord.length * 3); });
     }
     if (S.arp && chord.length) { const m = chord[(this.beat % chord.length)] + 24; this.blip(mtof(m), t, 0.12, 0.045, 'square'); if (pos === 0) this.sparkle(t); }
-    if (S.pluck && S.scale.length && pos % 2 === 0 && Math.random() < S.pluck * (0.35 + 0.65 * this.self)) {
+    const fit = this.fit == null ? 1 : this.fit; const V = this.voices || {};
+    if ((this.scene === 'town' || this.scene === 'night') && chord.length) {
+      if (V.homerow && pos % 4 === 2) this.blip(mtof(chord[chord.length - 1] + 12), t, 0.6, 0.026 * (0.4 + 0.6 * fit), 'sine');
+      if (V.market && pos % 2 === 1 && fit > 0.5) this.shaker(t);
+      if (V.works && pos % 8 === 4) this.blip(mtof(chord[0]), t, 0.35, 0.05, 'triangle');
+    }
+    if (S.pluck && S.scale.length && pos % 2 === 0 && Math.random() < S.pluck * (0.35 + 0.65 * this.self) * (0.55 + 0.45 * fit)) {
       this.lastMel = clamp(this.lastMel + Math.floor(Math.random() * 5) - 2, 0, S.scale.length - 1);
       this.pluck(mtof(S.scale[this.lastMel]), t, 0.12 * (0.5 + 0.5 * this.self));
     }

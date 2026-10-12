@@ -6,7 +6,7 @@ import { FIELD_NOTES, NOTE_SECTIONS, SUPPORT } from './notes.js';
 import { drawFitCard, saveFitCard, cardAltText } from './fitcard.js';
 import { PLAQUE as PLAQUE_TEXT } from './look.js';
 const SETUP_NAMES = { lamp: 'Lamp', radio: 'Radio', sign: 'Door sign', note: 'House rules', clock: 'Clock', calendar: 'Calendar' };
-import { FIXES, pinch, fixState, supporters, approvedCount, SEASON_CAP } from './sim.js';
+import { FIXES, pinch, fixState, supporters, capText } from './sim.js';
 import { ZONES } from './town.js';
 import { CARDS } from './hearing.js';
 import { MARKS, STREETS, KINDS } from './marks.js';
@@ -126,7 +126,7 @@ export class UI {
     } else p.hidden = true;
   }
   line(o) {
-    this.hideBarrier();
+    this.hideBarrier(); if (this.G.marks) this.G.marks.hideCard();
     const d = this.dialog; d.hidden = false; d.className = o.kind || 'say';
     this.plate(o);
     const tag = d.querySelector('.tagline');
@@ -218,9 +218,11 @@ export class UI {
   hideBarrier() { this.barrierEl.hidden = true; }
   // ---------- small things ----------
   toast(html, kind = '', ms = 3600) {
-    const t = $(`<div class="toast ${kind}">${html}</div>`); this.el('#toasts').appendChild(t); this.announce(html);
-    const all = this.el('#toasts').children; if (all.length > 4) all[0].remove();
-    setTimeout(() => { t.classList.add('out'); setTimeout(() => t.remove(), 450); }, FAST ? 300 : ms);
+    const box = this.el('#toasts');
+    if (!FAST && box.children.length >= 2) { (this.tq = this.tq || []).push([html, kind, ms]); if (this.tq.length > 6) this.tq.shift(); return; }
+    const t = $(`<div class="toast ${kind}">${html}</div>`); box.appendChild(t); this.announce(html);
+    const all = box.children; if (all.length > 4) all[0].remove();
+    setTimeout(() => { t.classList.add('out'); setTimeout(() => { t.remove(); if (this.tq && this.tq.length) { const [h, k, m] = this.tq.shift(); this.toast(h, k, m); } }, 450); }, FAST ? 300 : ms);
   }
   caption(text, ms = 2600) {
     const c = this.el('#caption'); c.textContent = text; c.classList.add('on');
@@ -266,7 +268,9 @@ export class UI {
   }
   prompt(label, x, y) {
     const p = this.el('#prompt'); if (!label) { p.hidden = true; this._pl = null; return; }
-    p.hidden = false; if (this._pl !== label) { this._pl = label; p.innerHTML = (this.touch ? '' : '<kbd>' + esc(this.G.keyOf('interact')) + '</kbd>') + esc(label); }
+    p.hidden = false; if (this._pl !== label) { this._pl = label; p.innerHTML = (this.touch ? '' : '<kbd>' + esc(this.G.keyOf('interact')) + '</kbd>') + esc(label); this._pw = p.offsetWidth; this._ph = p.offsetHeight; }
+    // keep the whole label on screen when what it points at is near an edge
+    const hw = (this._pw || 0) / 2 + 8; x = clamp(x, hw, Math.max(hw, innerWidth - hw)); y = clamp(y, (this._ph || 0) + 8, innerHeight - 8);
     p.style.left = x + 'px'; p.style.top = y + 'px';
   }
   // the big contextual button for touch screens
@@ -289,9 +293,11 @@ export class UI {
   // the arrow at the screen edge that points at where you are going
   edge(info) {
     const e = this.el('#edge'); if (!info) { e.hidden = true; return; }
-    e.hidden = false; e.style.left = info.x + 'px'; e.style.top = info.y + 'px';
+    e.hidden = false;
     e.querySelector('.arr').style.transform = `rotate(${info.ang}rad)`;
-    const t = info.label + ' · ' + info.dist + ' m'; const s = e.querySelector('span'); if (s.textContent !== t) s.textContent = t;
+    const t = info.label + ' · ' + info.dist + ' m'; const s = e.querySelector('span'); if (s.textContent !== t) { s.textContent = t; this._ew = e.offsetWidth; }
+    // the label is wider than the arrow: slide the pair in so the words stay on screen
+    const hw = (this._ew || 0) / 2 + 8; e.style.left = clamp(info.x, hw, Math.max(hw, innerWidth - hw)) + 'px'; e.style.top = info.y + 'px';
   }
   // ---------- panels ----------
   openPanel(cls, html) { const p = this.panel; p.style.cssText = ''; p.className = 'panel ' + cls; p.innerHTML = html; p.hidden = false; return p; }
@@ -305,7 +311,7 @@ export class UI {
       : ret ? `${back}<button class="btn" id="tNew">New game</button>` : '<button class="btn accent" id="tNew">Begin</button>';
     const banner = o.storage && o.storage !== 'ok' ? '<div class="tbanner" role="status">This browser isn\'t keeping saves here (a private window, or storage is blocked). You can still copy a save code from the Menu at any point, and paste it here next time.</div>' : '';
     const p = this.openPanel('title', `<h1>Made to Fit</h1><div class="sub">a town built for someone else</div>${banner}<div class="row">${main}<button class="btn" id="tSet">Settings</button></div>
-      <div class="fine">About 40 minutes, then two short return visits if you like. Best with sound. Your game saves on this device as you play: no account, no tracking, nothing to buy. Nothing flashes more than three times a second.<div class="links"><button class="linkbtn" id="tIng">What keeps you playing</button><button class="linkbtn" id="tIn">What's in this game</button><button class="linkbtn" id="tPb">Played before?</button></div></div>`);
+      <div class="fine">The first day takes about fifteen minutes; two more days and two short return visits follow if you like. Best with sound. Your game saves on this device as you play: no account, no tracking, nothing to buy. Nothing flashes more than three times a second.<div class="links"><button class="linkbtn" id="tIng">What keeps you playing</button><button class="linkbtn" id="tIn">What's in this game</button><button class="linkbtn" id="tPb">Played before?</button></div></div>`);
     const M = this.G.menus;
     p.querySelector('#tSet').onclick = () => M.settings();
     p.querySelector('#tIng').onclick = () => M.ingredients();
@@ -482,7 +488,7 @@ export class UI {
       const loss = !T || st === 'idea' ? '' : sk === 'listened' ? `${esc(T.lessLoss)} The change: ${esc(T.variantName)}. ${esc(T.cost)}` : sk === 'overruled' ? `Who loses: ${esc(T.loses)} You kept the design as it was.` : `Who loses: ${esc(T.loses)} ${esc(CAST[T.who].name)} hasn't had a say yet.`;
       return `<div class="card"><b>${esc(F.name)}</b> <span class="pill ${st}">${label}</span><div class="meta">${esc(F.what)}</div>${st === 'proposal' ? `<div class="meta">Ask: ${esc(who)}</div>` : ''}${F.also ? `<div class="meta also">Also helps: ${esc(F.also)}</div>` : ''}${loss ? `<div class="meta loses">${loss}</div>` : ''}<div class="meta" style="font-style:italic">Design principle: ${esc(F.principle)}</div></div>`;
     }).join('');
-    const cap = `<p class="small">Fixes this visit: ${approvedCount(S)} of ${SEASON_CAP}. A town can only build so much in a season.</p>`;
+    const cap = `<p class="small">${esc(capText(S))} A town can only build so much in a season.</p>`;
     return rows ? cap + rows : '<p class="lede">Nothing yet. When a place pinches, note it, or listen to people who mention what pinches them.</p>';
   }
   // ---------- phone ----------

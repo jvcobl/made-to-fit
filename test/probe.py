@@ -2,7 +2,7 @@ from playwright.sync_api import sync_playwright
 ARGS = ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist']
 with sync_playwright() as p:
     b = p.chromium.launch(args=ARGS); pg = b.new_page(viewport={'width': 1000, 'height': 620})
-    pg.goto('file:///home/claude/wb4/dist/who-bends.html?test=1&fast=1&mute=1&seed=8'); pg.wait_for_timeout(1200)
+    pg.goto('file:///home/claude/wb4/dist/who-bends.html?test=1&v1=1&fast=1&mute=1&seed=8'); pg.wait_for_timeout(1200)
     pg.evaluate("document.querySelector('#tNew').click()")
     for i in range(150):
         st = pg.evaluate("[__wb.panel(), __wb.waiter(), __wb.mode(), __wb.busy()]")

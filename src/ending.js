@@ -15,6 +15,12 @@ export const TITLES = {
   island: { title: 'The Island', text: 'You found your people and the places you could share. The rest of Larkspur stayed exactly as it was.' },
   working: { title: 'Still Working It Out', text: 'Some days you bent, some days you asked, some days you just went home. Most people\'s first weeks look like this.', later: 'Sometimes you bent, sometimes you asked, sometimes you just went home. Most festival days look like this.' },
 };
+// the new game's first day always makes room three times (it's how you learn the town): the titles count what you
+// made after it, on your own
+export const TITLES2 = {
+  roommade: { title: 'Room Made', text: 'After your first day, you made room twice more, on your own, and people you have never met use what you built. Someone lost something for each; you know who.' },
+  wider: { title: 'A Little Wider', text: 'After your first day, you made room once more, on your own. People you will never meet will use it. Someone lost a little for it; you know who.' },
+};
 const ZONE_NAME = { works: 'The Works', market: 'The market', transit: 'The bus stop', commons: 'The Commons', farend: 'The Far End', homerow: 'Home Row', hall: 'The hall', street: 'The street', festival: 'The festival' };
 const STAYED = { works: 'stayed bright', market: 'stayed loud', transit: 'kept changing without a word', commons: 'stayed open and glaring', farend: 'stayed very still', homerow: 'kept its knockers and no signs', hall: 'stayed full and formal', street: 'kept the Standard\'s pace', festival: 'stayed full' };
 

@@ -82,6 +82,14 @@ with sync_playwright() as p:
                 if o['id'] == 'gil_later' and POLICY == 'blend': pick = i
             if pick is None: pick = next((k for k, o in enumerate(opts) if not o['disabled']), 0)
             pg.evaluate('__wb.choose(%d)' % pick); pg.wait_for_timeout(150); continue
+        # lantern night: Wren says raise it, and you do (the key, like a player)
+        if pg.evaluate("!!document.querySelector('.raisebtn')"):
+            if 'raise' not in shots_done: shots_done.add('raise'); pg.wait_for_timeout(300); shot(pg, '60_raise')
+            pg.keyboard.press('l'); pg.wait_for_timeout(1800)
+            if 'reveal' not in shots_done: shots_done.add('reveal'); shot(pg, '61_reveal')
+            continue
+        if 'porchfit' not in shots_done and pg.evaluate("(() => { const t = document.querySelector('.revealcount'); return !!t && /porch/.test(t.textContent) && /Not even/.test(t.textContent) })()"):
+            shots_done.add('porchfit'); shot(pg, '62_porchfit')
         if not free(st): pg.wait_for_timeout(120); continue
         # in a room: walk to the spot the objective names and use it, or head out
         if st['loc'] != 'town':
@@ -96,7 +104,9 @@ with sync_playwright() as p:
             if st['near']:
                 if st['stage'] + '_raised' not in shots_done: shots_done.add(st['stage'] + '_raised'); shot(pg, '20_%s_raised' % st['stage'])
                 pg.keyboard.press('e'); pg.wait_for_timeout(700); continue
-            if st['at'] and st['path'] == 0: pg.evaluate("(a) => __wb.G.walkTo(a[0], a[1])", st['at']); pg.wait_for_timeout(500); continue
+            # walk toward the next mark still to find: the beam finds it on the way (a person would sweep around)
+            nm = pg.evaluate("(() => { const sl = __wb.G.story.slice; const z = { homerow: 'homerow', market: 'market', worksmarks: 'works' }[sl.stage]; const m = sl.nextMark(z); return m ? [m.at[0], m.at[2] + 1.6] : null; })()")
+            if nm and st['path'] == 0: pg.evaluate("(a) => __wb.G.walkTo(a[0], a[1])", nm); pg.wait_for_timeout(500); continue
             pg.wait_for_timeout(200); continue
         if st['raised']: pg.keyboard.press('l'); pg.wait_for_timeout(200); continue
         # otherwise: follow the objective, and use whatever is at the end of it

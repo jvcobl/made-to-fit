@@ -11,7 +11,7 @@ with sync_playwright() as p:
     ctx = b.new_context(viewport={'width': 390, 'height': 844} if mobile else {'width': 1280, 'height': 760}, device_scale_factor=1, is_mobile=mobile, has_touch=mobile)
     pg = ctx.new_page()
     pg.on('pageerror', lambda e: errs.append(str(e)[:300])); pg.on('console', lambda m: errs.append(m.text[:300]) if m.type == 'error' else None)
-    pg.goto('file:///home/claude/wb4/dist/who-bends.html?test=1&fast=1&mute=1&seed=5')
+    pg.goto('file:///home/claude/wb4/dist/who-bends.html?test=1&v1=1&fast=1&mute=1&seed=5')
     pg.wait_for_function('window.__wb && __wb.panel() !== null', timeout=60000)
     def shot(n, wait=500):
         pg.wait_for_timeout(wait); pg.evaluate('__wb.G.forceRender = true'); pg.wait_for_timeout(250); pg.screenshot(path='%s/%s-%s.png' % (out, tag, n))

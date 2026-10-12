@@ -7,7 +7,7 @@ import { clamp, pick, sleep, FAST, fmtTime, now, seedRng, params } from './util.
 import * as SAVE from './save.js';
 import { escortBea } from './guide.js';
 import { whoDecided, DEFAULTS } from './decided.js';
-import { endingKey, TITLES, specificLine, remember, buildCarry, fitCardData } from './ending.js';
+import { endingKey, TITLES, TITLES2, specificLine, remember, buildCarry, fitCardData } from './ending.js';
 import { recap } from './recap.js';
 import { parseCond, parseEffect, compare } from './script.js';
 import { SortGame } from './games/sort.js';
@@ -20,6 +20,7 @@ import { TeachUnit } from './games/teach.js';
 import { FestivalMail } from './games/mail.js';
 import { Return, stateFromCarry } from './returns.js';
 import { Slice } from './slice.js';
+import { Hearing, HEARINGS } from './hearing.js';
 
 // where objectives point: a spot just in front of each door
 const T = { works: [12, 13.9], shed: [52, 11.8], hall: [32, 14.1], home: [9.5, 37.7], square: [30, 27.2], statue: [30, 26.6], farend: [50, 42.3], pond: [52.4, 43.9] };
@@ -641,7 +642,9 @@ export class Story {
     { const c = G.roomCam('home'); G.stage.shot(c.pos, c.look, c.fov, 3, true); }
     S.dayStats = Object.assign({}, S.stats); S.metAt0 = Object.keys(S.met); S.fixAt0 = Object.assign({}, S.fixes);
     // whatever was approved yesterday went up overnight; today shows it in use rather than announcing it
-    for (const k of Object.keys(S.fixes)) if (S.fixes[k] === 'approved' && d <= 3) { S.fixes[k] = 'built'; G.applyFix(k); this.fieldNote('curb'); }
+    const upNow = [];
+    for (const k of Object.keys(S.fixes)) if (S.fixes[k] === 'approved' && d <= 3) { S.fixes[k] = 'built'; G.applyFix(k); this.fieldNote('curb'); upNow.push(k); }
+    if (S.color) for (const k of upNow) { const z = SIM.FIXES[k].zone; if (S.color[z] != null && S.color[z] < 1) { S.color[z] = 1; S.color.street = Math.min(1, (S.color.street || 0) + 0.15); } }
     S.rue = this.rueState();
     for (const id of Object.keys(S.lantern.entries)) this.resolveHint(id, false);
     G.audio.setScene('home');
@@ -662,6 +665,7 @@ export class Story {
   todayCard(d) {
     const S = this.S;
     if (d === 1) return { day: 'Monday', title: 'Your first day', items: [{ t: 'Get to the Works by 9:00', sub: 'Bea from next door is heading that way.' }, { t: 'Say hi to your neighbors' }, { t: 'Find the Fix-It Shed', sub: 'In the Commons, past Town Hall.' }], note: 'When a place pinches, you choose who adjusts.' };
+    if (d === 2 && S.v2) return { day: 'Tuesday', title: 'A full day', items: [{ t: 'Weekly sync at the Works, 9:00' }, { t: 'The bus stop', sub: 'Something there changes without a word. Take the lantern.' }, { t: 'Clover found something in the loft', sub: 'The Fix-It Shed.' }, { t: 'Town meeting, 6 PM, Town Hall', sub: 'Ideas with two backers get a hearing.' }], note: 'Two more fixes fit in this season\'s budget. Monday\'s were made on the spot.' };
     if (d === 2) { const open = this.openThread(); return { day: 'Tuesday', title: 'A full day', items: [{ t: 'Weekly sync at the Works, 9:00' }, { t: 'Clover found something in the loft', sub: 'The Fix-It Shed.' }, { t: 'Town meeting, 6 PM, Town Hall', sub: 'Proposals with two backers get a vote.' }], note: open ? 'Still open from yesterday: ' + open : 'Listen to people. They tell you what pinches them, if you let them.' }; }
     // Wednesday: the fixes in use first, then Wren's lanterns and the festival
     const items = [];
@@ -737,6 +741,8 @@ export class Story {
       if (S.flags.councilDone) return ob(m >= 1170 ? 'That is enough for today. Head home when you like.' : 'The meeting is over. The evening is yours.', T.home, 'Home', m >= 1170 ? { inside: 'home', spot: 'bed', spotLabel: 'Bed' } : { inside: 'home' });
       if (shiftOpen(2)) return ob(this.G.loc === 'works' ? 'Sit at your desk for the weekly sync.' : 'Weekly sync at the Works, 9:00.', this.G.loc === 'works' ? null : T.works, 'The Works', { inside: 'works', spot: 'mydesk', spotLabel: 'Your desk' });
       if (m >= 1020) return ob('Town meeting at 6 PM, Town Hall.', T.hall, 'Town Hall', { inside: 'hall' });
+      // the new game's Tuesday: the bus stop's list first (Monday's postcard promised it), then the loft
+      { const bus = this.busList(); if (bus) return bus; }
       if (!S.flags.statue_seen && m >= 600 && this.G.npcs.clover.place === 'town') return ob('Clover found something in the loft. Visit the Fix-It Shed.', T.shed, 'Fix-It Shed');
       if (hasIdea) return ob(Object.keys(SIM.FIXES).filter((f) => SIM.fixState(S, f) === 'idea').length > 1 ? 'Take your ideas to Clover at the Fix-It Shed.' : 'Take your idea to Clover at the Fix-It Shed.', T.shed, 'Fix-It Shed');
       if (S.flags.rue_invite && !S.flags.rue_pond && m >= 945 && m < 1050) return ob('Rue asked to meet at the pond.', T.pond, 'The pond');
@@ -770,10 +776,19 @@ export class Story {
     }
     return ob('');
   }
+  // Tuesday in the new game: what pinches at the bus stop, with the lantern, until its list is full (or the idea is made)
+  busList() {
+    const G = this.G, S = this.S; if (!S.v2 || this.ret || S.day !== 2 || !G.marks) return null;
+    const c = G.marks.count('transit'); if (c.done >= c.total || SIM.fixState(S, 'board') !== 'none' || S.min >= 1000) return null;
+    const here = G.loc === 'town' && G.zone === 'transit';
+    if (here && !G.look.raised) return ob('Raise the lantern at the bus stop' + (this.ui.touch ? '.' : ' (' + G.keyOf('look') + ').'), null);
+    return ob('The bus stop: sweep the lantern round and tag what pinches people (' + c.done + '/' + c.total + ').', here ? null : G.town.spots.transit, 'The bus stop');
+  }
   goals() {
     if (this.ret) return this.ret.goals();
     if (this.slice.on) return this.slice.goals();
     const S = this.S, d = S.day; const met = Object.keys(S.met).filter((k) => CAST[k] && !CAST[k].minor).length;
+    if (d === 2 && S.v2 && this.G.marks) { const c = this.G.marks.count('transit'); return [{ t: 'Weekly sync at the Works, 9:00', done: !!S.flags.shift2 }, { t: 'What pinches at the bus stop (' + Math.min(c.done, c.total) + '/' + c.total + ')', done: c.done >= c.total }, { t: 'See what Clover found', done: !!S.flags.statue_seen }, { t: 'Take an idea to the Shed, and find its backers', done: Object.values(S.fixes).some((v) => v === 'ready' || v === 'proposal') || !!S.flags.councilDone }, { t: 'Town meeting, 6 PM', done: !!S.flags.councilDone }]; }
     if (d === 1) return [{ t: 'Get to the Works by 9:00', done: !!S.flags.shift1 }, { t: 'Meet at least four neighbors (' + Math.min(4, met) + '/4)', done: met >= 4 }, { t: 'Find the Fix-It Shed', done: !!S.met.clover }, { t: 'Home by 10 PM', done: false }];
     if (d === 2) return [{ t: 'Weekly sync at the Works, 9:00', done: !!S.flags.shift2 }, { t: 'See what Clover found', done: !!S.flags.statue_seen }, { t: 'Turn an idea into a proposal at the Shed', done: Object.values(S.fixes).some((v) => v !== 'idea') }, { t: 'Town meeting, 6 PM', done: !!S.flags.councilDone }];
     if (d === 3) return [{ t: 'See the fixes in use', done: Object.keys(S.felt || {}).length > 0 || !Object.values(S.fixes).includes('built') }, { t: 'Paint three lanterns with Wren', done: !!S.flags.painted }, { t: 'The Lantern Festival, 8 PM', done: !!S.flags.released }];
@@ -1170,7 +1185,7 @@ export class Story {
     if (this.gwOf(id) >= 1) { S.gw[id] = this.gwOf(id) - 1; await this.run(T.back[f], { npc: id, back: true }); return; }
     await this.say(id, this.ret ? 'Not today. I\'ve said yes to enough this week.' : 'Ask me again when I know you better.');
   }
-  capLine() { const n = SIM.approvedCount(this.S); return 'Fixes this visit: ' + n + ' of ' + SIM.SEASON_CAP + '.'; }
+  capLine() { return SIM.capText(this.S); }
   async proposals() {
     const S = this.S, G = this.G;
     const ideas = Object.keys(SIM.FIXES).filter((f) => SIM.fixState(S, f) === 'idea');
@@ -1409,7 +1424,7 @@ export class Story {
     await this.notReady();
     const ready = await this.budget();
     if (!ready.length && !Object.values(S.fixes).some((v) => v === 'onfile') && !(this.ret && this.ret.A.council)) await this.run(this.ret ? COUNCIL.noneFest : COUNCIL.none);
-    for (const f of ready) await this.voteOn(f, null);
+    for (const f of ready) { if (S.v2 && !this.ret && HEARINGS[f]) await this.hearOn(f); else await this.voteOn(f, null); }
     ui.hideDialog(); ui.letterbox(false);
     S.min = Math.max(S.min, 1140); S.flags.councilDone = 1;
     await G.stage.fadeTo(1, 600);
@@ -1496,6 +1511,25 @@ export class Story {
       this.log('vote', { z: F.zone, v: 'passed', by: 'meeting', pay: stake === 'listened' ? [] : [STAKES[f].who], verb: 'The ' + F.short + ' ' + SIM.agree(f, 'was', 'were') + ' voted through.' });
     } else { await this.say('hollis', COUNCIL.failed); S.fixes[f] = 'onfile'; this.log('vote', { z: F.zone, v: 'failed', by: 'meeting', pay: ['you'], verb: 'The ' + F.short + ' didn\'t pass. ' + SIM.agree(f, 'It', 'They') + ' went on file.' }); }
     return yes >= 2;
+  }
+  // the new game's town meeting: each proposal gets a hearing (hearing.js), argued with the cards you hold
+  async hearOn(f) {
+    const G = this.G, S = this.S, ui = this.ui; const F = SIM.FIXES[f]; const stake = (S.stakes || {})[f] || 'unasked';
+    await this.say('you', COUNCIL.present[f]);
+    ui.hideDialog(); ui.hud(false); ui.letterbox(false);
+    const gallery = ['bea', 'gil', 'moss', 'rue', 'wren'].filter((id) => G.npcs[id] && G.npcs[id].place === 'hall');
+    const h = new Hearing(G, HEARINGS[f], { gallery: gallery.length ? gallery : ['bea'] }); this.hearingNow = h;
+    const r = await h.run(); this.hearingNow = null;
+    ui.hud(true); ui.letterbox(true);
+    if (r.passed) {
+      await this.say('hollis', COUNCIL.passed); await this.say('clover', COUNCIL.passedClover);
+      this.approve(f, 'meeting', true); G.audio.sfx('fix'); this.fieldNote('curb'); this.keep('built_' + f, 'The ' + F.short + ', voted through', '#9fd3b0');
+      this.log('vote', { z: F.zone, v: 'passed', by: 'meeting', pay: stake === 'listened' ? [] : [STAKES[f].who], verb: 'The ' + F.short + ' ' + SIM.agree(f, 'was', 'were') + ' voted through.' });
+    } else {
+      await this.say('hollis', COUNCIL.failed); if (r.missing.length && HEARINGS[f].missing[r.missing[0]]) await this.say('clover', 'You were missing ' + HEARINGS[f].missing[r.missing[0]] + '. Bring it back next season.');
+      S.fixes[f] = 'onfile'; this.log('vote', { z: F.zone, v: 'failed', by: 'meeting', pay: ['you'], verb: 'The ' + F.short + ' didn\'t pass. ' + SIM.agree(f, 'It', 'They') + ' went on file.' });
+    }
+    return r.passed;
   }
   approve(f, via, mine) {
     const S = this.S; S.fixes[f] = 'approved'; S.fixAct = S.fixAct || {}; S.fixAct[f] = S.act || 1; S.fixVia = S.fixVia || {}; S.fixVia[f] = via; if (mine) { S.fixMine = S.fixMine || {}; S.fixMine[f] = 1; }
@@ -1657,7 +1691,7 @@ export class Story {
   // ---------- the ending ----------
   async ending() {
     const G = this.G, S = this.S;
-    const rue = this.rueState(); const key = endingKey(S); const E = TITLES[key];
+    const rue = this.rueState(); const key = endingKey(S); const E = (S.v2 && !this.ret && TITLES2[key]) || TITLES[key];
     const after = G.portrait();
     this.openAutism(); this.fieldNote('avatar'); this.fieldNote('nosim');
     // proposals that never got a vote wait for next season

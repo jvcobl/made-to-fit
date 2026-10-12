@@ -25,7 +25,7 @@ with sync_playwright() as p:
         pg = ctx.new_page(); errors = []
         pg.on('pageerror', lambda e: errors.append(str(e)[:300]))
         # normal speed (no fast=1), so the cards and timings are what a player sees
-        pg.goto(BASE + '?test=1&mute=1&seed=5'); pg.wait_for_function("window.__wb && __wb.G && __wb.panel() && __wb.panel().includes('title')", timeout=90000)
+        pg.goto(BASE + '?test=1&v1=1&mute=1&seed=5'); pg.wait_for_function("window.__wb && __wb.G && __wb.panel() && __wb.panel().includes('title')", timeout=90000)
         pg.evaluate('localStorage.clear(); sessionStorage.clear()'); pg.reload(); pg.wait_for_function("window.__wb && __wb.G && __wb.panel() && __wb.panel().includes('title')", timeout=90000)
         pg.evaluate("__wb.G.settings.textSpeed = 'instant'")
         drive_to(pg, lambda st: FREE(st) and st['day'] == 1, budget=300)

@@ -54,7 +54,8 @@ def main():
         pg = ctx.new_page(); errs = []
         pg.on('pageerror', lambda e: (errs.append(str(e)[:500]), problem('page error: ' + str(e)[:300])))
         pg.on('console', lambda m: (problem('console error: ' + m.text[:300]) if m.type == 'error' else None))
-        url = PAGE + ('&' if '?' in PAGE else '?') + 'test=1&fast=1&mute=1&seed=%d' % SEED + os.environ.get('EXTRA', '')
+        # V2=1: the new first day, finished at once the way a good day goes (sliceSkip), then days two and three as a person plays them
+        url = PAGE + ('&' if '?' in PAGE else '?') + ('test=1' if os.environ.get('V2') else 'test=1&v1=1') + '&fast=1&mute=1&seed=%d' % SEED + os.environ.get('EXTRA', '')
         pg.goto(url)
         pg.wait_for_function("window.__wb && __wb.G && __wb.panel() !== null", timeout=90000)
         pg.evaluate('localStorage.clear(); sessionStorage.clear()'); pg.reload()
@@ -137,6 +138,8 @@ class Human:
         elif k % 3 == 1: self.key('Escape')
         else: self.pg.mouse.click(640 if not self.touch else 195, 380)
     def step(self, s):
+        if os.environ.get('V2') and s['mode'] == 'play' and not s['busy'] and not s['waiter'] and not s['panel'] and self.pg.evaluate("!!(__wb.state().v2 && __wb.state().day === 1 && __wb.state().slice && __wb.state().slice.stage !== 'done')"):
+            say('SLICE', 'finishing the first day the usual way'); self.pg.evaluate("__wb.sliceSkip()"); self.pg.wait_for_timeout(600); return False
         if s['ov']: self.overlay(s); return False
         if s['panel']: return self.panel(s)
         if s['mg']: self.task(s); return False
@@ -304,6 +307,24 @@ class Human:
         if time.time() - self.lastPhone > 150 and not s['festival']:
             self.lastPhone = time.time(); self.phone(s); return
         if s['walking']: return
+        # the lantern (the new game): raise it when the objective asks, and sweep toward what it hasn't found yet
+        if os.environ.get('V2') and s['loc'] == 'town':
+            raised = pg.evaluate('!!__wb.G.look.raised')
+            if 'Raise the lantern' in s['obj'] and not raised:
+                say('DO', 'raise the lantern (objective: %s)' % s['obj'])
+                if self.touch: self.click('#hud .gearbtns [data-g=look]')
+                else: self.key('l')
+                return
+            if raised and 'lantern' not in s['obj'] and self.tries.get('lower:' + s['obj'], 0) < 1:
+                self.tries['lower:' + s['obj']] = 1; say('DO', 'lower the lantern (objective: %s)' % s['obj'])
+                if self.touch: self.click('#hud .gearbtns [data-g=look]')
+                else: self.key('l')
+                return
+            if 'sweep the lantern' in s['obj'] and raised and not (s['prompt'] and s['target']) and time.time() - self.lastWay > 2.5:
+                nm = pg.evaluate("(() => { const G = __wb.G; const z = G.marks.streetHere(); if (!z) return null; const m = G.story.slice.nextMark(z); return m ? [m.at[0], m.at[2] + 1.6, m.name] : null; })()")
+                if nm:
+                    self.lastWay = time.time(); say('DO', 'sweep the lantern toward what it hums at (%s)' % nm[2])
+                    pg.evaluate('(a) => __wb.G.walkTo(a[0], a[1])', nm); return
         if s['prompt'] and s['target']:
             t = s['target']; npc = pg.evaluate("(t) => !!__wb.G.npcs[t]", t)
             if t == 'out': press = s['inside'] != s['loc']

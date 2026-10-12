@@ -161,8 +161,11 @@ export const SEASON_CAP = 2;
 // words that agree with a fix's short name ("the porch lanterns are up", "the ramp is up")
 export const agree = (f, one, many) => (FIXES[f] && FIXES[f].pl ? many : one);
 // fixes approved this visit (by Gil or the town meeting), counting ones already built
-// (a gift built by the Founders' Fund's own crews doesn't use one of the season's two)
-export const approvedCount = (S) => Object.keys(S.fixes).filter((f) => (S.fixes[f] === 'approved' || S.fixes[f] === 'built') && ((S.fixAct || {})[f] || 1) === (S.act || 1) && (S.fixVia || {})[f] !== 'fund').length;
+// (a gift built by the Founders' Fund's own crews doesn't use one of the season's two, and nor do the first day's,
+// made on the spot before the season's budget opened)
+export const approvedCount = (S) => Object.keys(S.fixes).filter((f) => (S.fixes[f] === 'approved' || S.fixes[f] === 'built') && ((S.fixAct || {})[f] || 1) === (S.act || 1) && !['fund', 'slice'].includes((S.fixVia || {})[f])).length;
+// how the season's budget reads in a sentence ("Fixes this season: 1 of 2.", plus the first day's, if any)
+export const capText = (S) => { const n = approvedCount(S); const pre = Object.keys(S.fixes).filter((f) => (S.fixVia || {})[f] === 'slice' && S.fixes[f] === 'built').length; return 'Council fixes this season: ' + n + ' of ' + SEASON_CAP + '.' + (pre ? ' (Monday\'s ' + pre + ' were made on the spot, and don\'t count.)' : ''); };
 export function fixState(S, id) { return S.fixes[id] || 'none'; }
 export function supporters(S, id) { return (S.support[id] || []).length; }
 export function builtCount(S) { return Object.values(S.fixes).filter((v) => v === 'built').length; }

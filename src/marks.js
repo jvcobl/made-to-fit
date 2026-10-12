@@ -27,16 +27,20 @@ export const MARKS = [
   { id: 'hr_doors', sight: 'doors', street: 'homerow', kind: 'people', at: [15, 2.2, 35.75], name: 'The doors on Home Row', line: 'Knockers, and no signs. Whoever knocks, whenever they like, you are expected to answer.', who: ['wren', 'bea'], you: ['people', 'over'], pre: 'wren' },
   { id: 'hr_knock', street: 'homerow', kind: 'people', at: [23, 2.2, 35.75], name: 'Bea\'s knocker', line: 'Anyone can knock, any time. Bea never knows who it is, or whether she has it in her today.', who: ['bea'], you: ['people', 'over'] },
   { id: 'hr_rule', street: 'homerow', kind: 'talk', at: [19, 3.1, 36.75], name: 'The unwritten rule', line: '"Pop round any time!" Everyone on the row says it. Nobody knows who means it.', who: ['wren', 'bea', 'moss'], you: ['talk', 'under'] },
+  { id: 'hr_bins', street: 'homerow', kind: 'change', at: [2.4, 1.4, 37.6], name: 'Bin day', line: 'The bins went out on Tuesdays for twenty years. Now it\'s Mondays, and nobody told Bea. You only see this one in the early morning.', who: ['bea'], you: ['change', 'over'], rare: [500, 600] },
   { id: 'mk_speaker', street: 'market', kind: 'sound', at: [38, 3.0, 30], name: 'A speaker on every post', line: 'The market jingle, every four minutes, from all four corners at once.', who: ['moss', 'bea'], you: ['sound', 'over'], pre: 'wren' },
   { id: 'mk_bench', street: 'market', kind: 'sound', at: [22, 3.0, 30], name: 'The speaker over the benches', line: 'The only seats in the square sit right under the loudest speaker.', who: ['moss', 'bea', 'wren'], you: ['sound', 'over'] },
   { id: 'mk_crowd', street: 'market', kind: 'people', at: [30, 2.6, 30.6], name: 'No way round', line: 'At noon the whole square is one crowd. There is nowhere to stand that isn\'t in it.', who: ['moss', 'wren'], you: ['people', 'over'] },
   { id: 'mk_bell', sight: 'bell', street: 'market', kind: 'sound', at: [30, 3.6, 16.6], name: 'The noon bell', line: 'Twelve strokes at noon, right over the stalls. You only see this one at midday.', who: ['moss', 'bea'], you: ['sound', 'over'], rare: [705, 760] },
   { id: 'wk_memo', sight: 'memo', street: 'works', kind: 'talk', at: [15.6, 2.4, 10.62], name: 'The memo in the window', line: '"It would be great if everyone could maybe think about the festival post at some point!!" Who, what and by when are left as an exercise.', who: ['wren', 'rue'], you: ['talk', 'under'], pre: 'wren' },
   { id: 'wk_steps', street: 'works', kind: 'steps', at: [12, 1.3, 11.9], name: 'Three steps, no ramp', line: 'The only way in from the street. Anyone on wheels goes round to the loading dock, which opens at ten.', who: ['bea', 'pip'], you: ['wheels'] },
-  { id: 'wk_glare', sight: 'panels', street: 'works', kind: 'light', at: [8.2, 2.7, 10.62], name: 'The ceiling panels', line: 'Bright enough inside to read by at midnight. Gil has a headache by eleven most days.', who: ['gil', 'wren'], you: ['light', 'over'] },
+  { id: 'wk_glare', sight: 'panels', street: 'works', kind: 'light', at: [8.2, 2.7, 10.62], name: 'The ceiling panels', line: 'Bright enough inside to read by at midnight. Gil has a headache by eleven most days. (An extra: not on the list.)', who: ['gil', 'wren'], you: ['light', 'over'], extra: true },
+  { id: 'wk_dock', street: 'works', kind: 'steps', at: [20.4, 2.3, 8.2], name: 'The loading dock', line: 'The long way in for anything on wheels. Pip brings her bread cart round here every morning and waits for the door, which opens at ten.', who: ['pip', 'bea'], you: ['wheels'] },
+  { id: 'wk_flicker', street: 'works', kind: 'light', at: [10.4, 3.3, 10.62], name: 'The flickering panel', line: 'One panel in the second row flickers, now and then. Fen says you stop noticing. Gil never does. It only acts up after lunch.', who: ['gil'], you: ['light', 'over'], rare: [780, 900] },
   { id: 'tr_speaker', street: 'transit', kind: 'change', at: [53.4, 3.0, 23.0], name: 'The crackly speaker', line: 'Route changes are announced once, over this. Miss it and you are on the wrong bus.', who: ['bea', 'pip'], you: ['change', 'over'] },
   { id: 'tr_step', sight: 'busstep', street: 'transit', kind: 'steps', at: [54.5, 1.0, 26.4], name: 'The bus step', line: 'Eight inches up. Just right for the Standard\'s knees.', who: ['bea'], you: ['wheels'] },
   { id: 'tr_last', sight: 'timetable', street: 'transit', kind: 'time', at: [52.95, 2.2, 23.8], name: 'The last bus', line: 'First bus 6:10, last bus 19:40. Set for someone up early and home by dark.', who: ['rue', 'pip'], you: ['time', 'over'] },
+  { id: 'tr_bus', street: 'transit', kind: 'change', at: [53.6, 2.4, 25.4], name: 'Rerouted, again', line: 'Today: via Elm Street. Said once, over the crackly speaker, as the bus pulled in. You only see this one while a bus is due.', who: ['bea', 'rue'], you: ['change', 'over'], rare: [0, 1440], only: (S) => { const m = Math.floor(S.min) % 60; return m >= 34 && m < 46; } },
   { id: 'hl_notice', sight: 'notice', street: 'hall', kind: 'time', at: [35.4, 2.3, 13.95], name: 'The council notices', line: 'Meetings booked a year ahead, in pen. Bus routes change without a word. Some of each.', who: ['wren', 'rue'], you: ['change', 'under'] },
   { id: 'hl_ramp', street: 'hall', kind: 'fit', at: [26.8, 1.5, 12.2], name: 'Ramp, 1998', line: 'Someone made room here once. It took them nine years of asking.', who: [], fit: true },
   { id: 'fe_sign', street: 'farend', kind: 'fit', at: [48.6, 2.0, 40.4], name: 'Wren\'s sign', line: '"Knock once, then wait." Wren made her own corner fit her. Nobody else had to agree.', who: [], fit: true },
@@ -79,7 +83,7 @@ export class Marks {
   tagged(id) { const m = markById(id); return !!((this.S.marks || {})[id] || (m && m.pre)); }
   // what's left to find in a street: tagged / total (rare ones are extra)
   count(street) {
-    const list = MARKS.filter((m) => m.street === street && !m.rare && !m.fit);
+    const list = MARKS.filter((m) => m.street === street && !m.rare && !m.fit && !m.extra);
     return { done: list.filter((m) => this.tagged(m.id)).length, total: list.length, rare: MARKS.filter((m) => m.street === street && m.rare).map((m) => this.tagged(m.id)) };
   }
   complete(street) { const c = this.count(street); return c.total > 0 && c.done >= c.total; }
@@ -99,13 +103,20 @@ export class Marks {
     if (!this.active || !this.G.look.raised || this.G.loc !== 'town') return null;
     const p = this.G.player.root.position; let best = null, bd = 1e9;
     for (const m of MARKS) {
-      if (this.tagged(m.id) || !this.visible(m)) continue;
+      if (this.tagged(m.id) || !this.visible(m) || !(this.seen && this.seen.has(m.id))) continue;
       const d = Math.hypot(m.at[0] - p.x, m.at[2] - p.z); if (d > REACH) continue;
       if (d < bd) { bd = d; best = m; }
     }
     return best;
   }
   // a tap on a mark's icon
+  // found: the beam passed over it (a soft ping and a few sparks, before you tag it)
+  found(m) {
+    const G = this.G; const K = KINDS[m.kind];
+    G.fx.burst(new THREE.Vector3(m.at[0], m.at[1], m.at[2]), { n: 8, colors: [K[1], '#fff4d6'], speed: 1.4, up: 1.2, size: 0.12, life: 0.7 });
+    G.audio.sfx('plip');
+    const sp = this.sprites[MARKS.indexOf(m)]; sp.userData.popT = 0.5;
+  }
   hit(ray) {
     if (!this.active || !this.G.look.raised) return null;
     const shown = this.sprites.filter((s) => s.visible); if (!shown.length) return null;
@@ -117,6 +128,7 @@ export class Marks {
     // a mark is also a clue to the Standard's room (the statue's puzzle)
     if (m.sight) { S.sights = S.sights || {}; if (!S.sights[m.sight]) S.sights[m.sight] = S.day || 1; }
     const c = this.count(m.street); const i = c.done - 1;
+    { const B = S.blend; if (B && B.has && !B.deleted && (B.inRow || 0) > 0) { B.inRow = 0; setTimeout(() => G.fx.pop(G.player.root.position.clone(), 'Blend: streak lost', { kind: 'blend', hook: 'streak', hookCtx: { what: 'Blend: streak lost for noticing', by: 'blend' }, ms: 1800, dy: 2.6, follow: G.player.root }), 900); } }
     const at = new THREE.Vector3(m.at[0], m.at[1], m.at[2]);
     const K = KINDS[m.kind];
     G.fx.burst(at, { n: m.rare ? 30 : 20, colors: [K[1], '#fff4d6', '#ffcf7a'], speed: 3, up: 2.4, size: 0.17, life: 1 });
@@ -124,6 +136,8 @@ export class Marks {
     G.fx.chime(Math.max(0, i), { rare: !!m.rare }); G.fx.punch(0.35);
     const sp = this.sprites[MARKS.indexOf(m)]; sp.material.map = this.texOf(m, true); sp.material.needsUpdate = true; sp.userData.popT = 0.5;
     const st = STREETS[m.street];
+    // a sound mark: the street goes quiet for a moment, to show what a fix could do
+    if (m.kind === 'sound') { G.audio.preview(2.4); setTimeout(() => G.fx.pop(at.clone().add(new THREE.Vector3(0, -0.8, 0)), 'Imagine it quieter…', { kind: 'good', ms: 1900, rise: 20 }), 350); }
     if (m.rare) G.fx.pop(at, 'Rare find: ' + m.name, { kind: 'rare', big: true, hook: 'rare', hookCtx: { what: 'A rare find: ' + m.name } });
     else if (m.fit) G.fx.pop(at, 'Room made: ' + m.name, { kind: 'good' });
     else {
@@ -134,6 +148,7 @@ export class Marks {
     this.showCard(m);
     G.story.fieldNote && m.kind === 'steps' && G.story.fieldNote('curb');
     if (G.story.slice && G.story.slice.on) G.story.slice.onMark(m, this.count(m.street));
+    else if (!G.story.ret && this.complete(m.street)) { const f = (STREETS[m.street] || {}).fix; if (f && (S.fixes[f] || 'none') === 'none') G.story.addIdea(f); }
     this.refreshChip(true);
   }
   // the card for a mark: what it is and who it pinches (a moment, then it tucks itself away; it never stops play)
@@ -171,23 +186,33 @@ export class Marks {
     // Smooth Mode dims the lantern: marks show only close by, and fainter
     const B = this.S.blend || {}; const dim = B.has && B.smooth && !B.deleted && !this.showAll; const range = this.showAll ? 999 : dim ? 9 : SHOW;
     let shownN = 0;
+    // the lantern's beam: about forty degrees either side of where you face. A mark shows once the beam has swept over
+    // it (or you're right beside it), and stays found; the lantern hums higher as an unfound one comes into line
+    const hd = G.player.heading, fx0 = Math.sin(hd), fz0 = Math.cos(hd); let warm = 0; this.seen = this.seen || new Set();
     MARKS.forEach((m, i) => {
       const sp = this.sprites[i];
-      let show = on && this.k > 0.02 && (this.visible(m) || this.showAll) && Math.hypot(m.at[0] - p.x, m.at[2] - p.z) < range && !(this.showAll && m.fit);
+      const dx = m.at[0] - p.x, dz = m.at[2] - p.z, dist = Math.hypot(dx, dz); const cos = dist > 0.01 ? (dx * fx0 + dz * fz0) / dist : 1;
+      if (up && !this.showAll && this.visible(m) && dist < range && !this.seen.has(m.id) && !this.tagged(m.id)) {
+        if (cos > 0.77 || dist < 2.4) { this.seen.add(m.id); this.found(m); } else warm = Math.max(warm, clamp((cos - 0.15) / 0.62) * clamp(1.4 - dist / range));
+      }
+      let show = on && this.k > 0.02 && (this.visible(m) || this.showAll) && dist < range && !(this.showAll && m.fit) && (this.showAll || this.seen.has(m.id) || this.tagged(m.id));
       if (show && this.showAll && this.fade != null) { show = shownN < this.fade; shownN++; }
       sp.visible = show; if (!show) return;
-      const done = this.tagged(m.id);
+      // (on lantern night, seen from above, every mark shows at full strength, tagged or not: it's still there)
+      const done = this.tagged(m.id) && !this.showAll;
       if (sp.userData.popT > 0) sp.userData.popT -= dt;
       const pop = sp.userData.popT > 0 ? 1 + Math.sin((1 - sp.userData.popT / 0.5) * Math.PI) * 0.6 : 1;
-      const s = (this.showAll ? 2.4 : 1) * (done ? 0.72 : 0.95 * pulse) * pop * (this.near === m ? 1.18 : 1);
+      const s = (this.showAll ? 3.6 : 1) * (done ? 0.72 : 0.95 * pulse) * pop * (this.near === m ? 1.18 : 1);
       sp.scale.set(s, s, 1); sp.material.opacity = this.k * (done ? 0.75 : 1) * (dim ? 0.55 : 1);
-      if (!done && sp.material.map !== this.texOf(m, false)) { sp.material.map = this.texOf(m, false); sp.material.needsUpdate = true; }
+      { const tx = this.texOf(m, done); if (sp.material.map !== tx) { sp.material.map = tx; sp.material.needsUpdate = true; } }
     });
     this.near = up ? this.pickTarget() : null;
+    this.warm = damp(this.warm || 0, up ? warm : 0, 6, dt);
+    G.audio.lanternHum(this.warm);
     // the lantern in your hand, and its warm light around you
     const lift = this.k; this.held.visible = lift > 0.05;
     if (this.held.visible) { const sw = G.settings.reduceMotion ? 0 : Math.sin(this.t * 2.2) * 0.05; this.held.position.set(0.42, 0.55 + lift * 0.75, 0.22); this.held.rotation.z = sw; }
-    if (on) { this.light.position.set(p.x + 0.3, 1.6, p.z + 0.2); this.light.intensity = this.k * (dim ? 2.2 : 6); } else this.light.intensity = 0;
+    if (on) { this.light.position.set(p.x + 0.3, 1.6, p.z + 0.2); this.light.intensity = this.k * (dim ? 2.2 : 6) * (1 + (this.warm || 0) * 0.6 * (G.settings.reduceMotion ? 0 : 0.5 + 0.5 * Math.sin(this.t * (4 + 10 * (this.warm || 0))))); } else this.light.intensity = 0;
     if ((this.ct = (this.ct || 0) - dt) <= 0) { this.ct = 0.3; this.refreshChip(false); }
   }
 }

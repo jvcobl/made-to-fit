@@ -125,6 +125,21 @@ export const FIELD_NOTES = [
   { id: 'streaks', section: 'wanting', act: 1, tag: 'Experiments · moderate', title: 'Streaks',
     text: "People who see an unbroken streak tend to keep going. When a streak breaks, they tend to do less, though less so if they can repair it. A streak can start to feel like a promise you owe an app. This game has no real-world streaks: Blend's streaks live inside the story.",
     src: 'Silverman and Barasch, 2023' },
+  { id: 'endowed', section: 'wanting', act: 1, tag: 'Field experiment · moderate', title: 'A head start',
+    text: "At a car wash, 300 customers were given loyalty cards. Some needed eight stamps for a free wash; others needed ten but came with two already stamped. Both needed eight more washes, yet 34 percent of the head-start group finished, against 19 percent of the others, and they came back sooner. Each street's list in this game starts with one already ticked.",
+    src: 'Nunes and Drèze, 2006' },
+  { id: 'gradient', section: 'wanting', act: 1, tag: 'Field studies · moderate', title: 'Almost there',
+    text: "In a café's buy-ten-get-one-free scheme, customers bought coffee faster as they got closer to the free one: the gaps between purchases shrank by about a fifth. That pull is why this game tells you when there's one left.",
+    src: 'Kivetz, Urminsky and Zheng, 2006' },
+  { id: 'openloop', section: 'wanting', act: 1, tag: 'Meta-analysis · moderate', title: 'Unfinished business',
+    text: 'People tend to go back to tasks that were interrupted before they were done. The better-known claim, that unfinished tasks are remembered better, did not hold up across studies. This game ends its first day on an open question on purpose.',
+    src: 'Ghibellini and Meier, 2025' },
+  { id: 'points', section: 'wanting', act: 1, tag: 'Literature review · mixed', title: 'Points and badges',
+    text: 'A review of 24 studies found that points, badges and leaderboards mostly raised engagement, but the effects depended on the setting and the person, and some faded once the novelty wore off.',
+    src: 'Hamari, Koivisto and Sarsa, 2014' },
+  { id: 'likes', section: 'wanting', act: 1, tag: 'Brain-imaging experiment · moderate', title: 'Likes',
+    text: 'Teenagers in a brain scanner looked at photos laid out like a photo-sharing app. Photos shown with many likes drew more activity in brain areas linked to reward and attention, and the teens were more likely to like those photos themselves.',
+    src: 'Sherman and colleagues, 2016' },
   { id: 'dark', section: 'wanting', act: 1, tag: 'Design framework', title: 'Dark patterns',
     text: "Design choices that work against players' interests, such as streaks that punish you for missing a day, are called dark game design patterns. Blend used them on your character. This game doesn't use them on you: no real-world streaks, no penalties for stepping away, nothing to buy with real money. It does use gentler pulls, and the title screen lists them.",
     src: 'Zagal, Björk and Lewis, 2013; Gray and colleagues, 2018' },
@@ -289,4 +304,4 @@ export const CONTENT_NOTES = {
 export const CREDIT = "The word 'misfit' in this sense comes from disability studies (Rosemarie Garland-Thomson, 2011).";
 
 // Title-screen ingredients label.
-export const INGREDIENTS = "About 40 minutes, then two short return visits if you like. What keeps you playing: questions that close by dusk, a jar that fills, days that end on their best moment, things left to find, neighbors who drop by, and the pull of 'ten years later'. What you can try yourself: a shelf of random card packs bought with game coins (never real money), next to a binder where you can pick any card. What it doesn't use: real-world streaks or countdowns, notifications, purchases, ads or tracking. Nothing flashes more than three times a second, and every scene is tested for it.";
+export const INGREDIENTS = "About fifteen minutes for the first day, then two more days and two short return visits if you like. What keeps you playing: lists that start part-filled, '1 left!', rare finds that only show at certain hours, sparks and chimes, a day that ends on an open question, and the pull of 'ten years later'. Every one of those carries a little hook mark when it happens, and on the first night the game shows you all of them, with the research behind each. What you can try yourself: a shelf of random card packs bought with game coins (never real money), next to a binder where you can pick any card. What it doesn't use: real-world streaks or countdowns, notifications, purchases, ads or tracking. Nothing flashes more than three times a second, and every scene is tested for it.";

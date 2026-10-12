@@ -143,6 +143,7 @@ body.touch .choice .k { display: none; }
 
 /* toasts */
 #toasts { position: fixed; top: calc(74px + env(safe-area-inset-top, 0px)); left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; gap: 8px; align-items: center; pointer-events: none !important; width: min(560px, 92vw); }
+@media (min-width: 1000px) { #toasts { width: min(470px, 40vw); left: calc(50% + 70px); } }
 .toast { background: rgba(43, 37, 48, 0.92); color: var(--paper); padding: 10px 16px; border-radius: 14px; font-size: 15px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25); animation: tin 0.3s ease-out; line-height: 1.35; text-align: center; }
 .toast b { font-family: var(--display); font-weight: 600; }
 .toast.blend { background: linear-gradient(120deg, #ff4f9a, #ff9a5c); color: #fff; font-family: var(--display); font-weight: 600; box-shadow: 0 8px 30px rgba(255, 79, 154, 0.45); }
@@ -736,3 +737,17 @@ body.touch .setup.taps .pl kbd { display: none; }
 .fbmark { display: flex; gap: 10px; align-items: flex-start; padding: 6px 0; border-bottom: 1px solid var(--line); }
 .fbmark .mi { width: 30px; height: 30px; flex: none; border-radius: 50%; background: var(--mk); color: #fff; display: flex; align-items: center; justify-content: center; font-family: var(--display); font-weight: 700; }
 .fbmark.off .mi { background: rgba(43, 37, 48, 0.12); color: var(--soft); } .fbmark b { font-family: var(--display); display: block; } .fbmark span { font-size: 13.5px; color: var(--soft); line-height: 1.35; }
+.daycard .dtom .hk { width: 20px; height: 20px; background: #fbefd2; vertical-align: -4px; margin-right: 6px; display: inline-flex; }
+/* the first day keeps the screen clear: no pinch strip, no energy ring (nobody runs out today); a big lantern button on touch */
+body.slice #hud .pstrip, body.slice #hud .energy { display: none !important; }
+body.touch.slice .gb[data-g="look"] { padding: 12px 18px; font-size: 16px; min-height: 52px; box-shadow: 0 0 0 3px rgba(255, 207, 122, 0.7), 0 6px 18px rgba(20, 14, 30, 0.25); }
+body.touch.slice .gb[data-g="look"] span { display: inline !important; }
+.raisebtn { position: fixed; left: 50%; bottom: calc(18% + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); z-index: 6; font-size: 19px; padding: 16px 28px; box-shadow: 0 0 0 4px rgba(255, 207, 122, 0.7), 0 12px 30px rgba(0, 0, 0, 0.35); animation: pop 0.3s ease-out; }
+.raisebtn kbd { background: rgba(255, 255, 255, 0.18); color: inherit; margin: 0 8px 0 0; }
+.hooksort .hsrow.res { display: block; } .hooksort .hsr { font-size: 13.5px; color: var(--soft); }
+.hooksort .hooklist { margin-top: 12px; }
+.daycard .dq { display: flex; flex-direction: column; align-items: center; gap: 6px; margin: 10px 0 2px; } .daycard .dq > span { font-size: 13px; color: var(--soft); }
+.daycard .dq .chips { justify-content: center; } .daycard .dq .chip { min-height: 38px; }
+#hearing .htabs { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; } #hearing .htabs .chip { min-height: 36px; padding: 5px 12px; background: rgba(251, 246, 238, 0.92); }
+#hearing .htabs .chip.on { background: var(--ink); color: var(--paper); } #hearing .htabs .chip span { opacity: 0.7; margin-left: 3px; }
+#hearing { grid-template-rows: auto 1fr auto auto; }

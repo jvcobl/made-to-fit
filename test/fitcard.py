@@ -85,7 +85,7 @@ def check(ok, what):
 def game_portraits(ctx, base):
     pg = ctx.new_page()
     try:
-        pg.goto(base + '/dist/who-bends.html?test=1&mute=1', timeout=60000)
+        pg.goto(base + '/dist/who-bends.html?test=1&v1=1&mute=1', timeout=60000)
         pg.wait_for_function('window.__wb && window.__wb.G && window.__wb.G.stage', timeout=120000)
         return [pg.evaluate('([l, bg]) => window.__wb.G.portraitOf(Object.assign({ voice: "hum", wheels: false }, l), { bg, w: 600, h: 600 })', [look, bg]) for look, bg in LOOKS]
     except Exception as e:

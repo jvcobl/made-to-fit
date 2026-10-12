@@ -5,7 +5,7 @@ import json, sys, time, os
 from playwright.sync_api import sync_playwright
 sys.path.insert(0, '/home/claude/wb4/test')
 from drive import ARGS, BASE
-URL = BASE + '?test=1&fast=1&mute=1&seed=41'
+URL = BASE + '?test=1&v1=1&fast=1&mute=1&seed=41'
 SHOTS = '/home/claude/wb4/test/shots_recap'; os.makedirs(SHOTS, exist_ok=True)
 out = {'ok': True, 'checks': []}
 def check(name, cond, info=''):

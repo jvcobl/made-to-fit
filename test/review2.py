@@ -51,7 +51,7 @@ def open_page(p, seed):
     pg = b.new_page(viewport={'width': 1280, 'height': 760}); errors = []
     pg.on('pageerror', lambda e: errors.append(str(e)[:400]))
     pg.on('console', lambda m: errors.append('console ' + m.text[:300]) if m.type == 'error' else None)
-    pg.goto(BASE + '?test=1&fast=1&mute=1&seed=%d' % seed); pg.wait_for_function('window.__wb && __wb.panel() !== null', timeout=60000)
+    pg.goto(BASE + '?test=1&v1=1&fast=1&mute=1&seed=%d' % seed); pg.wait_for_function('window.__wb && __wb.panel() !== null', timeout=60000)
     return b, pg, errors
 def goto(pg, act, o):
     pg.evaluate("__wb.gotoAct(%d, %s)" % (act, json.dumps(o)))

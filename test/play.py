@@ -17,7 +17,7 @@ def run(policy, seed, prof, wheels=False, shots=None, mobile=False, budget=420):
         pg = b.new_page(viewport=vp, device_scale_factor=1)
         pg.on('console', lambda m: errors.append(m.type + ': ' + m.text[:300]) if m.type == 'error' else None)
         pg.on('pageerror', lambda e: errors.append('PAGEERROR ' + str(e)[:600]))
-        pg.goto('file:///home/claude/wb4/dist/who-bends.html?test=1&fast=1&mute=1&seed=%d%s' % (seed, '' if shots else '&nodraw=1'))
+        pg.goto('file:///home/claude/wb4/dist/who-bends.html?test=1&v1=1&fast=1&mute=1&seed=%d%s' % (seed, '' if shots else '&nodraw=1'))
         pg.wait_for_function('window.__wb && __wb.panel() !== null', timeout=60000)
         def snap(name, force=False):
             if shots and (name not in taken or force):
