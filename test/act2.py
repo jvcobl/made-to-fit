@@ -20,7 +20,9 @@ def until(pg, js, t=30, pick=None):
     while time.time() - t0 < t:
         if pg.evaluate(js): return True
         w = pg.evaluate('__wb.waiter()')
-        if w == 'line': pg.evaluate('__wb.adv()')
+        # (after a line, check again before anything else: the line may open a task, and auto-playing it in the same
+        # pass would finish it before the check ever saw it open)
+        if w == 'line': pg.evaluate('__wb.adv()'); pg.wait_for_timeout(60); continue
         elif w == 'choice' and pg.evaluate("__wb.options().some((o) => o.id === 'stake_change')"): pg.evaluate("__wb.choose(__wb.options().findIndex((o) => o.id === 'stake_change'))")
         elif w in ('choice', 'barrier') and pick:
             i = pick(pg.evaluate('__wb.options()'))
