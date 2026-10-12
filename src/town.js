@@ -81,7 +81,7 @@ export const ZONES = [
   { id: 'works', name: 'The Works', rect: [2, 1, 22.5, 14.5] },
   { id: 'hall', name: 'Town Hall', rect: [24, 1, 40, 13.6] },
   { id: 'commons', name: 'The Commons', rect: [41, 0, 64, 17.5] },
-  { id: 'transit', name: 'Transit Stop', rect: [47.5, 18, 64, 31] },
+  { id: 'transit', name: 'Bus Stop', rect: [47.5, 18, 64, 31] },
   { id: 'farend', name: 'The Far End', rect: [40, 33, 64, 48] },
   { id: 'homerow', name: 'Home Row', rect: [0, 29.5, 28, 48] },
   { id: 'market', name: 'Market Square', rect: [15.5, 14, 44, 33] },
@@ -643,7 +643,7 @@ export class Town {
       const s = signMesh('Quiet corner\nsofter at noon', 1.4, 0.6, { size: 38, bg: '#fbf6ee', fg: '#2b7a78', border: '#2b7a78' }); s.position.set(qx, 1.85, qz + 1.75); g.add(s);
       mergeProps(g, { occ: true, name: 'quiet' });
     }
-    // a bus board that shows changes
+    // a bus sign that shows changes
     {
       const g = G('board');
       const b = signMesh('NEXT BUS 5:40\nTODAY: VIA ELM ST', 1.5, 0.6, { size: 40, bg: '#13202e', fg: '#9ef2e4', border: '#4fb3a9', glow: 1.3 }); b.position.set(53.6, 2.0, 22.95); g.add(b);

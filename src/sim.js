@@ -24,7 +24,7 @@ export const PLACES = {
   festival: { sound: [0.82, 0.82, 0.82, 0.82], light: [0.7, 0.7, 0.7, 0.7], people: [0.92, 0.92, 0.92, 0.92], talk: 0.6, change: 0.6, demand: true },
 };
 export const OWNERS = { works: 'gil', market: 'moss', commons: 'clover', farend: 'wren', hall: 'hollis' };
-// fixes that only answer too much of something (a quiet corner does nothing for an empty square, nor a bus board for a
+// fixes that only answer too much of something (a quiet corner does nothing for an empty square, nor a bus sign for a
 // day with too few surprises); the others help whichever way a place misses
 export const FIX_OVER_ONLY = new Set(['quiet', 'board']);
 export const FIX_FOR = { works: { light: 'dim', talk: 'plain', wheels: 'ramp' }, market: { sound: 'quiet', people: 'quiet' }, transit: { change: 'board', sound: 'board' }, homerow: { people: 'lanterns', talk: 'lanterns' }, farend: { people: 'lanterns' } };
@@ -143,7 +143,7 @@ export function townFit(fixes, stakes) {
 // stake: the one person it costs, and variant: the shape it takes if you listen to them (see STAKES in content.js).
 export const FIXES = {
   quiet: { name: 'A quiet corner at the market', short: 'quiet corner', zone: 'market', approve: 'council', backers: ['moss', 'bea'], helps: ['moss', 'bea'], stake: 'pomeroy', variant: 'zoned', principle: 'Flexibility in use', what: 'A corner by the benches where the speakers face away and the stalls give it room. Softer still at noon.', also: 'parents with sleeping babies, anyone on a phone call, people with hearing aids.' },
-  board: { name: 'A bus board that shows changes', short: 'bus board', zone: 'transit', approve: 'council', backers: ['bea', 'pip'], helps: ['bea', 'pip'], stake: 'hollis', variant: 'shared', principle: 'Perceptible information', what: 'Every route change goes up in big letters, not just over the speaker.', also: 'visitors, anyone with headphones in, anyone who was talking when the speaker crackled.' },
+  board: { name: 'A bus sign that shows changes', short: 'bus sign', zone: 'transit', approve: 'council', backers: ['bea', 'pip'], helps: ['bea', 'pip'], stake: 'hollis', variant: 'shared', principle: 'Perceptible information', what: 'Every route change goes up in big letters, not just over the speaker.', also: 'visitors, anyone with headphones in, anyone who was talking when the speaker crackled.' },
   lanterns: { name: 'Porch lanterns on Home Row', short: 'porch lanterns', pl: 1, zone: 'homerow', approve: 'council', backers: ['wren', 'moss'], helps: ['wren', 'moss'], stake: 'bea', variant: 'timed', principle: 'Perceptible information', what: 'A teal light means come say hi. An amber one means not now. No one has to guess.', also: 'shy neighbors, people who are unwell, new parents.' },
   ramp: { name: 'A ramp at the Works', short: 'ramp', zone: 'works', approve: 'gil', backers: ['bea', 'pip'], helps: ['bea', 'pip'], stake: 'gil', variant: 'shared', principle: 'Low physical effort', what: 'A gentle ramp beside the front steps, with rails.', also: 'Pip and her bread cart, parents with strollers, delivery carts, anyone with a sore knee.' },
   dim: { name: 'Dimmable lights at the Works', short: 'dimmable lights', pl: 1, zone: 'works', approve: 'gil', backers: ['gil', 'clover'], helps: ['gil', 'dot'], stake: 'fen', variant: 'zoned', principle: 'Flexibility in use', what: 'The overhead panels soften, and each desk gets its own lamp.', also: 'Gil and his headaches, Dot at the next desk, anyone working late.' },

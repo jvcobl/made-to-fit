@@ -14,8 +14,8 @@ export const CHIP = {
   light: [['☀', 'Too bright'], ['☾', 'Too dim']],
   sound: [['♪', 'Too loud'], ['∿', 'Too quiet']],
   people: [['☺', 'Too crowded'], ['○', 'Too lonely']],
-  talk: [['❝', 'All hints'], ['!', 'Too blunt']],
-  time: [['◷', 'Too late'], ['◷', 'Too early']],
+  talk: [['❝', 'Too many hints'], ['!', 'Too blunt']],
+  time: [['◷', 'Too late in the day'], ['◷', 'Too early in the day']],
   change: [['↻', 'Too many surprises'], ['▤', 'Too rigid']],
 };
 const ON = 0.1, OFF = 0.06, KEEP = 0.04;
@@ -153,6 +153,8 @@ export class Feel {
   announce() {
     const s = this.strip; if (!s.key || s.key === s.said || s.since < 1.5) return;
     s.said = s.key; const [items, tags] = s.key.split('|');
-    this.G.ui.announce('Here: ' + items.split(',').join(', ').toLowerCase() + (tags ? ' (' + tags.split(',').join(', ') + ')' : '') + '.');
+    const list = items.split(',').map((x) => x.toLowerCase()); const t = tags ? ' (' + tags.split(',').join(', ') + ')' : '';
+    const words = list.length > 1 ? list.slice(0, -1).join(', ') + ' and ' + list[list.length - 1] : list[0];
+    this.G.ui.announce(list.length === 1 && /fits you/.test(list[0]) ? 'This place fits you' + t + '.' : 'This place is ' + words + ' for you' + t + '.');
   }
 }

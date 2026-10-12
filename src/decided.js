@@ -23,7 +23,7 @@ export const CAUSES = {
 const CAUSES_BY = {
   'market:sound:over': ['Whoever owns a speaker sets its volume.', 'The jingle plays from every post at once.'],
   'market:people:over': ['At noon the stalls funnel everyone into one lane.'],
-  'market:light:over': ['The kiosk and the stall fronts are glass, facing the noon sun.'],
+  'market:light:over': ['The kiosk and the stall fronts are glass, and they face the sun.'],
   'market:people:under': ['The stalls open late, so the square fills only toward noon.'],
   'market:sound:under': ['The speakers only play around noon.'],
   'works:light:over': ['The panels were bought to the founders\' spec.'],
@@ -81,7 +81,7 @@ function verbLine(r) {
     if (r.v === 'fix') return 'You noted it for the Fix-It Shed.';
     if (r.v === 'leave') return 'You left.';
   }
-  if (r.k === 'refused') return r.by === 'sana' ? 'You rang Unit\'s call bell. A script answered.' : 'You asked ' + who(r.by) + '. The answer was no.';
+  if (r.k === 'refused') return r.by === 'sana' ? 'You rang Unit\'s call bell. A script answered.' : 'You asked ' + who(r.by) + '. It didn\'t change, not that time.';
   if (r.k === 'missed') return r.v === 'shift' ? 'You missed your shift. Gil covered.' : r.v === 'meeting' ? 'You stepped out of the meeting.' : r.v === 'pond' ? 'You didn\'t make it to the pond. Rue waited.' : 'You slept through the afternoon.';
   if (r.k === 'favour') return r.v === 'yes' ? 'You said yes to a favor.' : r.v === 'no' ? 'You said no to a favor.' : 'A favor never came due.';
   if (r.k === 'vote') return r.v === 'passed' || r.v === 'approved' ? 'A fix went through.' : r.v === 'stalled' ? 'The Fund\'s clause stalled a fix. Referred for further study.' : 'A fix didn\'t pass.';

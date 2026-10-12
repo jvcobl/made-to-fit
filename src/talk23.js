@@ -3,7 +3,7 @@
 
 // ---------- talk: what people say to you, ten years on ----------
 export const TALK2 = {
-  gil: [{ who: 'gil', t: 'You came back! Festival mail\'s on. Your old desk is free for the morning. Unit has Dot\'s. Dot runs the archive now. She has a lamp the size of a sunflower.' }],
+  gil: [{ who: 'gil', t: 'You came back! Festival mail\'s on. Your old desk is free for the morning. Unit has Dot\'s desk. Dot runs the archive now. She has a lamp the size of a sunflower.' }],
   gilAfter: [{ who: 'gil', t: 'Festival mail, done. Every year I say "never again". Every year: again.' }],
   gilMissed: [{ who: 'gil', t: 'Mail\'s out. Unit and I managed. No hard feelings. Kettle\'s still warm.' }],
   gilLeft: [{ who: 'gil', t: 'Unit and I have the mail. No hard feelings. Kettle\'s on, if you want it.' }],
@@ -38,7 +38,7 @@ export const TALK2 = {
     { label: 'e2' }, { who: 'rue', t: 'See? It agrees with everything. That\'s the measure working. I\'m writing that down.' },
   ],
   rueAgain: [{ who: 'rue', t: 'Measures don\'t take a festival day off. I\'m trying to.' }],
-  bea: [{ who: 'bea', t: 'Still here, dear. So am I. So is the bench. It got new slats. I got new glasses.' }],
+  bea: [{ who: 'bea', t: 'You\'re still here, dear. So am I. So is the bench. It got new slats. I got new glasses.' }],
   wren: [
     { who: 'wren', t: 'You came back. Good. This is Ines. She fixes the frames. We do not waste words.' },
     { who: 'ines', t: 'Hello. I\'m Ines. Wren said you were plain-spoken. Good.' },
@@ -62,11 +62,11 @@ export const TALK2 = {
 
 // what Juno brings: your fix, where it is, what pinches, and what Juno says
 export const JUNO_CARD = {
-  quiet: { zone: 'market', dim: 'sound', at: [23.5, 31.2], says: 'The quiet corner. Your corner, they say. I play drums. I need noise like you need quiet, and the only bench in the shade is in your corner.', rule: 'Fridays, the corner can be loud', redesign: 'A loud corner too, at the other end of the square, by the apples', fixCost: 'The apple end gets loud on Fridays, and Bao and Lin\'s dumpling cart is there' },
+  quiet: { zone: 'market', dim: 'sound', at: [23.5, 31.2], says: 'The quiet corner. Your corner, they say. I play drums. I need noise like you need quiet, and the only bench in the shade is in your corner.', rule: 'Fridays, the corner can be loud', redesign: 'A loud corner too, at the other end of the square, by the apples', fixCost: 'The apple end gets loud on Fridays, and the dumpling cart is there' },
   dim: { zone: 'works', dim: 'light', at: [-3.0, 2.2], loc: 'works', says: 'I started at the Works on Monday. It\'s so dim. I can\'t read my own handwriting. They say the soft lights were yours.', rule: 'Panels up at the new desks', redesign: 'A bright row by the windows, and the soft lights everywhere else', fixCost: 'Two desks by the windows move, and the people at them liked the shade' },
   lanterns: { zone: 'homerow', dim: 'people', at: [9.5, 37.4], says: 'Everyone\'s porch light on Home Row is amber. I moved in next door to you. I\'d like company, and I can\'t tell who else would. They say the lanterns were yours.', rule: 'Teal unless you say otherwise', redesign: 'A third color: knock, I\'m happy to be asked', fixCost: 'Wren makes the new lanterns, at the price on Wren\'s sign, and the Shed pays' },
-  plain: { zone: 'works', dim: 'talk', at: [-7.0, 1.2], loc: 'works', says: 'The Works notes say exactly who does what by when. It feels like being told off, every Monday. They say the plain notes were yours.', rule: 'A friendlier line at the top of each note', redesign: 'Plain notes, and a chat after, for anyone who likes one', fixCost: 'Monday meetings run longer, for everyone' },
-  bench: { zone: 'market', dim: 'people', at: [30, 26.8], says: 'The benches round the statue are the Standard\'s height. My feet don\'t touch the ground. Nobody ever changed them. You keep the Shed now.', rule: 'One lower bench, by the statue', ruleSub: 'The Shed\'s budget pays, so the roof waits a month', askLabel: 'Put in a lower bench', tag: 'the Shed decides now', redesign: 'Benches at three heights, round the statue', fixCost: 'The Shed\'s budget pays, so the roof waits a year' },
+  plain: { zone: 'works', dim: 'talk', at: [-7.0, 1.2], loc: 'works', says: 'The Works notes say exactly who does what by when. It feels like being scolded, every Monday. They say the plain notes were yours.', rule: 'A friendlier line at the top of each note', redesign: 'Plain notes, and a chat after, for anyone who likes one', fixCost: 'Monday meetings run longer, for everyone' },
+  bench: { zone: 'market', dim: 'people', at: [30, 26.8], says: 'The benches round the statue are the Standard\'s height. My feet don\'t touch the ground. Nobody ever changed them. You keep the Shed now.', rule: 'One lower bench, by the statue', ruleSub: 'The Shed\'s budget pays, so mending the Shed\'s roof waits a month', askLabel: 'Put in a lower bench', tag: 'the Shed decides now', redesign: 'Benches at three heights, round the statue', fixCost: 'The Shed\'s budget pays, so mending the Shed\'s roof waits a year' },
 };
 
 export const TALK3 = {

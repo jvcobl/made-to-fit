@@ -35,7 +35,7 @@ export class Hooks {
       // (after the moment that earned it has finished: no pops still in the air)
       const tip = (n) => setTimeout(() => {
         const calm = G.mode === 'play' && !G.busy && !G.ui.waiter && G.ui.panel.hidden && !G.phoneOpen && !(G.fx && G.fx.pops.length);
-        if ((calm && n >= 2) || n > 30) G.ui.toast(`<span class="hkline"><i class="hk">${HOOK_SVG}</i><b>That little hook</b></span>It marks a reward built to keep you playing. Your phone's Fit Book has a Hook Log that says which pull each one is.${S.v2 && (S.day || 1) === 1 ? ' Tonight, the game shows you all of them.' : ''}`, 'idea', 7600);
+        if ((calm && n >= 2) || n > 30) G.ui.toast(`<span class="hkline"><i class="hk">${HOOK_SVG}</i><b>That little hook</b></span>It means a reward was built to keep you playing, with the same tricks apps use. The Hook Log in your phone's Fit Book names each one.${S.v2 && (S.day || 1) === 1 ? ' Tonight, you\'ll look back at a few of them.' : ''}`, 'idea', 7600);
         else tip(n + 1);
       }, 1600);
       tip(0);

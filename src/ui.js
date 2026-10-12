@@ -138,13 +138,13 @@ export class UI {
     const d = this.dialog; d.hidden = false; d.className = o.kind || 'say';
     this.plate(o);
     const tag = d.querySelector('.tagline');
-    tag.textContent = o.kind === 'gut' ? 'Your gut' : o.kind === 'notice' ? o.label + ' · you notice' : '';
+    tag.textContent = o.kind === 'gut' ? 'Your gut feeling' : o.kind === 'notice' ? o.label + ' · you notice' : '';
     tag.hidden = !(o.kind === 'gut' || o.kind === 'notice');
     d.querySelector('.choices').innerHTML = ''; d.querySelector('.more').hidden = true;
     const extra = d.querySelector('.extra'); extra.innerHTML = o.extra || '';
     const txt = d.querySelector('.text'); const full = o.text;
     if (o.voice) o.voice(full);
-    { const S = this.G.S; const c = o.who ? CAST[o.who] : null; const who = o.kind === 'gut' ? 'Your gut' : o.kind === 'notice' ? (o.label || '') + ', you notice' : o.who === 'you' ? (S.name || 'You') : c ? c.name : o.who || ''; this.announce((who ? who + ': ' : '') + full + (o.extra ? ' ' + o.extra : '')); }
+    { const S = this.G.S; const c = o.who ? CAST[o.who] : null; const who = o.kind === 'gut' ? 'Your gut feeling' : o.kind === 'notice' ? (o.label || '') + ', you notice' : o.who === 'you' ? (S.name || 'You') : c ? c.name : o.who || ''; this.announce((who ? who + ': ' : '') + full + (o.extra ? ' ' + o.extra : '')); }
     const cps = FAST ? 1e9 : { slow: 28, normal: 52, fast: 95, instant: 1e9 }[this.set.textSpeed] || 52;
     return new Promise((resolve) => {
       let shown = 0; const wrap = (s) => (o.kind === 'hint' ? '<span class="hintword">' + esc(s) + '</span>' : esc(s));
@@ -198,7 +198,7 @@ export class UI {
         box.appendChild(btn); return btn;
       });
       this.waiter = { type: 'barrier', buttons };
-      this.announce((b.face ? b.face.name + ' is asking. ' : '') + b.title + '. ' + b.text + (b.notice ? ' ' + b.noticeLabel + ', you notice: ' + b.notice : '') + (b.gut ? ' Your gut: ' + b.gut : '') + ' Who adjusts? ' + b.options.map((o, i) => (i + 1) + '. ' + o.who + ': ' + o.label + (o.disabled ? ', not available: ' + o.reason : ', ' + o.sub)).join('. '));
+      this.announce((b.face ? b.face.name + ' is asking. ' : '') + b.title + '. ' + b.text + (b.notice ? ' ' + b.noticeLabel + ', you notice: ' + b.notice : '') + (b.gut ? ' Your gut feeling: ' + b.gut : '') + ' Who adjusts? ' + b.options.map((o, i) => (i + 1) + '. ' + o.who + ': ' + o.label + (o.disabled ? ', not available: ' + o.reason : ', ' + String(o.sub || '').replace(/[.!?]+$/, ''))).join('. ') + '.');
     });
   }
   // Push through: hold it, or tap once and it fills by itself (tap again to stop). Holding is never required.
@@ -452,9 +452,9 @@ export class UI {
         if (b.id === 'bback') { view = 'shop'; result = ''; redraw('[data-binder]'); return; }
         if (b.dataset.binder) { view = 'binder'; result = ''; G.audio.sfx('page'); redraw('.bslot button'); return; }
         if (b.dataset.more) { more = clamp(more + +b.dataset.more, 1, MORE_MAX); G.audio.sfx('select'); redraw('[data-more="' + b.dataset.more + '"]'); return; }
-        if (b.dataset.buy) { const it = items.find((x) => x[0] === b.dataset.buy); if (S.coins >= it[2]) { S.coins -= it[2]; S.gear[it[0]] = true; G.audio.sfx('coin'); G.onGear(it[0]); redraw(); } else this.nudge(b, 'A shift at the Works pays 30 coins.'); return; }
+        if (b.dataset.buy) { const it = items.find((x) => x[0] === b.dataset.buy); if (S.coins >= it[2]) { S.coins -= it[2]; S.gear[it[0]] = true; G.audio.sfx('coin'); G.onGear(it[0]); redraw(); } else this.nudge(b, (S.act || 1) > 1 ? 'Not enough coins.' : 'A shift at the Works pays 30 coins.'); return; }
         if (b.dataset.pack) {
-          if (S.coins < PACK_PRICE) { this.nudge(b, 'A shift at the Works pays 30 coins.'); return; }
+          if (S.coins < PACK_PRICE) { this.nudge(b, (S.act || 1) > 1 ? 'Not enough coins.' : 'A shift at the Works pays 30 coins.'); return; }
           S.coins -= PACK_PRICE; const cards = drawPack(); const had = addCards(S, cards); firstCards(); G.audio.sfx('select');
           resAt = 'pack'; result = summary ? esc(packSentence(cards, had)) : `<div class="pack3">${cards.map(tile).join('')}</div><p>${esc(packLine(had))}</p>`;
           this.announce(packSentence(cards, had)); redraw('[data-pack]'); return;
@@ -466,7 +466,7 @@ export class UI {
         }
         if (b.dataset.single) {
           const f = FISH.find((x) => x.id === b.dataset.single); if (!f) return;
-          if (S.coins < SINGLE_PRICE) { this.nudge(b, 'A shift at the Works pays 30 coins.'); return; }
+          if (S.coins < SINGLE_PRICE) { this.nudge(b, (S.act || 1) > 1 ? 'Not enough coins.' : 'A shift at the Works pays 30 coins.'); return; }
           S.coins -= SINGLE_PRICE; addCards(S, [f]); firstCards(); G.audio.sfx('select');
           resAt = 'binder'; result = esc('The ' + cardName(f).toLowerCase() + ' card is yours. ' + SINGLE_PRICE + ' coins, and you knew what you were getting.'); this.announce(result); redraw('#bback'); return;
         }
@@ -647,7 +647,7 @@ export class UI {
     if (sub === 'cards') {
       const ids = Object.keys(S.cards || {}).filter((id) => CARDS[id]);
       const label = { story: 'Their words', insight: 'Insight', deal: 'Agreed' };
-      body = ids.length ? '<div class="fbcards">' + ids.map((id) => { const c = CARDS[id]; return `<div class="fbcard ${c.kind}"><span class="fbk">${label[c.kind]}</span><b>${esc(c.title)}</b><p>${esc(c.text)}</p>${c.src ? `<span class="fbsrc">${esc(c.src)}</span>` : ''}</div>`; }).join('') + '</div><p class="small">These are your hand at a hearing. Someone\'s own words are theirs: ask before you use them.</p>' : '<p>No cards yet. Listen to people, and you\'ll gather some.</p>';
+      body = ids.length ? '<div class="fbcards">' + ids.map((id) => { const c = CARDS[id]; return `<div class="fbcard ${c.kind}"><span class="fbk">${label[c.kind]}</span><b>${esc(c.title)}</b><p>${esc(c.text)}</p>${c.src ? `<span class="fbsrc">${esc(c.src)}</span>` : ''}</div>`; }).join('') + '</div><p class="small">These are the cards you can play at a hearing. Someone\'s own words are theirs, so ask before you use them.</p>' : '<p>No cards yet. Listen to people, and you\'ll gather some.</p>';
     } else if (sub === 'marks') {
       body = Object.keys(STREETS).map((z) => {
         const list = MARKS.filter((m) => m.street === z && !m.fit); if (!list.length) return '';

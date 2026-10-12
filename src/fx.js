@@ -43,7 +43,7 @@ export class FX {
     const el = document.createElement('div'); el.className = 'pop ' + (o.kind || '') + (o.big ? ' big' : '');
     const hook = o.hook && this.G.hooks ? this.G.hooks.fire(o.hook, o.hookCtx) : '';
     // (the pop layer is hidden from screen readers, so a reward with a hook is also said, with the hook's name)
-    if (hook && this.G.ui) { const t = String(text).replace(/<[^>]*>/g, '').trim(); this.G.ui.announce(t + (/[.!?…]$/.test(t) ? '' : '.') + ' A hook: ' + hook + '.'); }
+    if (hook && this.G.ui) { const t = String(text).replace(/<[^>]*>/g, '').trim(); this.G.ui.announce(t + (/[.!?…]$/.test(t) ? '' : '.') + ' A hook: ' + String(hook).replace(/\s*\([^)]*\)/g, '') + '.'); }
     el.innerHTML = `<span class="pt">${o.html ? text : esc(text)}</span>` + (hook ? `<i class="hk" title="A hook: ${esc(hook)}">${HOOK_SVG}</i>` : '');
     this.layer.appendChild(el);
     const p = { el, follow: o.follow || null, dy: o.dy == null ? 2.4 : o.dy, at: at && at.isVector3 ? at.clone() : null, sx: at && !at.isVector3 ? at.x : 0, sy: at && !at.isVector3 ? at.y : 0, t: 0, ms: (o.ms || 1500) / 1000, rise: o.rise == null ? 54 : o.rise, dx: o.dx || 0 };

@@ -341,7 +341,7 @@ class Human:
             t = s['target']; npc = pg.evaluate("(t) => !!__wb.G.npcs[t]", t)
             if t == 'out': press = s['inside'] != s['loc']
             elif s['inside'] and t == s['inside']: press = True
-            elif t == 'mydesk': press = 'desk' in s['obj'] or 'sync' in s['obj']
+            elif t == 'mydesk': press = 'desk' in s['obj'] or 'sync' in s['obj'] or 'Team meeting' in s['obj']
             elif npc: tk = 'npc:%d:%d:%s:%d' % (s['act'], s['day'], t, s['min'] // 180); press = self.tries.get(tk, 0) < 1 or (t.capitalize() in s['obj'] and self.tries.get(tk, 0) < 4); self.tries[tk] = self.tries.get(tk, 0) + 1
             else: tk = 'thing:%d:%d:%s' % (s['act'], s['day'], t); press = self.tries.get(tk, 0) < 1 or (s['objAt'] is not None and self.near_obj(s)); self.tries[tk] = self.tries.get(tk, 0) + 1
             if press:

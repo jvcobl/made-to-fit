@@ -58,15 +58,15 @@ async function arrival(R) {
   await G.stage.fadeTo(0, 900);
   await ui.caption('Twenty years later.', 2400);
   G.player.root.visible = true;
-  await st.note('Festival day. The Fix-It Shed, at eight in the morning. Clover is waiting by the door with a key on a long piece of string.');
+  await st.note('Festival day. The Fix-It Shed, at eight in the morning. Clover is handing the Shed over to you today, and she is waiting by the door with its key on a long piece of string.');
   G.talkFrame('clover'); ui.letterbox(true);
   await st.say('clover', 'There you are. It\'s yours now. Hinges are in the second drawer. The ledger is in the first. Don\'t read it at night.');
   await st.say('clover', 'I\'ll visit. I\'ll pretend I\'m not checking.');
   st.keep('shedkey', 'The key to the Fix-It Shed', '#cde38f');
   await st.say('gil', 'Retired, and here anyway. Fridays I\'m yours. Today\'s a Friday. I checked twice.');
   await st.run(TALK3.rue, { npc: 'rue' }); S.talked.rue = true;
-  await st.say('ines', 'Ines. Best fixer you\'ve got, Wren says. We have a question before you open up.');
-  await st.say('gil', 'We want the Shed to be a co-op. Everyone who works here votes. Pay evens out.');
+  await st.say('ines', 'Ines. Best fixer you\'ve got, Wren says. There\'s a question before you open up.');
+  await st.say('gil', 'Rue and I want the Shed to be a co-op. Everyone who works here votes. Pay evens out.');
   const k = await st.choose([
     { t: 'Yes: make it a co-op', sub: 'everyone votes, pay evens out, decisions take longer; Ines leaves for better pay in the city', id: 'coop_yes' },
     { t: 'No: keep it as it is', sub: 'decisions stay quick, and you can pay Ines what the city offers; Gil and Rue stay volunteers without a vote', id: 'coop_no' },
@@ -97,7 +97,7 @@ async function juno(R) {
   const G = R.G, S = R.S, st = R.st, ui = st.ui;
   const f = S.junoFix; const C = JUNO_CARD[f];
   G.npcTo('juno', [51.2, 13.6], 'town', [55.4, 16.6]); await R.beat(1400);
-  await st.note('Your first visitor. Somebody new, with a very specific face on.');
+  await st.note('Your first visitor. Somebody new, who looks upset about one thing in particular.');
   G.talkFrame('juno'); ui.letterbox(true);
   await st.say('juno', 'Hi. Juno. New in town. Is this where you bring things that pinch?');
   await st.say('juno', C.says);
@@ -112,7 +112,7 @@ async function juno(R) {
     { key: 'fix', who: 'The place', label: 'Redesign it with Juno', sub: C.redesign + '. An hour of your day. ' + C.fixCost + '.' },
     { key: 'leave', who: 'Nobody', label: 'Do nothing', sub: 'Juno goes. Larkspur stays as you left it.' },
   ];
-  const choice = await ui.barrier({ options, title: 'Twenty years on', text: 'Juno has a card, and it is about you.', face: { img: jf, name: 'Juno', sub: 'Goodwill with you ○○○' }, gut: 'Twenty years ago you stood where Juno is standing.', notice: '', noticeLabel: '', coach: '' });
+  const choice = await ui.barrier({ options, title: 'Twenty years on', text: C.askLabel ? 'Something in town pinches Juno, and the Shed decides what changes now.' : 'Something you built years ago pinches Juno.', face: { img: jf, name: 'Juno', sub: 'Goodwill with you ○○○' }, gut: 'Twenty years ago you stood where Juno is standing.', notice: '', noticeLabel: '', coach: '' });
   ui.hideBarrier(); S.junoV = choice;
   const row = { z: 'commons', turn: 1, why: f === 'bench' ? 'The benches were the Standard\'s height. Juno\'s feet didn\'t reach the ground.' : 'Your fix was made to fit you. It didn\'t fit Juno.' };
   G.talkFrame('juno'); ui.letterbox(true);
@@ -147,7 +147,7 @@ async function square(R) {
   await st.note('The leases board by the square: STALL LEASES, TO THE HIGHEST BID. WAITING LIST: 14.');
   await st.note(S.fixes.quiet === 'built' || S.fixes.board === 'built' ? 'The square got popular: your fixes brought people, and the van hub brought more. The council leases the stalls, and the leases go to the highest bid now.' : 'The square got popular anyway: the van hub brings people through all day. The council leases the stalls, and the leases go to the highest bid now.');
   G.talkFrame('moss'); ui.letterbox(true);
-  await st.say('moss', 'Popular square now. Popular costs. My lease is up at the end of the month.');
+  await st.say('moss', 'Popular square now. Popular costs money. My lease ends this month.');
   ui.hideDialog(); ui.letterbox(false); G.endTalk();
   // Hester, of the Founders' Fund: one role, one sincere reason, and the strings on the front of the offer
   G.npcTo('hester', null); G.talkFrame('hester'); ui.letterbox(true);
@@ -156,11 +156,11 @@ async function square(R) {
   // what the Fund offers besides the Shed's roof: Bea's crossing if it is still short, else the benches, if they aren't built
   const gift = S.fixes.crossing !== 'built' ? 'crossing' : S.w.benches3 !== 'three' ? 'benches' : null;
   const what = { crossing: 'for Bea\'s crossing to be lengthened', benches: 'for benches at three heights round the statue' }[gift];
-  await st.say('hester', 'The Fund would like to pay for the Shed\'s repairs' + (what ? ', and ' + what : '') + '. The council says it\'s the Shed\'s call.');
+  await st.say('hester', 'The Fund would like to pay for the Shed\'s repairs' + (what ? ', and ' + what : '') + '. The council says the Shed decides.');
   const k = await st.choose([
-    { t: 'Accept the Fund\'s offer', sub: 'strings: anything on Founders\' Row needs the Fund\'s sign-off, and its name goes on the plinth. The council audits every gift.' + (gift === 'crossing' ? ((S.stakes || {}).crossing === 'listened' ? ' The van waits whenever someone holds the button.' : ' The van runs late at every long crossing.') : ''), id: 'fund_yes' },
+    { t: 'Accept the Fund\'s offer', sub: 'with conditions. Anything built on Founders\' Row, the lane to the Far End, needs the Fund\'s yes, and the Fund\'s name goes on the statue\'s base. The council checks every gift.' + (gift === 'crossing' ? ((S.stakes || {}).crossing === 'listened' ? ' The van waits whenever someone holds the button.' : ' The van runs late at every long crossing.') : ''), id: 'fund_yes' },
     { t: 'Decline, with thanks', sub: 'the Shed\'s repairs wait a year' + (gift === 'crossing' ? ', and so does Bea\'s crossing' : gift === 'benches' ? ', and so do the benches' : ''), id: 'fund_no' },
-  ], { text: 'The Founders\' Fund\'s offer, with its strings.', kind: 'note' });
+  ], { text: 'The Founders\' Fund\'s offer, and what comes with it.', kind: 'note' });
   if (k === 0) {
     S.w.benefactor_yes = 1; if (G.town.fundPlate) G.town.fundPlate.visible = true;
     await st.say('hester', 'Thank you. The council will see the accounts. All of them.'); st.log('choice', { z: 'market', v: 'fund_yes', by: 'you', pay: [] });
@@ -173,7 +173,7 @@ async function square(R) {
   await st.say('moss', 'So. What does the keeper of the Shed think I should do?');
   const m = await st.choose([
     { t: 'Ask the council to cap rents for long-time stallholders', sub: 'a proposal for tonight; the waiting list pays', id: 'moss_cap' },
-    { t: 'Open stalls at the Far End, through the Shed', sub: 'a proposal for tonight; the Far End\'s quiet pays' + (S.w.benefactor_yes ? '. It\'s on Founders\' Row.' : ''), id: 'moss_far' },
+    { t: 'Open stalls at the Far End, through the Shed', sub: 'a proposal for tonight; the Far End\'s quiet pays' + (S.w.benefactor_yes ? '. It\'s on Founders\' Row, so the Fund must say yes.' : ''), id: 'moss_far' },
     { t: 'Help Moss move to the Far End today', sub: 'an hour of your day; Moss gives up her corner', id: 'moss_move' },
     { t: 'Nothing', sub: 'Moss bids like everyone else', id: 'moss_none' },
   ], { text: 'Moss\'s lease.', kind: 'note' });
@@ -194,9 +194,9 @@ async function square(R) {
 async function conflict(R) {
   const G = R.G, S = R.S, st = R.st, ui = st.ui; S.flags.conflict3 = 1;
   G.talkFrame('hollis'); ui.letterbox(true);
-  await st.say('hollis', 'A word, keeper of the Shed. The council asks the Shed\'s view on a proposal: extend the quiet zone the length of Home Row.');
-  await st.note('Home Row is your street. A quiet zone would make your house quieter, and worth more. It would also hush Juno\'s shortcut to the square: no speaker, no bike.');
-  await st.note('Larkspur\'s rule, on the council notice: if you have a stake, say so. Then you may still judge.');
+  await st.say('hollis', 'A word, keeper of the Shed. The council asks the Shed\'s view on a proposal to make all of Home Row a quiet zone.');
+  await st.note('Home Row is your street. A quiet zone would make your house quieter, and worth more. It would also close Juno\'s shortcut to the square to bikes and music.');
+  await st.note('Larkspur\'s rule, on the council notice. If you gain from a decision, say so first. Then you may still judge.');
   const k = await st.choose([
     { t: 'Say you live there, then back it', sub: 'the rule followed; Juno loses the shortcut; one of this year\'s two fixes', id: 'cf_disclose' },
     { t: 'Step back and let Gil judge it', sub: 'he\'s careful, and slow: next season', id: 'cf_recuse' },
@@ -221,7 +221,7 @@ export const ACT3 = {
     homerow: ['The quiet zone stops where the council says it stops.', 'Your house is on Home Row.'],
   },
   // at the meeting, Rue sits where Clover did
-  bystander: { hollis: { over: { light: ['rue', 'Now I can\'t see my notes. Fine. I know them by heart.'], sound: ['rue', 'I liked the murmur. It meant people came.'], other: ['rue', 'Bit nippy. I\'ll keep my coat on.'] }, under: { other: ['rue', 'Bit nippy. I\'ll keep my coat on.'] } } },
+  bystander: { hollis: { over: { light: ['rue', 'Now I can\'t see my notes. Fine. I know them by heart.'], sound: ['rue', 'I liked the murmur. It meant people came.'], other: ['rue', 'Bit cold. I\'ll keep my coat on.'] }, under: { other: ['rue', 'Bit cold. I\'ll keep my coat on.'] } } },
   blendArg: { who: 'hollis', t: 'But the Smooth Scores still say we\'re coping beautifully!' },
   rueSpeaks: { sum: 'Rue tells the hall what the measures never asked.', lines: ['Can I say something? I ran those measures, once.', 'They counted whether we looked all right. They never asked whether we were.'] },
   setup(R) {
@@ -268,8 +268,8 @@ export const ACT3 = {
     if (id === 'hallkiosk') { await st.note('SPEAK OR TAP. It hears more voices than it did. Not all of them.'); st.ui.hideDialog(); return true; }
     if (id === 'schoolphoto') { await st.note('This year\'s school photo. Nine children, and a teacher who looks delighted with every one of them.'); st.ui.hideDialog(); return true; }
     if (id === 'statue' && !S.flags.festival) { await st.note(S.w.benefactor_yes ? 'THE STANDARD RESIDENT. Under it, a new plate: WITH THANKS TO THE FOUNDERS\' FUND. The statue hasn\'t changed.' : 'THE STANDARD RESIDENT. Twenty years. Same statue. Older pigeons.'); st.ui.hideDialog(); return true; }
-    if (id === 'crossing') { await st.note({ hold: 'HOLD FOR MORE TIME, says the button. Bea holds it like a handshake.', waits: 'WAITS FOR EVERYONE, says the button. Bea crosses at her own pace, and the light lets her.', push: 'The light still gives you exactly the Standard\'s stride.' }[crossingState(S)]); st.ui.hideDialog(); return true; }
-    if (id === 'board') { await st.note(S.fixes.board === 'built' ? 'The board: VAN EVERY 20 MIN. APP, OR THE KIOSK. Someone has added, in pen: OR ASK BEA.' : 'Route 12 is a van now. Over the old timetable, a faded pink sticker: BOOK ON THE APP.'); st.ui.hideDialog(); return true; }
+    if (id === 'crossing') { await st.note({ hold: 'HOLD FOR MORE TIME, says the button. Bea holds it like a handshake.', waits: 'WAITS FOR EVERYONE, says the button. Bea crosses at her own pace, and the light lets her.', push: 'The light still gives you exactly the time the Standard needs to cross.' }[crossingState(S)]); st.ui.hideDialog(); return true; }
+    if (id === 'board') { await st.note(S.fixes.board === 'built' ? 'The bus sign: VAN EVERY 20 MIN. BOOK ON THE APP OR AT THE KIOSK. Someone has added, in pen: OR ASK BEA.' : 'Route 12 is a van now. Over the old timetable, a faded pink sticker: BOOK ON THE APP.'); st.ui.hideDialog(); return true; }
     return false;
   },
   talk(R, id) {
@@ -321,7 +321,7 @@ export const ACT3 = {
   festivalLine(R, id) {
     const S = R.S;
     const L = {
-      bea: 'Soup for three hundred, and the ladle never left my hand. Next year I\'m after the bunting.',
+      bea: 'Soup for three hundred, and the ladle never left my hand. Next year I want the bunting job.',
       pip: S.w.rye_bought ? 'The rye is back. You asked for one when nobody hearted it. I thought about that.' : 'Twenty years of buns. I hid a rye under the counter, for old times\' sake.',
       moss: S.w.moss_moved ? 'Quieter out at the Far End. Come for tea. Bring nobody.' : 'Still on the corner. Still pouring. Nobody outbid me tonight.',
       rue: S.rue === 'easing' ? 'I drew the festival. Badly. On purpose.' : 'No streak, no score, no app. Just me and a lot of lanterns.',
@@ -355,7 +355,7 @@ export const ACT3 = {
   },
   sights: [
     { id: 'myfix', name: 'Your fix', loc: 'town', at: [23.5, 2.6, 31.2], ghost: [23.5, 30.4], ghostYou: true, dial: null, place: 'town', line: 'Made to fit you. It doesn\'t fit Juno.' },
-    { id: 'foundersrow', name: 'Founders\' Row', loc: 'town', at: [44.6, 2.4, 39.05], ghost: null, dial: null, place: 'the Far End', line: 'The founders\' name on a lot.' },
+    { id: 'foundersrow', name: 'Founders\' Row', loc: 'town', at: [44.6, 2.4, 39.05], ghost: null, dial: null, place: 'the Far End', line: 'The founders\' name, on a street sign.' },
     { id: 'rentboard', name: 'The leases board', loc: 'town', at: [34.0, 1.6, 27.45], ghost: [34.0, 28.4], dial: null, place: 'the square', line: 'Made for whoever bids highest. Fourteen names are waiting for a turn.' },
     { id: 'coopsign', name: 'The Shed\'s sign', loc: 'town', at: [52, 2.4, 9.95], ghost: null, dial: null, place: 'the Commons', line: 'A sign that says who decides here.' },
     { id: 'plinth', name: 'The plinth', loc: 'town', at: [30, 0.6, 25.34], ghost: null, dial: null, place: 'the square', line: 'A new plate. The statue didn\'t change.', if: (S) => !!(S.w || {}).benefactor_yes },

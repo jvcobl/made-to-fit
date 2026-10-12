@@ -145,13 +145,13 @@ export class Slice {
     if (!made) {
       this.shot(new THREE.Vector3(66, 9, 70), new THREE.Vector3(57, 1.5, 30), 34, 0.6, true);
       G.busRide = true;
-      await ui.caption('The 5:40 into Larkspur. About a thousand people, give or take you.', 3000);
+      await ui.caption('Your bus pulls into Larkspur. About a thousand people live here, and now you do too.', 3800);
       this.shot(new THREE.Vector3(35.5, 5.6, 31.5), new THREE.Vector3(30, 3.2, 24), 30, 0.5);
-      await ui.caption('The whole town was planned around one resident. That one.', 3000);
-      await ui.caption('The Standard Resident. Larkspur\'s measure.', 2800);
+      await ui.caption('The whole town was planned around one person, the Standard Resident.', 3200);
+      await ui.caption('That\'s its statue, in the square. Every step, door and light in town was made to fit it.', 4000);
       G.busRide = false;
       this.shot(new THREE.Vector3(14, 6, 46), new THREE.Vector3(9.5, 1.5, 35), 34, 0.8);
-      await ui.caption('No. 2, Home Row. Yours.', 2200);
+      await ui.caption('No. 2, Home Row. Your new home.', 2400);
     }
     st.inPrologue = false; st.skipIntro = false;
     await G.stage.fadeTo(1, 700);
@@ -162,7 +162,7 @@ export class Slice {
     await G.stage.fadeTo(0, 700);
     ui.letterbox(false);
     if (!made) {
-      await ui.caption('First things first: you.', 1800);
+      await ui.caption('First, who are you?', 1800);
       G.mode = 'creator'; G.player.heading = 0.6; G.posePreview = true; if (!S.look.comfort) S.look.comfort = 'hum';
       const look = await ui.creator(S.look, (L, k) => { S.look = L; S.wheels = !!L.wheels; G.player.setLook(L); if (k === 'comfort' || k === 'all') G.player.previewComfort(L.comfort || 'hum'); else G.player.hop(); if (k === 'voice') G.audio.voice(L.voice, 1, 'hello hello'); });
       G.posePreview = false; G.player.setComfort(look.comfort || 'hum', 0);
@@ -275,20 +275,20 @@ export class Slice {
       if (!G.look.raised && c('homerow').done < c('homerow').total) return ob('Raise Wren\'s lantern' + (this.ui.touch ? ' (the lantern button)' : ' (' + G.keyOf('look') + ')') + ' and look around Home Row.', null);
       // (the arrow leads the way, but a mark's name waits until the beam has found it: the lesson is the sweep)
       const m = this.nextMark('homerow'); const found = m && G.marks.seen && G.marks.seen.has(m.id);
-      return ob('Turn to sweep the beam along Home Row. It glows and hums near what pinches people. Tag it with ' + (this.ui.touch ? 'a tap' : G.keyOf('interact')) + ' (' + c('homerow').done + '/' + c('homerow').total + ').', m ? [m.at[0], m.at[2] + 1.6] : null, found ? m.name : 'Something to find');
+      return ob('Turn to sweep the beam along Home Row. The lantern glows and hums near what pinches people. Tag it with ' + (this.ui.touch ? 'a tap' : G.keyOf('interact')) + ' (' + c('homerow').done + '/' + c('homerow').total + ').', m ? [m.at[0], m.at[2] + 1.6] : null, found ? m.name : 'Something to find');
     }
-    if (s === 'porch') return ob('Hang your porch lantern. Your door, No. 2.', T.porch, 'Your door');
-    if (s === 'tomarket') return ob('Bea says noon is hard for Moss. Market Square.', T.cart, 'Moss\'s tea cart');
+    if (s === 'porch') return ob('Go to your door (No. 2) and hang a porch lantern.', T.porch, 'Your door');
+    if (s === 'tomarket') return ob('Bea says noon is hard for Moss. Go to Market Square.', T.cart, 'Moss\'s tea cart');
     if (s === 'market') {
       if (!G.look.raised && c('market').done < c('market').total) return ob('Raise the lantern in the square' + (this.ui.touch ? '.' : ' (' + G.keyOf('look') + ').'), null);
-      return ob('Sweep the lantern round Market Square and tag what pinches people (' + c('market').done + '/' + c('market').total + '). It glows and hums when it\'s close.', this.inZone('market') ? null : [29.5, 28.5], 'Market Square');
+      return ob('Sweep the lantern around Market Square and tag what pinches people (' + c('market').done + '/' + c('market').total + (this.wrenOnly('market') ? ', and Wren already tagged one' : '') + '). The lantern glows and hums when it\'s close.', this.inZone('market') ? null : [29.5, 28.5], 'Market Square');
     }
     if (s === 'moss') return ob('Ask Moss how noon is for her.', this.near('moss', T.cart), 'Moss');
     if (s === 'rue') return ob('Rue is waving you over to the Blend kiosk.', this.near('rue', T.kiosk), 'Rue');
     if (s === 'works') return ob('Bea is stuck outside the Works.', [13.6, 15.6], 'Bea');
     if (s === 'worksmarks') {
       if (!G.look.raised && c('works').done < c('works').total) return ob('Raise the lantern at the Works' + (this.ui.touch ? '.' : ' (' + G.keyOf('look') + ').'), null);
-      return ob('Sweep the lantern round the Works and tag what pinches people (' + c('works').done + '/' + c('works').total + '). Follow the long way round.', this.nearPos([15, 13], 9) ? null : [14, 15], 'The Works');
+      return ob('Sweep the lantern around the Works and tag what pinches people (' + c('works').done + '/' + c('works').total + (this.wrenOnly('works') ? ', and Wren already tagged one' : '') + '). Try the long way around, too.', this.nearPos([15, 13], 9) ? null : [14, 15], 'The Works');
     }
     if (s === 'gil') return ob('Gil wants a word.', this.near('gil', [14.2, 14.4]), 'Gil');
     if (s === 'hearing') return ob('The hearing about the ramp: Town Hall, at three.', T.hall, 'Town Hall');
@@ -296,6 +296,8 @@ export class Slice {
     return ob('');
   }
   inZone(z) { return this.G.loc === 'town' && this.G.zone === z; }
+  // (Wren tags one mark on each street before you start: say so, until you've tagged one yourself)
+  wrenOnly(z) { const mine = this.S.marks || {}; return MARKS.some((m) => m.street === z && m.pre) && !MARKS.some((m) => m.street === z && mine[m.id]); }
   near(id, dflt) { const n = this.G.npcs[id]; if (n && n.place === 'town') { const q = n.c.root.position; return [q.x, q.z + 0.9]; } return dflt; }
   nextMark(z) { const p = this.G.player.root.position; let best = null, bd = 1e9; for (const m of MARKS) { if (m.street !== z || m.rare || m.fit || this.G.marks.tagged(m.id)) continue; const d = Math.hypot(m.at[0] - p.x, m.at[2] - p.z); if (d < bd) { bd = d; best = m; } } return best; }
   goals() {
@@ -310,7 +312,7 @@ export class Slice {
   }
   label(it) {
     const s = this.stage;
-    if (it.id === 'home' && s === 'porch') return 'Hang your porch lantern';
+    if (it.id === 'home' && s === 'porch') return 'Hang a porch lantern';
     if (it.id === 'home' && (this.S.slice.porch) && s !== 'porch' && this.G.loc === 'town') return 'Go home';
     if (it.id === 'hall' && s === 'hearing') return 'Go in: the hearing';
     if (it.id === 'sill' && !this.S.flags.lantern) return 'Pick up the lantern';
@@ -359,13 +361,13 @@ export class Slice {
   // a hook mark on the street list the first time you see it (the head start is Wren's tag)
   async pickLantern() {
     const G = this.G, S = this.S;
-    await this.note('A small lantern on the windowsill, with a tag: "For No. 2. Raise it to see what pinches people. I tagged one on Home Row to show you how."');
-    await this.note('On the back: "Lantern night is tonight, on your porch. Bring whoever you can. —W."');
+    await this.note('A small lantern on the windowsill, with a note: "For No. 2. Raise it to see what pinches people here, the way a shoe pinches when it doesn\'t fit. I\'ve tagged one thing on Home Row to show you how."');
+    await this.note('On the back, it says "Tonight is lantern night, a little get-together on your porch. Invite whoever you like. Wren."');
     this.ui.hideDialog();
     S.flags.lantern = 1; G.rooms.home.setLantern(false); G.ui.gearKey = '';
     G.audio.sfx('lantern'); G.fx.burst(G.player.root.position.clone().add(new THREE.Vector3(0, 1.2, 0)), { n: 14, colors: ['#ffcf7a', '#fff4d6'] });
     S.guests = S.guests || {}; this.addGuest('wren', true); this.renderGuests('wren');
-    this.ui.toast(`<b>Wren's lantern</b><br>Outside, ${this.ui.touch ? 'the lantern button' : G.keyOf('look') + ' or the lantern button'} raises it. Lantern night: Wren's coming. Who else comes is up to you.`, 'idea', 6800);
+    this.ui.toast(`<b>Wren's lantern</b><br>Outside, ${this.ui.touch ? 'the lantern button' : G.keyOf('look') + ' (or the lantern button)'} raises it. Wren is coming to lantern night. Who else comes is up to you.`, 'idea', 6800);
     this.stage = 'homerow';
   }
   async beaOut() {
@@ -377,13 +379,13 @@ export class Slice {
     await this.say('bea', 'Oh! It\'s the new one at Number Two. Sorry, dear. I heard steps and thought: the knocker again.');
     await this.say('bea', 'Fifty years on this row, and I still can\'t say "not today" without feeling rude. So some days I don\'t answer at all.');
     this.card('bea_knock');
-    await this.gut('Wren\'s tag has a line you missed: "A light by the door says it without a word."');
+    await this.gut('Wren\'s note has one more line, at the bottom. "A light by the door can say it without a word."');
     this.unframe();
     this.stage = 'porch';
   }
   async hangLantern() {
     const G = this.G, S = this.S, ui = this.ui;
-    const k = await this.choose([{ t: 'Teal: come in, say hi', id: 'porch_teal' }, { t: 'Amber: not right now', id: 'porch_amber' }], { text: 'Your porch lantern. What does it say?', kind: 'gut' });
+    const k = await this.choose([{ t: 'Teal: come in, say hi', id: 'porch_teal' }, { t: 'Amber: not right now', id: 'porch_amber' }], { text: 'Your porch lantern. What should it tell people?', kind: 'gut' });
     ui.hideDialog();
     S.slice.porch = k === 0 ? 'teal' : 'amber';
     // yours goes up first; the rest of the row follows by lunchtime
@@ -409,7 +411,7 @@ export class Slice {
     else { S.stakes.lanterns = 'overruled'; await this.say('bea', 'Then I\'ll learn to text first. In capitals. I\'ll still come tonight, mind. Lemon cake.'); }
     this.addGuest('bea');
     this.card('perceptible');
-    await this.say('bea', 'If you\'re making room, dear, go and see Moss at the tea cart. Noon in the square is a racket.');
+    await this.say('bea', 'If you\'re making room, dear, go and see Moss at the tea cart. Noon in the square is terribly loud.');
     this.unframe(); this.release('bea');
     await this.timelapse(Math.max(S.min, 690), 'By lunchtime, the rest of the row has lanterns up too.');
     this.porchColors();
@@ -420,7 +422,7 @@ export class Slice {
     const G = this.G; G.audio.sfx('wave'); G.fx.punch(0.9);
     G.fx.ring(new THREE.Vector3(from[0], 0, from[1]), { color: '#ffe2a0', r: 7, dur: 1.4 });
     const p = G.color.restore(zone, from);
-    setTimeout(() => G.fx.pop(new THREE.Vector3(from[0], 2.6, from[1]), (STREETS[zone] ? STREETS[zone].name : 'Here') + ': room made', { kind: 'good', big: true, hook: 'juice', hookCtx: { what: 'A wave of color over ' + (STREETS[zone] ? STREETS[zone].name : 'a street'), point: (STREETS[zone] ? STREETS[zone].name : 'a street') + ', with room made for someone' }, ms: 2600 }), FAST ? 10 : 900);
+    setTimeout(() => G.fx.pop(new THREE.Vector3(from[0], 2.6, from[1]), 'Room made ' + (STREETS[zone] ? STREETS[zone].where : 'here'), { kind: 'good', big: true, hook: 'juice', hookCtx: { what: 'A wave of color over ' + (STREETS[zone] ? STREETS[zone].name : 'a street'), point: (STREETS[zone] ? STREETS[zone].name : 'a street') + ', with room made for someone' }, ms: 2600 }), FAST ? 10 : 900);
     await p;
     this.S.restored = (this.S.restored || 0) + 1;
   }
@@ -439,12 +441,12 @@ export class Slice {
     const G = this.G, S = this.S;
     G.focusPinch(true);
     const top = p.top || 'sound';
-    const what = { sound: 'The jingle comes off every post at once.', people: 'The whole square is one crowd at noon.', light: 'The noon sun bounces off every stall.' }[top] || 'Noon, in the square.';
+    const what = { sound: 'The same jingle blares from a speaker on every post.', people: 'The whole square is one crowd at noon.', light: 'The noon sun bounces off every stall.' }[top] || 'Noon, in the square.';
     const opts = [
-      { key: 'bend', who: 'You', label: 'Push through', sub: 'You stay, and nobody notices. It costs you, hidden.', hold: true },
+      { key: 'bend', who: 'You', label: 'Push through', sub: 'You stay, and nobody notices what it costs you.', hold: true },
       { key: 'gear', who: 'Your gear', label: 'Use gear', disabled: true, reason: 'nothing you own helps with this yet' },
       { key: 'ask', who: 'Them', label: 'Ask someone to turn it down', disabled: true, reason: 'the speakers are the council\'s; nobody here can' },
-      { key: 'fix', who: 'The place', label: 'Make room here', sub: 'Find what pinches, and fix it for everyone. Slower. Lasts.' },
+      { key: 'fix', who: 'The place', label: 'Make room here', sub: 'Find what pinches, and fix it for everyone. Slower, but it lasts.' },
       { key: 'leave', who: 'Nobody', label: 'Go somewhere else', sub: 'You rest. You miss what you came for.' },
     ];
     const choice = await this.ui.barrier({ options: opts, title: 'Market Square, noon', text: what, coach: 'When a place doesn\'t fit, someone adjusts. Each answer costs something different.' });
@@ -487,14 +489,14 @@ export class Slice {
   async mossTalk() {
     const G = this.G, S = this.S;
     this.frame('moss');
-    await this.say('moss', 'Noon, love. The jingle comes off every post, and by twelve I can\'t hear my own kettle. It\'s the only pitch with shade, so I stay, I smile, and I go home and lie in the dark.');
+    await this.say('moss', 'Noon, love. That jingle blares from every post, and by twelve I can\'t hear my own kettle. It\'s the only spot with shade, so I stay, I smile, and I go home and lie in the dark.');
     this.card('moss_kettle');
     this.unframe();
     // Pomeroy has heard every word
     this.walkIn('pomeroy', [27.4, 29.6]);
     await sleep(FAST ? 20 : 1600);
     this.frame('pomeroy');
-    await this.say('pomeroy', 'Oi! You\'re not turning the music off? Half my sales are folk who hear me before they see me!');
+    await this.say('pomeroy', 'Oi! Don\'t you turn that music off! Half my sales are folk who hear me before they see me!');
     await this.say('pomeroy', 'Put your quiet on the bench side, and leave me my side loud. Everybody gets a side.');
     this.card('pomeroy_loud');
     this.unframe(); this.release('pomeroy');
@@ -502,14 +504,14 @@ export class Slice {
     this.walkIn('clover', [26.2, 30.6], [36, 33.6]);
     await sleep(FAST ? 20 : 2200);
     this.frame('clover');
-    await this.say('clover', 'Right. I heard "kettle" and I heard "side". Both fair. Sketch it so every face fits.');
+    await this.say('clover', 'Right. I\'m Clover, I run the Fix-It Shed. I heard "kettle" and I heard "side". Both fair. Let\'s sketch a square where everyone fits.');
     this.unframe();
     const r = await new Blueprint(G, 'quiet', { where: 'Market Square, on Clover\'s sketchbook', how: 'Each face can only walk a little way. Put changes <b>near the people who need them</b>, and get <b>every face glowing</b>.' }).run();
     const zoned = !!(r && r.zoned);
     S.stakes = S.stakes || {}; S.stakes.quiet = zoned ? 'listened' : 'overruled';
     // the build, over lunch
     this.frame('clover');
-    await this.say('clover', zoned ? 'A quiet corner by the benches, and a music corner by the apples. Give me an hour and the lads from the Shed.' : 'Quieter everywhere, then. It\'s a start. Give me an hour.');
+    await this.say('clover', zoned ? 'A quiet corner by the benches, and a music corner by the apples. Give me an hour and my crew from the Shed.' : 'Quieter everywhere, then. It\'s a start. Give me an hour.');
     this.unframe();
     await this.build('quiet', [23.5, 31.2], Math.max(S.min, 790), 'Clover\'s crew builds it over lunch.');
     S.fixes.quiet = 'built'; S.fixVia = S.fixVia || {}; S.fixVia.quiet = 'slice';
@@ -557,7 +559,7 @@ export class Slice {
     G.ui.bubble('rue', 'Psst! New person!', { tint: CAST.rue.tint, ms: 2600 });
     await sleep(FAST ? 20 : 2200);
     this.frame('rue');
-    await this.say('rue', 'Nice work! That was a LOT of effort for some quiet, though. Blend does it in one tap: Smooth Mode, you stop minding things, and you get points for every place you push through. Free!');
+    await this.say('rue', 'Nice work! That was a LOT of effort for some quiet, though. My app, Blend, does it in one tap. Turn on Smooth Mode and you stop minding things, and you get points for every place you push through. Free!');
     const k = await this.choose([{ t: 'Go on, I\'ll try it', id: 'blend_yes', blend: true }, { t: 'No thanks', id: 'blend_no' }], { text: 'Install Blend?', kind: 'gut' });
     if (k === 0) {
       G.installBlend();
@@ -589,8 +591,8 @@ export class Slice {
     this.stage = 'worksmarks';
     { const q = G.npcs.bea.c.root.position; if (Math.hypot(q.x - 13.4, q.z - 14.2) > 3) this.walkIn('bea', [13.4, 14.2], [13.4, 14.2], true); }
     this.frame('bea');
-    await this.say('bea', 'There you are. The post counter\'s in there, dear. Three steps. My cart doesn\'t do steps.');
-    await this.say('bea', 'So I go round the back with the parcels and wait for the dock. It opens at ten, when it opens.');
+    await this.say('bea', 'There you are. The mail counter\'s in there, dear. Three steps. My cart doesn\'t do steps.');
+    await this.say('bea', 'So I go round the back with the parcels and wait for the dock. It\'s meant to open at ten.');
     this.card('bea_steps');
     this.unframe();
   }
@@ -617,7 +619,7 @@ export class Slice {
     this.frame('gil');
     await this.say('gil', 'Hey hey! The new person! What\'s all this? Oh, Bea. Afternoon, Bea.');
     await this.say('you', 'A ramp. For Bea, and anyone else on wheels.');
-    await this.say('gil', 'Love that. Love the energy. Anything structural goes to the council, though. Hollis is hearing things at three!');
+    await this.say('gil', 'Love that. Love the energy. Anything that changes the building goes to the council, though. Hollis runs the hearings, and there\'s one at three, at Town Hall!');
     await this.say('gil', 'One tiny thing. The planters by the steps? My tomatoes. Nine years. They\'re the only thing in this building that\'s thriving.');
     const k = await this.choose([{ t: 'What would make a ramp work for you?', id: 'gil_ask' }, { t: 'We\'ll sort that out later', id: 'gil_later' }]);
     if (k === 0) {
@@ -648,11 +650,11 @@ export class Slice {
     S.flags.hearingDone = 1; S.slice.hearing = { passed: r.passed, yes: r.yes, consentSkipped: r.consentSkipped };
     this.ui.letterbox(true);
     if (r.passed) {
-      await this.say('hollis', r.yes === 3 ? 'Carried, all three. The ramp goes up this afternoon. Goodness.' : 'Carried. The ramp goes up this afternoon.');
+      await this.say('hollis', r.yes === 3 ? 'Three votes out of three. The ramp goes up this afternoon. Goodness.' : 'The vote passes. The ramp goes up this afternoon.');
       if (r.consentSkipped) { await this.say('bea', 'Next time, ask me first, dear. I\'d have said yes.'); }
     } else {
-      await this.say('hollis', 'Not carried, I\'m afraid. It goes on file.');
-      await this.say('clover', 'You were missing ' + RAMP.missing[r.missing[0]] + '. Bring that back, and it\'ll carry.');
+      await this.say('hollis', 'It doesn\'t pass, I\'m afraid. It goes on file for another meeting.');
+      await this.say('clover', 'You were missing ' + RAMP.missing[r.missing[0]] + '. Bring that back, and it\'ll pass.');
       S.fixes.ramp = 'proposal'; S.support.ramp = ['bea'];
     }
     this.ui.hideDialog(); this.ui.letterbox(false);
@@ -660,7 +662,7 @@ export class Slice {
     if (r.passed) {
       S.fixes.ramp = 'built'; S.fixVia = S.fixVia || {}; S.fixVia.ramp = 'slice';
       await G.stage.fadeTo(1, 500); G.setLoc('town'); G.place([14.4, 17.6]); G.player.heading = Math.PI; G.audio.setScene('town'); await G.stage.fadeTo(0, 500);
-      await this.build('ramp', [16, 11.2], Math.max(S.min, 1000), 'The ramp goes up by teatime.');
+      await this.build('ramp', [16, 11.2], Math.max(S.min, 1000), 'The ramp goes up by late afternoon.');
       this.detour(false);
       await this.waveWide('works', [13, 12.6], [13, 11]);
       this.frameAt([16, 11.6], { dx: 2, dz: 9, h: 6.5, fov: 38 });
@@ -686,7 +688,7 @@ export class Slice {
     const t0 = performance.now(); let k = 0;
     await new Promise((r) => { const step = () => { k = clamp((performance.now() - t0) / 3200); pc.root.position.set(13.6 + k * 5.6, 0.5 * (1 - k), 11.2 + k * 1.4); pc.heading = Math.PI / 2; pc.speed = 0.5; pc.update(0.016); if (k < 1) requestAnimationFrame(step); else r(); }; requestAnimationFrame(step); if (FAST) setTimeout(r, 50); });
     G.fx.pop(new THREE.Vector3(17, 2.6, 12), 'Built for Bea. Used by everyone.', { kind: 'good', big: true, ms: 3000 });
-    await this.gut('A ramp for Bea, and the next two down it are a bread cart and a pram. That has a name.');
+    await this.gut('A ramp for Bea, and the next two down it are a bread cart and a stroller. That has a name.');
     this.card('curb');
     this.ui.hideDialog();
     pip.c.root.remove(cart); pc.root.remove(pram); extra.held = false; extra.active = false; pc.root.visible = false; pc.speed = 0; pc.root.position.y = 0;
@@ -758,7 +760,7 @@ export class Slice {
     await this.standardReveal();
     this.frame('wren');
     await this.say('wren', S.slice.guess === 'none' ? 'You guessed it. Nothing pinches the Standard, and not one of us fits it.' : 'Nothing pinches the Standard. Not one mark. And not one of us fits it. Not one person in Larkspur.');
-    await this.say('wren', 'They built the whole town for somebody who isn\'t here. Every room you made today, you made for someone who is.');
+    await this.say('wren', 'They built the whole town for somebody who isn\'t here. Today you made room for people who are.');
     this.card('average');
     this.unframe();
     // the day's rewards, sorted: what did each one point you at? Then the postcard, and tomorrow.
@@ -800,23 +802,26 @@ export class Slice {
     M.showAll = false; M.fade = null; G.look.raised = false; G.ui.gearKey = '';
     // the porch: each of you, and what doesn't fit you about a town built for the Standard
     this.porchShot(new THREE.Vector3(9.5, 5.2, 47.5), new THREE.Vector3(9.5, 1.2, 39.4), 38, 2.4);
-    const here = ['you'].concat(Object.keys(S.guests || {}).filter((id) => G.npcs[id] && G.npcs[id].c.root.visible && Math.hypot(G.npcs[id].c.root.position.x - 9.5, G.npcs[id].c.root.position.z - 39.6) < 9));
+    // (everyone who came, wherever on the porch they're standing; on a quiet night, only Wren came back)
+    const here = ['you'].concat(Object.keys(S.guests || {}).filter((id) => CAST[id] && G.npcs[id] && (!S.slice.quietNight || id === 'wren')));
     set('?', 'of the people on your porch fit the Standard');
     await sleep(FAST ? 20 : 900);
     G.fx.ring(new THREE.Vector3(9.5, 0, 39.6), { color: '#c9b8a6', r: 9, dur: 2.2 });
     // each of you, and what doesn't fit them: a list under the number (readable on any screen), and on a wide screen
     // a label over each head as well
-    const wide = innerWidth / Math.max(1, innerHeight) >= 1.25; const list = document.createElement('ul'); list.className = 'rvlist'; tag.appendChild(list);
+    const wide = innerWidth / Math.max(1, innerHeight) >= 1.25;
+    { const cap = document.createElement('p'); cap.className = 'rvcap'; cap.textContent = 'Where each of you differs from the Standard'; tag.appendChild(cap); }
+    const list = document.createElement('ul'); list.className = 'rvlist'; tag.appendChild(list);
     for (const id of here) {
       const prof = id === 'you' ? S.profile : (CAST[id].profile || {});
       const icons = misfits(prof, id === 'you' ? S.wheels : CAST[id].cart).slice(0, 3);
-      const label = (id === 'you' ? 'You' : CAST[id].name) + ': ' + icons.join(' ');
+      const label = (id === 'you' ? 'You' : CAST[id].name) + ': ' + icons.join(', ');
       const li = document.createElement('li'); li.textContent = label; list.appendChild(li);
       if (wide) { const obj = id === 'you' ? G.player.root : G.npcs[id].c.root; G.fx.pop(obj.position.clone(), label, { kind: id === 'you' ? 'mark' : 'guest', ms: 3000, rise: 20, follow: obj, dy: 2.3 }); }
       G.audio.sfx('pop'); await sleep(FAST ? 2 : 300);
     }
     tag.querySelector('b').textContent = '0'; tag.querySelector('span').textContent = 'of ' + here.length + ' on your porch fit the Standard. Not even you.';
-    this.ui.announce('None of the ' + here.length + ' on your porch fit the Standard. Not even you. ' + [...list.children].map((x) => x.textContent).join('. '));
+    this.ui.announce('None of the ' + here.length + ' on your porch fit the Standard. Not even you. Where each of you differs from it. ' + [...list.children].map((x) => x.textContent).join('. ') + '.');
     await sleep(FAST ? 20 : 3200);
     tag.remove();
   }
@@ -832,8 +837,8 @@ export class Slice {
     for (const id of ['endowed', 'rare', 'gradient', 'openloop', 'juice']) if (pickd.length < 3 && !seen.has(id + 'game')) add(log.find((e) => e.id === id && e.by !== 'blend'));
     for (const e of log) if (pickd.length < 3) add(e);
     if (pickd.length < 2) return;
-    const p = ui.openPanel('center hooksort', `<h2>What did it point you at?</h2><p class="lede">Today the game rewarded you ${G.hooks.total()} times, each with a little hook mark. Here are ${pickd.length === 3 ? 'three' : pickd.length === 4 ? 'four' : 'two'}. For each: did it point you at something real, or was it just the pull?</p>
-      <div class="hs">${pickd.map((e, i) => `<div class="hsrow" data-i="${i}"><div class="hsw"><i class="hk">${HOOK_SVG}</i>${esc(e.what)}${e.by === 'blend' ? ' <span class="hsb">Blend</span>' : ''}</div><div class="hsbtn"><button class="chip" data-v="real">Something real</button><button class="chip" data-v="hook">Just the pull</button></div></div>`).join('')}</div>
+    const p = ui.openPanel('center hooksort', `<h2>Where did the hooks point you?</h2><p class="lede">Today the game rewarded you ${G.hooks.total()} times, each with a little hook mark. Here are ${pickd.length === 3 ? 'three' : pickd.length === 4 ? 'four' : 'two'}. For each one, did it point you at something real, or was it just a pull to keep you playing?</p>
+      <div class="hs">${pickd.map((e, i) => `<div class="hsrow" data-i="${i}"><div class="hsw"><i class="hk">${HOOK_SVG}</i>${esc(e.what)}${e.by === 'blend' ? ' <span class="hsb">Blend</span>' : ''}</div><div class="hsbtn"><button class="chip" data-v="real">Something real</button><button class="chip" data-v="hook">Just a pull</button></div></div>`).join('')}</div>
       <div class="pfoot"><button class="btn primary" id="hsGo" disabled>See what they were</button></div>`);
     const ans = {};
     p.querySelectorAll('.hsrow').forEach((row) => row.addEventListener('click', (e) => { const b = e.target.closest('[data-v]'); if (!b) return; ans[row.dataset.i] = b.dataset.v; row.querySelectorAll('[data-v]').forEach((x) => x.classList.toggle('on', x === b)); G.audio.sfx('select'); p.querySelector('#hsGo').disabled = Object.keys(ans).length < pickd.length; }));
@@ -866,8 +871,8 @@ export class Slice {
     const p = ui.openPanel('center daycard', `<div class="dk">Monday, Larkspur</div><h2>${quiet ? 'A quiet lantern night' : guests.length + ' came to lantern night'}</h2>
       <div class="dfaces">${guests.map((id) => `<figure><img alt="" src="${ui.face(id, S)}"><figcaption>${esc(CAST[id].name)}</figcaption></figure>`).join('')}</div>
       <div class="dbuilt">${built.map((f) => `<span>${esc(SIM.FIXES[f].name)}</span>`).join('')}</div>
-      <p class="lede dtom"><i class="hk" title="A hook: unfinished business (an open loop)">${HOOK_SVG}</i>Tomorrow: the bus changes its route without a word, the Works is too bright for Gil, and Clover found something in the loft about how the Standard was made.</p>
-      <p class="dq2">Tuesday is yours to play either way. Nothing is chosen for you.</p>
+      <p class="lede dtom"><i class="hk" title="A hook: unfinished business (an open loop)">${HOOK_SVG}</i>Tomorrow: the bus changes its route without warning, the Works is too bright for Gil, and Clover found something in the loft about how the Standard was made.</p>
+      <p class="dq2">Choose how you'd like to play Tuesday. Neither option is picked for you.</p>
       <div class="pfoot dchoice"><button class="btn" id="dGo">Keep playing<small>with the sparks and hook marks</small></button><button class="btn" id="dQuiet">Keep playing quietly<small>no hook marks, calm feedback</small></button></div>
       <div class="dstop"><button class="linkbtn" id="dStop">Stop here for now</button></div>`);
     // (two equal ways on, and neither picked in advance: the game doesn't choose its own pulls for you)
@@ -880,11 +885,11 @@ export class Slice {
 // the dials on which someone sits far from the Standard's room (bright, loud, visitors any time, hints, early, a bit of
 // both), as the marks' icons; wheels meet the town's steps
 const STD = { light: 0.9, sound: 0.9, people: 0.9, talk: 0.9, time: 0.1, change: 0.5 };
-const ICON_OF = { light: '☀', sound: '♪', people: '✱', talk: '✎', time: '⏱', change: '↻' };
+const ICON_OF = { light: 'light', sound: 'noise', people: 'crowds', talk: 'how people talk', time: 'hours', change: 'change' };
 function misfits(prof, wheels) {
   const out = Object.keys(STD).filter((d) => prof[d] != null && Math.abs(prof[d] - STD[d]) > 0.3).sort((a, b) => Math.abs(prof[b] - STD[b]) - Math.abs(prof[a] - STD[a])).map((d) => ICON_OF[d]);
-  if (wheels) out.unshift('▲');
-  return out.length ? out : ['↻'];
+  if (wheels) out.unshift('steps');
+  return out.length ? out : ['change'];
 }
 // what a reward of the game's own pointed at, in a few words (its own words when it carried them)
 function pointedAt(e) {

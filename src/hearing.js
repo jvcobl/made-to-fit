@@ -11,14 +11,14 @@ import { esc, sleep, FAST } from './util.js';
 // cards you can hold: id -> { kind: 'story' | 'insight' | 'deal', who (story/deal), title, text, src (insight) }
 export const CARDS = {
   bea_knock: { kind: 'story', who: 'bea', title: 'Bea, about her door', text: 'Fifty years on this row, and I still can\'t say "not today" without feeling rude.' },
-  moss_kettle: { kind: 'story', who: 'moss', title: 'Moss, about noon', text: 'By twelve I can\'t hear my own kettle. And this is the only pitch with shade.' },
+  moss_kettle: { kind: 'story', who: 'moss', title: 'Moss, about noon', text: 'By twelve I can\'t hear my own kettle. And this is the only spot with shade.' },
   pomeroy_loud: { kind: 'story', who: 'pomeroy', title: 'Pomeroy, about his apples', text: 'Half my sales are folk who hear me before they see me!' },
   bea_steps: { kind: 'story', who: 'bea', title: 'Bea, at the Works steps', text: 'My cart doesn\'t do steps. So I go round the back with the parcels, and the dock opens at ten.' },
   pip_cart: { kind: 'story', who: 'pip', title: 'Pip, about her mornings', text: 'I take the bread cart round by the loading dock every morning. Takes ages. Never mind!' },
   perceptible: { kind: 'insight', title: 'Say it more than one way', text: 'A design principle: information should reach people however they take it in. A light by a door says "come in" or "not now" without a word.', src: 'Center for Universal Design, 1997' },
   zoning: { kind: 'insight', title: 'Zones, not sameness', text: 'Quiet places beside lively ones, rather than one level for everybody. Design guidance for neurodivergent people recommends it; the evidence is mostly expert consensus so far.', src: 'BSI PAS 6463, 2022; Mostafa, 2014' },
-  curb: { kind: 'insight', title: 'The curb-cut effect', text: 'Curb cuts won by wheelchair users turned out to help parents with strollers, travelers with suitcases and workers with carts. Changes made for some often help many more.', src: 'Blackwell, 2017' },
-  average: { kind: 'insight', title: 'Nobody is average', text: 'In 1950 the US Air Force measured 4,063 flyers on ten body dimensions. Not one fell in the middle range on all ten.', src: 'Daniels, 1952' },
+  curb: { kind: 'insight', title: 'The curb-cut effect', text: 'Curb cuts, the small ramps where a sidewalk meets the street, were won by wheelchair users and turned out to help parents with strollers, travelers with suitcases and workers with carts. Changes made for some often help many more.', src: 'Blackwell, 2017' },
+  average: { kind: 'insight', title: 'Nobody is average', text: 'In 1950 the US Air Force measured 4,063 pilots on ten body dimensions. Not one fell in the middle range on all ten.', src: 'Daniels, 1952' },
 };
 
 // the ramp at the Works. accept: cards (or 'witness:id') that answer each objection, with the line it gets
@@ -28,7 +28,7 @@ export const RAMP = {
     { who: 'hollis', kind: 'Tradition', t: 'Those steps have stood since 1891. In all that time, nobody has complained.', weak: 'nobody has complained',
       why: 'Well. Nobody has written in about them. Not one letter.', hint: 'Who could have got inside to write?',
       accept: ['wk_steps', 'bea_steps', 'witness:bea'],
-      yes: 'Ah. Nobody complained because nobody on wheels could get in to. I take the point.',
+      yes: 'Ah. Nobody complained because nobody on wheels could get in to complain. I take the point.',
       wrong: 'I don\'t quite see what that has to do with the steps.' },
     { who: 'pip', kind: 'Money', t: 'A whole ramp, for Bea? That\'s a lot of the Works budget for one person!', weak: 'for one person',
       why: 'Money spent at the Works can\'t be spent twice. It should help the most people it can.', hint: 'Who else comes and goes on wheels?',
@@ -43,21 +43,21 @@ export const RAMP = {
   ],
   witnesses: {
     bea: 'My cart doesn\'t do steps, Hollis. I go round with the parcels and wait for the dock. Nobody asked me to write in.',
-    moss: 'I\'d use it with the tea urn. So would every pram on Home Row.',
+    moss: 'I\'d use it with the tea urn. So would every stroller on Home Row.',
     gil: 'Oh! Me? Could it run along the rail, with my tomatoes beside it? A bit narrower. Still fits a cart. I measured. Twice.',
     pip: 'I\'d use it with the bread cart, every morning.',
   },
   missing: { hollis: 'what the steps do to people who can\'t use them', pip: 'who else it helps', clover: 'who it costs, and what they said' },
 };
 
-// the bus board, at Tuesday's town meeting
+// the bus sign, at Tuesday's town meeting
 export const BOARD = {
-  fix: 'board', title: 'A bus board that shows changes', street: 'transit',
+  fix: 'board', title: 'A bus sign that shows changes', street: 'transit',
   objections: [
     { who: 'hollis', kind: 'Tradition', t: 'Route changes have been announced over the speaker since the buses began. People manage.', weak: 'People manage',
       why: 'Well. One hears it, or one asks somebody who did.', hint: 'Who misses a thing that\'s only said once?',
       accept: ['tr_speaker', 'tr_bus', 'witness:bea'], yes: 'Said once, over a crackle, while the bus pulls in. Put like that, "manage" is generous.', wrong: 'I\'m not sure that\'s about the buses.' },
-    { who: 'pip', kind: 'Money', t: 'A screen at the bus stop costs the same as all the festival bunting! Is it worth that?', weak: 'Is it worth that',
+    { who: 'pip', kind: 'Money', t: 'A sign at the bus stop costs the same as all the festival bunting, the little flags! Is it worth that?', weak: 'Is it worth that',
       why: 'Only a few people miss the announcements, surely.', hint: 'Who else is helped when it\'s written down as well as said?',
       accept: ['perceptible', 'curb', 'witness:rue'], yes: 'Visitors, anyone with headphones in, anyone who was talking when it crackled. That\'s loads of people!', wrong: 'Hmm. That doesn\'t tell me who it helps.' },
     { who: 'clover', kind: 'Fairness', t: 'It comes out of the bunting budget. Who did you ask about that?', weak: 'Who did you ask',
@@ -66,7 +66,7 @@ export const BOARD = {
   ],
   witnesses: {
     bea: 'I was on the wrong bus twice last month, Hollis. The speaker said Elm Street. I heard "helm treat".',
-    rue: 'Half the people at that stop have headphones in. I do. The board would tell us.',
+    rue: 'Half the people at that stop have headphones in. I do. The sign would tell us.',
     moss: 'I miss it every time the kettle\'s on.',
     gil: 'Ooh. I never catch the announcements. I just get on whatever comes.',
   },
@@ -118,7 +118,8 @@ export class Hearing {
     ob.classList.remove('in'); void ob.offsetWidth; ob.classList.add('in');
     G.audio.sfx('objection'); G.audio.voice(CAST[o.who].voice[0], CAST[o.who].voice[1], o.t);
     if (G.npcs[o.who]) G.faceTalk(o.who);
-    this.setSay('Answer with a card that meets <mark>' + esc(o.weak) + '</mark>.');
+    G.ui.announce(CAST[o.who].name + ': ' + o.t);
+    this.setSay('Pick a card from your hand that answers <mark>“' + esc(o.weak) + '”</mark>.');
     this.renderHand();
     this.el.querySelector('#hWhy').onclick = () => this.askWhy();
     this.el.querySelector('#hWit').onclick = () => this.witness();
@@ -162,7 +163,7 @@ export class Hearing {
     if (this.witnessLeft <= 0 || this.busy) return; const G = this.G;
     const ids = this.gallery(); const box = this.el.querySelector('.hsay');
     box.innerHTML = '<span>Who do you call?</span> ' + ids.map((id) => `<button class="chip hwit" data-id="${id}"><img alt="" src="${G.ui.face(id, this.S)}">${esc(CAST[id].name)}</button>`).join('') + '<button class="chip hwit" data-id="">Never mind</button>';
-    box.querySelectorAll('.hwit').forEach((b) => { b.onclick = () => { const id = b.dataset.id; if (!id) { this.setSay('Answer with a card, or ask why.'); return; } this.witnessLeft = 0; this.el.querySelector('#hWit').disabled = true; this.resolve('witness:' + id, id); }; });
+    box.querySelectorAll('.hwit').forEach((b) => { b.onclick = () => { const id = b.dataset.id; if (!id) { this.setSay('Pick a card to answer it, or ask why.'); return; } this.witnessLeft = 0; this.el.querySelector('#hWit').disabled = true; this.resolve('witness:' + id, id); }; });
   }
   async present(id) {
     if (this.busy) return; const c = CARDS[id];
@@ -208,9 +209,9 @@ export class Hearing {
     const G = this.G; const yes = this.votes.filter((v) => v === 'yes').length; const passed = yes >= 2;
     const missing = this.D.objections.map((o, i) => (this.votes[i] === 'yes' ? null : o.who)).filter(Boolean);
     this.el.querySelector('.hhand').innerHTML = ''; this.el.querySelector('.hbtns').hidden = true;
-    const ob = this.el.querySelector('.hobj'); ob.innerHTML = `<div class="hresult ${passed ? 'pass' : 'fail'}">${passed ? 'Carried' : 'On file'}<small>${yes} of ${this.D.objections.length} votes</small></div>`;
+    const ob = this.el.querySelector('.hobj'); ob.innerHTML = `<div class="hresult ${passed ? 'pass' : 'fail'}">${passed ? 'Passed' : 'Not yet'}<small>${yes} of ${this.D.objections.length} votes</small></div>`;
     G.audio.sfx('gavel'); if (passed) setTimeout(() => G.audio.sfx('cheer'), 200);
-    this.setSay(passed ? 'The motion carries. Hollis brings the gavel down.' : 'Not this time. The motion goes on file.');
+    this.setSay(passed ? 'The vote passes. Hollis brings the gavel down.' : 'Not this time. It goes on file for another meeting.');
     await sleep(FAST ? 40 : 2200);
     this.el.remove();
     this.done({ passed, yes, missing, consentSkipped: !!this.consentSkipped });

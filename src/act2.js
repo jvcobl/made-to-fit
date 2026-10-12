@@ -76,8 +76,8 @@ async function unitCard(R, o = {}) {
   const options = [
     { key: 'bend', who: 'You', label: 'Do the mail by hand', sub: 'Unit idles. −10 energy; the room stays as it is.', hold: true },
     { key: 'gear', who: 'The machine', label: 'Teach Unit the room', sub: '30 coins of your festival pay, and about an hour. It learns what you show it.' },
-    o.noBell ? { key: 'ask', who: 'Them', label: 'Ring the call bell', disabled: true, reason: 'you rang. Sana had a script, and no button for this' } : { key: 'ask', who: 'Them', label: 'Ring Unit\'s call bell', sub: 'Someone, somewhere, minds it. It may take a while.' },
-    { key: 'fix', who: 'The place', label: 'Put the room back to the spec', sub: 'Panels up, lamps off, and your soft lights go back on file. Unit sorts perfectly. You and Ada pinch.' },
+    o.noBell ? { key: 'ask', who: 'Them', label: 'Ring the call bell', disabled: true, reason: 'you rang. Sana had a script, and no button for this' } : { key: 'ask', who: 'Them', label: 'Ring Unit\'s call bell', sub: 'Someone, somewhere, answers it. It may take a while.' },
+    { key: 'fix', who: 'The place', label: 'Put the room back to the spec', sub: 'Panels up, lamps off, and your soft lights go back on file. Unit sorts perfectly. You pinch, and so does your coworker Ada.' },
     { key: 'leave', who: 'Nobody', label: 'Step outside', sub: 'Gil decides, after you go, and Corporate wants the spec. No festival pay for you.' },
   ];
   const choice = await st.ui.barrier({ options, title: 'The Works, ten years on', text: 'The room has changed since the manual was written. The machine hasn\'t.', gut: o.noBell ? '' : 'Ten years ago the card asked who adjusts for you. Today it asks who adjusts for Unit.', notice: '', noticeLabel: '', coach: '' });
@@ -120,13 +120,13 @@ async function unitCard(R, o = {}) {
 async function ramp(R) {
   const G = R.G, S = R.S, st = R.st; S.flags.ramp2 = 1;
   G.npcTo('tomas', [19.9, 12.2]); await R.beat(400);
-  await st.note('A delivery bot sits halfway down the ramp, waiting for something only it can see. Tomas waits at the bottom, with a sack of festival mail on his knees.');
+  await st.note('A delivery bot sits halfway down the ramp, waiting for something only it can see. Tomas waits at the bottom, with a sack of festival mail on his lap.');
   G.talkFrame('tomas'); st.ui.letterbox(true);
-  await st.say('tomas', 'I\'ll ring it. I always ring it. Stand where it can see two of us.');
+  await st.say('tomas', 'It moves if someone rings its bell, or if it sees two of us waiting. I usually ring it myself.');
   const k = await st.choose([
     { t: 'Stand with him', sub: 'a few minutes of yours; it sees two of you', id: 'ramp_stand' },
     { t: 'Ring it for him', sub: 'quick; it\'s his bell, and he usually rings it', id: 'ramp_ring' },
-    { t: 'Ask Gil about a passing bay, with him', sub: 'a proposal: bots pull in, people go first, and Pip\'s flour waits', id: 'ramp_bay' },
+    { t: 'Ask Gil about a pull-in bay, with him', sub: 'a proposal: bots pull in, people go first, and Pip\'s flour deliveries wait', id: 'ramp_bay' },
     { t: 'Leave him to it', sub: 'he\'s done this before', id: 'ramp_leave' },
   ]);
   const row = { z: 'ramp', dim: 'bots', dir: 'over' };
@@ -169,8 +169,8 @@ async function kioskCard(R, o = {}) {
   const options = [
     { key: 'bend', who: 'You', label: 'Say it again, slower and flatter', sub: 'Sound like the voice it learned from. −4 energy.', hold: true },
     { key: 'gear', who: 'Your gear', label: 'Type it on your phone, and scan it', sub: 'Slow thumbs. The queue waits behind you.' },
-    o.noBell ? { key: 'ask', who: 'Them', label: 'Ring the call bell', disabled: true, reason: 'you rang; it\'s done' } : { key: 'ask', who: 'Them', label: 'Ring the call bell', sub: 'A person answers, eventually. For twelve towns.' },
-    SIM.fixState(S, 'counter') === 'none' ? { key: 'fix', who: 'The place', label: 'Back a person at the counter', sub: (S.flags.councilDone ? 'The meeting is over, so it goes on file for next year.' : 'A proposal for tonight.') + ' It comes out of the call-bell operators\' contract, for twelve towns.' } : { key: 'fix', who: 'The place', label: 'A person at the counter', disabled: true, reason: SIM.fixState(S, 'counter') === 'onfile' ? 'it\'s on file for next year' : SIM.fixState(S, 'counter') === 'built' ? 'it\'s already in place' : 'you\'ve proposed it for tonight' },
+    o.noBell ? { key: 'ask', who: 'Them', label: 'Ring the call bell', disabled: true, reason: 'you rang; it\'s done' } : { key: 'ask', who: 'Them', label: 'Ring the call bell', sub: 'One person answers, eventually, for twelve towns.' },
+    SIM.fixState(S, 'counter') === 'none' ? { key: 'fix', who: 'The place', label: 'Back a person at the counter', sub: (S.flags.councilDone ? 'The meeting is over, so it goes on file for next year.' : 'A proposal for tonight.') + ' The money comes out of the call-bell service that twelve towns share.' } : { key: 'fix', who: 'The place', label: 'A person at the counter', disabled: true, reason: SIM.fixState(S, 'counter') === 'onfile' ? 'it\'s on file for next year' : SIM.fixState(S, 'counter') === 'built' ? 'it\'s already in place' : 'you\'ve proposed it for tonight' },
     { key: 'leave', who: 'Nobody', label: 'Leave it', sub: 'Your lantern stays unregistered, for now.' },
   ];
   const choice = await st.ui.barrier({ options, title: 'Town Hall, ten years on', text: 'The kiosk listens. It learned to listen from one kind of voice.', gut: '', notice: '', noticeLabel: '', coach: '' });
@@ -193,7 +193,7 @@ async function kioskCard(R, o = {}) {
 async function crossing(R) {
   const G = R.G, S = R.S, st = R.st; S.flags.cross2 = 1;
   G.talkFrame('bea'); st.ui.letterbox(true);
-  await st.note('The light at the crossing by the bus stop has a new beep. It\'s timed to the Standard\'s stride.');
+  await st.note('The light at the crossing by the bus stop has a new beep. It\'s timed for the Standard\'s walking speed.');
   await st.say('bea', 'Forty seconds. I\'ve timed it. The petition\'s in my bag, and a pen.');
   st.ui.hideDialog(); st.ui.letterbox(false); G.endTalk();
   G.npcTo('bea', [46.6, 24.0]); await R.beat(900);
@@ -208,7 +208,7 @@ async function crossing(R) {
   ], { text: 'Bea, the light, and the van.', kind: 'note' });
   const row = { z: 'transit', dim: 'pace', dir: 'over', why: 'The light gave Bea forty seconds.' };
   if (k === 0) { await st.say('bea', 'I can walk, dear. I\'d just rather not run.'); st.log('barrier', Object.assign({ v: 'hurry', by: 'you', pay: ['bea'] }, row)); }
-  else if (k === 1) { await st.note('You walk at Bea\'s pace. The van honks once more, to make its point.'); st.log('barrier', Object.assign({ v: 'wait', by: 'you', pay: ['marta'] }, row)); st.ui.bubble('marta', 'Honking\'s the only word the van knows. I wasn\'t cross.', { tint: CAST.marta.tint, ms: 5200 }); st.fieldNote('metaperception'); }
+  else if (k === 1) { await st.note('You walk at Bea\'s pace. The van honks once more, to make its point.'); st.log('barrier', Object.assign({ v: 'wait', by: 'you', pay: ['marta'] }, row)); st.ui.bubble('marta', 'Honking\'s the only word the van knows. I wasn\'t angry.', { tint: CAST.marta.tint, ms: 5200 }); st.fieldNote('metaperception'); }
   else if (k === 2) { await st.note('She makes it across. On the far kerb, she takes out the petition and a pen.'); R.propose('crossing', 'bea'); st.addBond('bea', 1); await st.say('bea', 'Two signatures make a petition. Pip will sign too; she crosses with that cart twice a day.'); st.log('barrier', Object.assign({ v: 'fix', by: 'you', pay: [], verb: 'You signed Bea\'s petition, for tonight.' }, row)); st.fieldNote('agefriendly'); }
   else { await st.say('bea', 'I\'ll go round by Pip\'s next time. She saves me a bun for the trouble.'); st.log('barrier', Object.assign({ v: 'none', by: 'you', pay: ['bea'] }, row)); }
   st.fieldNote('crossing');
@@ -223,7 +223,7 @@ export const ACT2 = {
     works: ['Unit was built from the founders\' building manual.', 'Corporate pays for the spec, not for the room.'],
     ramp: ['The ramp was made for carts and chairs. The bots found it too.', 'The ramp has one lane.'],
     hall: ['Nobody applied for the morning shift at the counter.', 'The kiosk learned to listen from one kind of voice.'],
-    transit: ['The crossing light is timed to the Standard\'s stride.', 'The van is booked on the app.'],
+    transit: ['The crossing light is timed for the Standard\'s walking speed.', 'The van is booked on the app.'],
     market: ['Blend\'s top-ten list decides what sells.', 'Whoever owns a speaker sets its volume.'],
   },
   async arrival(R) {
@@ -235,19 +235,19 @@ export const ACT2 = {
     await G.stage.fadeTo(0, 900);
     await ui.caption('Ten years later.', 2400);
     G.player.root.visible = true;
-    await st.note('The van kneels with a hiss, and lets you down at the old bus stop. It is festival day.');
+    await st.note('The van lowers itself with a hiss, and you step off at the old bus stop. It is festival day.');
     G.talkFrame('bea'); ui.letterbox(true);
     await st.say('bea', 'Well, look who it is. Ten years! I\'d know you anywhere.');
     await st.say('bea', 'The bus became a van. The van became an app. I became a regular at the library, for the computers.');
     await st.say('bea', 'The computers were a gift from the Founders\' Fund. Hester\'s idea. She\'s all right, for a founder\'s great-great-granddaughter.');
     st.fieldNote('oldwell'); st.fieldNote('aging_auto');
-    await st.note(S.fixes.board === 'built' ? 'The board you fought for still glows, and someone has added a line: VAN EVERY 20 MIN. APP, OR THE KIOSK.' : 'On the old timetable, a pink sticker: BOOK ON THE APP.');
+    await st.note(S.fixes.board === 'built' ? 'The bus sign you fought for still glows, and someone has added a line: VAN EVERY 20 MIN. BOOK ON THE APP OR AT THE KIOSK.' : 'On the old timetable, a pink sticker: BOOK ON THE APP.');
     await st.say('bea', 'Here. Your key. No. 2 is just as you left it. I aired it out, which you didn\'t ask for.');
     ui.hideDialog(); ui.letterbox(false); G.endTalk();
     // ten years on, change anything? (an accessory, or nothing; never the faded look)
     await R.st.changeAnything();
     S.min = Math.max(S.min, S.carryDefault === 'leave_early' ? 475 : 495);
-    const items = [{ t: 'Festival mail at the Works, 9:00', sub: 'Gil asked you back. Your old desk, for the morning.' }, { t: 'See what ten years changed', sub: 'Town Hall has a kiosk now. Bea has a petition.' }, { t: 'Town meeting, 6 PM', sub: 'Two items at most. They go up tonight.' }, { t: 'The Lantern Festival, 8 PM', sub: 'Market Square.' }];
+    const items = [{ t: 'Festival mail at the Works, 9:00', sub: 'Gil asked you back. Your old desk, for the morning.' }, { t: 'See what ten years changed', sub: 'Town Hall has a kiosk now. Bea has a petition.' }, { t: 'Town meeting, 6 PM', sub: 'Two items at most. What passes gets built tonight.' }, { t: 'The Lantern Festival, 8 PM', sub: 'Market Square.' }];
     const onfile = Object.keys(S.fixes).filter((f) => S.fixes[f] === 'onfile');
     const carried = S.carryDefault && S.carryDefault !== 'as_is' ? 'You set this last time: ' + R.st.defaultText(S.carryDefault) + '.' : '';
     await ui.today({ day: 'Ten years on', title: 'Festival day', items, note: onfile.length ? 'Still on file from last time: ' + LIST(onfile.map((f) => 'the ' + SIM.FIXES[f].short)) + '. Clover has the file.' : 'Nobody here is the Standard. Some things here are.', carried });
@@ -280,8 +280,8 @@ export const ACT2 = {
   },
   npcWant() { return null; },
   // asking Gil, ten years on: you're not the new person, and the people at the next desks have changed
-  ask: { gil: { yes: '"Oh! Sure, sure. I can turn the radio off and switch off the row by your desk. Anything for an old hand."', no: '"Hm. Everyone else seems pretty happy with it? Let\'s see how it goes."', yesUnder: '"Too quiet? Ha! Easy. Radio\'s going on, low. And I\'ll swing by more. Not too much. Some."', noUnder: '"Hm. I think people like it quiet in here? Let\'s see how it goes."',
-    yesBy: { light: '"Oh! Sure, sure. I\'ll switch off the row over your desk. Anything for an old hand."', sound: '"Oh! Sure, sure. Radio\'s off. Anything for an old hand."' }, yesUnderBy: { sound: '"Too quiet? Ha! Easy. Radio\'s going on, low."', people: '"Bit lonely back there? I\'ll swing by more. Not too much. Some."' } } },
+  ask: { gil: { yes: '"Oh! Sure, sure. I can turn the radio off and switch off the row by your desk. Anything for an old friend."', no: '"Hm. Everyone else seems pretty happy with it? Let\'s see how it goes."', yesUnder: '"Too quiet? Ha! Easy. Radio\'s going on, low. And I\'ll come by more. Not too much. Some."', noUnder: '"Hm. I think people like it quiet in here? Let\'s see how it goes."',
+    yesBy: { light: '"Oh! Sure, sure. I\'ll switch off the row over your desk. Anything for an old friend."', sound: '"Oh! Sure, sure. Radio\'s off. Anything for an old friend."' }, yesUnderBy: { sound: '"Too quiet? Ha! Easy. Radio\'s going on, low."', people: '"Bit lonely back there? I\'ll come by more. Not too much. Some."' } } },
   bystander: { gil: { over: { light: ['unit', 'ROW 3 PANELS: OFF. ROOM DOES NOT MATCH SPEC. SORTING SLOWER.'], other: ['tomas', 'No radio? Fine. I\'ll hum.'] }, under: { people: ['tomas', 'He swings by you more, he swings by me less. Fine.'], other: ['ada', 'Radio\'s on? Fine. I\'ll wear my earplugs.'] } } },
   // the meeting: Blend's argument, ten years on, and what Rue knows now (she makes the scores)
   blendArg: { who: 'hollis', t: 'But the Smooth Scores say people are coping beautifully! Larkspur is in the county top five.' },
@@ -305,8 +305,8 @@ export const ACT2 = {
     }
     if (id === 'hallkiosk') { if (!S.flags.kiosk2) { await kiosk(R); return true; } await st.note('The kiosk says: SPEAK OR TAP. Underneath, in smaller letters: OR RING THE BELL.'); st.ui.hideDialog(); return true; }
     if (id === 'schoolphoto') { await st.note('This year\'s school photo. The classroom behind them was built for thirty desks. Twelve children, and a lot of floor.'); st.fieldNote('births'); st.fieldNote('whyfewer'); st.ui.hideDialog(); return true; }
-    if (id === 'crossing') { await st.note({ hold: 'HOLD FOR MORE TIME, says the button. The light waits while you hold it.', waits: 'The light waits now for anyone still in the street. It beeps a little longer.', push: 'The button says PUSH. The light gives you forty seconds, timed to the Standard\'s stride.' }[crossingState(S)]); st.ui.hideDialog(); return true; }
-    if (id === 'board') { await st.note(S.fixes.board === 'built' ? 'The board: VAN EVERY 20 MIN. APP, OR THE KIOSK.' : 'Route 12, forty past the hour. Over it, a pink sticker: BOOK ON THE APP.'); st.ui.hideDialog(); return true; }
+    if (id === 'crossing') { await st.note({ hold: 'HOLD FOR MORE TIME, says the button. The light waits while you hold it.', waits: 'The light waits now for anyone still in the street. It beeps a little longer.', push: 'The button says PUSH. The light gives you forty seconds, timed for the Standard\'s walking speed.' }[crossingState(S)]); st.ui.hideDialog(); return true; }
+    if (id === 'board') { await st.note(S.fixes.board === 'built' ? 'The bus sign: VAN EVERY 20 MIN. BOOK ON THE APP OR AT THE KIOSK.' : 'Route 12, forty past the hour. Over it, a pink sticker: BOOK ON THE APP.'); st.ui.hideDialog(); return true; }
     if (id === 'kiosk') { if (G.npcs.rue.place === 'town') { await st.talkTo('rue'); return true; } await st.note('The Blend Lounge is closed. The bench is still pink.'); st.ui.hideDialog(); return true; }
     if (id === 'statue' && !S.flags.festival) { await st.note(S.w.standard_solved ? 'THE STANDARD RESIDENT. A composite from one summer. Not a portrait of anyone. Same statue. New plaque. Same pigeons.' : 'THE STANDARD RESIDENT. Larkspur\'s measure.'); st.ui.hideDialog(); return true; }
     if (id === 'shed') { if (G.npcs.clover.place === 'town') { await st.talkTo('clover'); return true; } return false; }
@@ -399,9 +399,9 @@ export const ACT2 = {
     return out;
   },
   sights: [
-    { id: 'unit', name: 'Unit', loc: 'works', at: [-1.1, 2.0, 3.1], ghost: [-1.1, 3.1], dial: null, place: 'the Works', line: 'The first thing in Larkspur the Standard fits.' },
+    { id: 'unit', name: 'Unit', loc: 'works', at: [-1.1, 2.0, 3.1], ghost: [-1.1, 3.1], dial: null, place: 'the Works', line: 'The first thing in Larkspur that matches the Standard exactly.' },
     { id: 'kiosk2', name: 'The kiosk', loc: 'hall', at: [5.4, 1.6, 0.2], ghost: [4.6, 0.6], dial: null, place: 'Town Hall', line: 'One voice behind the kiosk: the voice it learned from.' },
-    { id: 'crossing', name: 'The crossing', loc: 'town', at: [45.5, 2.6, 22.0], ghost: [46.6, 24.0], dial: null, place: 'the bus stop', line: 'Timed to the Standard\'s stride.' },
+    { id: 'crossing', name: 'The crossing', loc: 'town', at: [45.5, 2.6, 22.0], ghost: [46.6, 24.0], dial: null, place: 'the bus stop', line: 'Timed for the Standard\'s walking speed.' },
     { id: 'van', name: 'The van', loc: 'town', at: [57.4, 2.6, 23.4], ghost: [56.1, 24.6], dial: null, place: 'the bus stop', line: 'Made for someone with a phone, a card and steady hands.' },
     { id: 'school', name: 'The school photo', loc: 'hall', at: [6.8, 2.1, -1.8], ghost: null, dial: null, place: 'Town Hall', line: 'Built for thirty desks.' },
     { id: 'hearts', name: 'The Blend Lounge', loc: 'town', at: [38.4, 1.9, 30.3], ghost: [38.4, 29.2], dial: null, place: 'the square', line: 'Hearts count what\'s easy to tap.' },

@@ -46,11 +46,11 @@ export const DOOR = { home: [9.5, 38.7], works: [12, 13.8], hall: [32, 14.4] };
 // or how often things change; those say why instead.
 const ASKABLE = ['sound', 'light', 'people'];
 // when the next one is still a while off
-const FELT_LATER = { quiet: 'Around noon, the quiet corner is in use.', board: 'Around four, the bus board is in use.', lanterns: 'From nine, the porch lanterns are in use on Home Row.', ramp: 'From nine, the ramp is in use.', dim: 'From nine to eleven, the dimmable lights are on at the Works.', plain: 'From nine to eleven, the plain notes are up at the Works.' };
+const FELT_LATER = { quiet: 'Around noon, the quiet corner is in use.', board: 'Around four, the bus sign is in use.', lanterns: 'From nine, the porch lanterns are in use on Home Row.', ramp: 'From nine, the ramp is in use.', dim: 'From nine to eleven, the dimmable lights are on at the Works.', plain: 'From nine to eleven, the plain notes are up at the Works.' };
 // where to see each fix in use on festival day: objective text, where to walk, its label, and the room it is in
 const FELT_WAY = {
   quiet: ['The quiet corner is up. See it in use at noon, in Market Square.', [23.6, 30.2], 'The quiet corner'],
-  board: ['The bus board is up. See it in use at the bus stop, around four.', [55.4, 24.2], 'The bus stop'],
+  board: ['The bus sign is up. See it in use at the bus stop, around four.', [55.4, 24.2], 'The bus stop'],
   lanterns: ['The porch lanterns are up. Walk up Home Row and see them in use.', [15, 38], 'Home Row'],
   ramp: ['The ramp is up. See it in use at the Works door, before eleven.', [12, 15.2], 'The Works door'],
   dim: ['The dimmable lights are up. See them at the Works, 9 to 11.', [12, 13.9], 'The Works', { inside: 'works' }],
@@ -660,7 +660,7 @@ export class Story {
     await this.ui.caption(['', 'Monday', 'Tuesday', 'Wednesday'][d] + ', ' + fmtTime(S.min), 1800);
     if (S.burnout) { await this.gut('You wake up heavy, like the day started without you. Everything will cost more today.'); this.ui.hideDialog(); }
     if (d === 1) this.text('Gil (work)', 'See you at 9! :)');
-    if (d === 2) { this.text('Gil (work)', 'Weekly sync at 9! Should be quick :)'); this.text('Clover', 'Found something in the loft. Come by when you can.'); this.text('Hollis', 'Town meeting tonight at 6, Town Hall. Proposals with two backers get a vote.'); }
+    if (d === 2) { this.text('Gil (work)', 'Team meeting at 9! Should be quick :)'); this.text('Clover', 'Found something in the loft. Come by when you can.'); this.text('Hollis', 'Town meeting tonight at 6, Town Hall. Any idea with two backers (neighbors who support it) gets a vote.'); }
     if (d === 3) { this.text('Gil (work)', 'Festival mail 9 to 11, then we close! :)'); this.text('Hollis', 'The Lantern Festival is tonight at 8, in the square!'); }
     if (S.blend.has && !S.blend.deleted) this.text('Blend', pick(BLEND.drop) + (S.blend.streak ? ' Streak: ' + S.blend.streak + ' days!' : ''));
     await sleep(400);
@@ -671,11 +671,11 @@ export class Story {
   todayCard(d) {
     const S = this.S;
     if (d === 1) return { day: 'Monday', title: 'Your first day', items: [{ t: 'Get to the Works by 9:00', sub: 'Bea from next door is heading that way.' }, { t: 'Say hi to your neighbors' }, { t: 'Find the Fix-It Shed', sub: 'In the Commons, past Town Hall.' }], note: 'When a place pinches, you choose who adjusts.' };
-    if (d === 2 && S.v2) return { day: 'Tuesday', title: 'A full day', items: [{ t: 'The bus stop, before work', sub: 'Something there changes without a word. Take the lantern.' }, { t: 'Weekly sync at the Works, 9:00' }, { t: 'Clover found something in the loft', sub: 'The Fix-It Shed.' }, { t: 'Town meeting, 6 PM, Town Hall', sub: 'Ideas with two backers get a hearing.' }], note: 'This season\'s budget has room for two fixes. Monday\'s came before it.' };
-    if (d === 2) { const open = this.openThread(); return { day: 'Tuesday', title: 'A full day', items: [{ t: 'Weekly sync at the Works, 9:00' }, { t: 'Clover found something in the loft', sub: 'The Fix-It Shed.' }, { t: 'Town meeting, 6 PM, Town Hall', sub: 'Proposals with two backers get a vote.' }], note: open ? 'Still open from yesterday: ' + open : 'Listen to people. They tell you what pinches them, if you let them.' }; }
+    if (d === 2 && S.v2) return { day: 'Tuesday', title: 'A full day', items: [{ t: 'The bus stop, before work', sub: 'Bus routes there change with hardly any warning. Take the lantern.' }, { t: 'Team meeting at the Works, 9:00' }, { t: 'Clover found something in the loft', sub: 'The Fix-It Shed.' }, { t: 'Town meeting, 6 PM, Town Hall', sub: 'Any idea with two backers (neighbors who support it) gets a vote.' }], note: 'The town can afford two more fixes this season. Monday\'s three don\'t count toward that.' };
+    if (d === 2) { const open = this.openThread(); return { day: 'Tuesday', title: 'A full day', items: [{ t: 'Team meeting at the Works, 9:00' }, { t: 'Clover found something in the loft', sub: 'The Fix-It Shed.' }, { t: 'Town meeting, 6 PM, Town Hall', sub: 'Proposals with two backers get a vote.' }], note: open ? 'Still open from yesterday: ' + open : 'Listen to people. They tell you what pinches them, if you let them.' }; }
     // Wednesday: the fixes in use first, then Wren's lanterns and the festival
     const items = [];
-    for (const f of Object.keys(FELT)) if (S.fixes[f] === 'built' && items.length < 3) items.push({ t: { quiet: 'Noon at the quiet corner', board: 'The bus stop, around four', lanterns: 'Festival programmes up Home Row', ramp: 'The Works door, before eleven', dim: 'The Works, festival morning (9 to 11)', plain: 'The Works, festival morning (9 to 11)' }[f], sub: 'The ' + SIM.FIXES[f].short + ' ' + SIM.agree(f, 'is', 'are') + ' up. See ' + SIM.agree(f, 'it', 'them') + ' in use.' });
+    for (const f of Object.keys(FELT)) if (S.fixes[f] === 'built' && items.length < 3) items.push({ t: { quiet: 'Noon at the quiet corner', board: 'The bus stop, around four', lanterns: 'Deliver festival programmes along Home Row', ramp: 'The Works door, before eleven', dim: 'The Works, festival morning (9 to 11)', plain: 'The Works, festival morning (9 to 11)' }[f], sub: 'The ' + SIM.FIXES[f].short + ' ' + SIM.agree(f, 'is', 'are') + ' up. See ' + SIM.agree(f, 'it', 'them') + ' in use.' });
     if (!S.flags.statue_seen) items.push({ t: 'Clover found something in the loft', sub: 'The Fix-It Shed.' });
     items.push({ t: 'Wren needs three lanterns painted', sub: 'The Far End.' }, { t: 'The Lantern Festival, 8 PM', sub: 'Market Square.' });
     return { day: 'Wednesday', title: 'Festival day', items, note: S.burnout ? 'You woke up running on less. Places will cost more today.' : '' };
@@ -750,7 +750,7 @@ export class Story {
       // the new game's Tuesday: the bus stop first, before the sync (Monday's postcard promised it), then the loft
       const bus = this.busList();
       if (bus && m < 520) return bus;
-      if (shiftOpen(2)) return ob(this.G.loc === 'works' ? 'Sit at your desk for the weekly sync.' : 'Weekly sync at the Works, 9:00.', this.G.loc === 'works' ? null : T.works, 'The Works', { inside: 'works', spot: 'mydesk', spotLabel: 'Your desk' });
+      if (shiftOpen(2)) return ob(this.G.loc === 'works' ? 'Sit at your desk for the team meeting.' : 'Team meeting at the Works, 9:00.', this.G.loc === 'works' ? null : T.works, 'The Works', { inside: 'works', spot: 'mydesk', spotLabel: 'Your desk' });
       if (m >= 1020) return ob('Town meeting at 6 PM, Town Hall.', T.hall, 'Town Hall', { inside: 'hall' });
       if (bus) return bus;
       if (!S.flags.statue_seen && m >= 600 && this.G.npcs.clover.place === 'town') return ob('Clover found something in the loft. Visit the Fix-It Shed.', T.shed, 'Fix-It Shed');
@@ -790,7 +790,7 @@ export class Story {
   waitFor() {
     const G = this.G, S = this.S; const ob0 = this.objective(); if (!ob0 || !ob0.wait || G.busy || G.mode !== 'play') return;
     const to = ob0.wait.to;
-    G.run(async () => { const e0 = S.energy; await this.slice.timelapse(to, 'You take your time. The town gets on with its afternoon.'); S.energy = clamp(e0 + 8, 0, S.maxE); this.autoSoon && this.autoSoon(); });
+    G.run(async () => { const e0 = S.energy; await this.slice.timelapse(to, 'You take your time. The town gets on with its day.'); S.energy = clamp(e0 + 8, 0, S.maxE); this.autoSoon && this.autoSoon(); });
   }
   // Tuesday in the new game: what pinches at the bus stop, with the lantern, until its list is full (or the idea is made)
   busList() {
@@ -798,15 +798,15 @@ export class Story {
     const c = G.marks.count('transit'); if (c.done >= c.total || SIM.fixState(S, 'board') !== 'none' || S.min >= 1000) return null;
     const here = G.loc === 'town' && G.zone === 'transit';
     if (here && !G.look.raised) return ob('Raise the lantern at the bus stop' + (this.ui.touch ? '.' : ' (' + G.keyOf('look') + ').'), null);
-    return ob('The bus stop: sweep the lantern round and tag what pinches people (' + c.done + '/' + c.total + ').', here ? null : G.town.spots.transit, 'The bus stop');
+    return ob('The bus stop: sweep the lantern around and tag what pinches people (' + c.done + '/' + c.total + ').', here ? null : G.town.spots.transit, 'The bus stop');
   }
   goals() {
     if (this.ret) return this.ret.goals();
     if (this.slice.on) return this.slice.goals();
     const S = this.S, d = S.day; const met = Object.keys(S.met).filter((k) => CAST[k] && !CAST[k].minor).length;
-    if (d === 2 && S.v2 && this.G.marks) { const c = this.G.marks.count('transit'); return [{ t: 'What pinches at the bus stop (' + Math.min(c.done, c.total) + '/' + c.total + ')', done: c.done >= c.total }, { t: 'Weekly sync at the Works, 9:00', done: !!S.flags.shift2 }, { t: 'See what Clover found', done: !!S.flags.statue_seen }, { t: 'Take an idea to the Shed, and find its backers', done: Object.values(S.fixes).some((v) => v === 'ready' || v === 'proposal') || !!S.flags.councilDone }, { t: 'Town meeting, 6 PM', done: !!S.flags.councilDone }]; }
+    if (d === 2 && S.v2 && this.G.marks) { const c = this.G.marks.count('transit'); return [{ t: 'What pinches at the bus stop (' + Math.min(c.done, c.total) + '/' + c.total + ')', done: c.done >= c.total }, { t: 'Team meeting at the Works, 9:00', done: !!S.flags.shift2 }, { t: 'See what Clover found', done: !!S.flags.statue_seen }, { t: 'Take an idea to the Shed, and find its backers', done: Object.values(S.fixes).some((v) => v === 'ready' || v === 'proposal') || !!S.flags.councilDone }, { t: 'Town meeting, 6 PM', done: !!S.flags.councilDone }]; }
     if (d === 1) return [{ t: 'Get to the Works by 9:00', done: !!S.flags.shift1 }, { t: 'Meet at least four neighbors (' + Math.min(4, met) + '/4)', done: met >= 4 }, { t: 'Find the Fix-It Shed', done: !!S.met.clover }, { t: 'Home by 10 PM', done: false }];
-    if (d === 2) return [{ t: 'Weekly sync at the Works, 9:00', done: !!S.flags.shift2 }, { t: 'See what Clover found', done: !!S.flags.statue_seen }, { t: 'Turn an idea into a proposal at the Shed', done: Object.values(S.fixes).some((v) => v !== 'idea') }, { t: 'Town meeting, 6 PM', done: !!S.flags.councilDone }];
+    if (d === 2) return [{ t: 'Team meeting at the Works, 9:00', done: !!S.flags.shift2 }, { t: 'See what Clover found', done: !!S.flags.statue_seen }, { t: 'Turn an idea into a proposal at the Shed', done: Object.values(S.fixes).some((v) => v !== 'idea') }, { t: 'Town meeting, 6 PM', done: !!S.flags.councilDone }];
     if (d === 3) return [{ t: 'See the fixes in use', done: Object.keys(S.felt || {}).length > 0 || !Object.values(S.fixes).includes('built') }, { t: 'Paint three lanterns with Wren', done: !!S.flags.painted }, { t: 'The Lantern Festival, 8 PM', done: !!S.flags.released }];
     return [{ t: 'Make yourself at home', done: false }];
   }
@@ -1126,7 +1126,7 @@ export class Story {
     this.ui.letterbox(true);
     await this.run(TALK.gil[day === 1 ? 'shift1' : 'meeting2'], { npc: 'gil' });
     await this.officeApproval();
-    await this.say('gil', day === 1 ? 'Okay! You\'re on the mail today. Letters come down the chute, and each one goes in the cubby with the same symbol. Easy!' : 'Okay! Festival paperwork. Lantern permits for the square on Wednesday! Rules are rules: to hang a festival lantern, you have to match the Standard Resident. Template\'s on your desk. Easy!');
+    await this.say('gil', day === 1 ? 'Okay! You\'re on the mail today. Letters come down the chute, and each one goes in the cubby with the same symbol. Easy!' : 'Okay! The Lantern Festival is on Wednesday, so: permits! Rules are rules. To hang a lantern in the square for the festival, you have to match the Standard Resident. Template\'s on your desk. Easy!');
     this.ui.hideDialog(); this.ui.letterbox(false); G.endTalk();
     { const c = G.roomCam('works'); G.stage.shot(c.pos, c.look, c.fov, 2); }
     // the work itself: a short task whose difficulty comes from the room
@@ -1387,7 +1387,7 @@ export class Story {
     S.hearsay = [];
     const n = (S.jar || []).length;
     const title = c.fix + c.ask > c.bend && c.fix + c.ask > 0 ? 'You changed something today.' : c.bend >= 3 ? 'You carried a lot today.' : c.leave >= 2 ? 'You looked after yourself today.' : 'A day in Larkspur.';
-    const tomorrow = d === 1 ? ['Weekly sync at the Works, 9:00.', 'Town meeting at 6 PM. Proposals with two backers get a vote.'] : d === 2 ? ['Festival day. The Works opens 9 to 11 for festival mail.', 'The Lantern Festival at 8 PM.'] : [];
+    const tomorrow = d === 1 ? ['Team meeting at the Works, 9:00.', 'Town meeting at 6 PM. Proposals with two backers get a vote.'] : d === 2 ? ['Festival day. The Works opens 9 to 11 for festival mail.', 'The Lantern Festival at 8 PM.'] : [];
     const nb = S.notesNew || 0;
     return { day: ['', 'Monday', 'Tuesday', 'Wednesday'][d], title, counts: c, jar: S.jar || [], jarMax: 12, jarText: n >= 12 ? 'Full, and glowing.' : n + ' of 12. It does not need to be full.', news, open: ((t) => t.charAt(0).toUpperCase() + t.slice(1))(this.openThread()), tomorrow, notebook: nb ? 'New in your notebook: ' + nb + (d === 1 && S.flags.autismOpen ? ', including where this game\'s question came from.' : '.') : '' };
   }
@@ -1642,9 +1642,9 @@ export class Story {
   async afternoon() {
     const S = this.S; const items = [];
     if (this.busList()) items.push({ t: 'The bus stop, with the lantern', sub: 'What pinches people there. A few minutes.' });
-    else if (S.v2 && SIM.fixState(S, 'board') === 'idea') items.push({ t: 'Take the bus board to Clover', sub: 'The Fix-It Shed, until six.' });
+    else if (S.v2 && SIM.fixState(S, 'board') === 'idea') items.push({ t: 'Show Clover your bus sign idea', sub: 'The Fix-It Shed, until six.' });
     if (!S.flags.statue_seen) items.push({ t: 'Clover found something in the loft', sub: 'The Fix-It Shed, until six.' });
-    items.push({ t: 'Wren could use a hand folding lanterns', sub: 'The Far End, 2 to 4. About an hour.' });
+    items.push({ t: 'Wren needs help folding lanterns', sub: 'The Far End, 2 to 4. About an hour.' });
     if (S.flags.rue_invite) items.push({ t: 'Rue asked to meet at the pond', sub: 'Half past four to half past five. About 45 minutes.' });
     const nb = this.needBackers(); if (nb.length) items.push({ t: 'Find backers for your proposals', sub: 'Two each, before six.' });
     items.push({ t: 'The town meeting', sub: '6 PM, Town Hall. Proposals with two backers get a vote.' });
