@@ -22,10 +22,14 @@ node build.mjs artifact   # dist/who-bends-artifact.html, without document tags,
 ```
 
 ## The live game, and picking this up in a new session
-- The public build is the claude.ai artifact "Made to Fit" at https://claude.ai/artifact/2jE83aBf8Nmw5LxRsjp7HK, shared as readable by anyone with the link. Publishing a new version to that same URL updates it in place, so a link already on a resume keeps working. (The older "Who Bends" artifact is the first version; it is not the one to share.)
-- To keep working in a new Claude session, attach this source zip (or point Claude at a repo holding it), then: `npm install`, make the change, run the tests that cover it, `node build.mjs artifact`, and publish `dist/who-bends-artifact.html` to the URL above with the Artifact tool. Read the artifact first (a publish to an existing URL needs that), and leave `capabilities` out so the page keeps the `downloads` grant it already has.
+- **Play it at https://jvcobl.github.io/made-to-fit/** (GitHub Pages, served from the `gh-pages` branch of github.com/jvcobl/made-to-fit). This is the link to share. Don't rename the repo: GitHub redirects a renamed repo but not its Pages address, so the shared link would stop working.
+- The same game is also the claude.ai artifact "Made to Fit" at https://claude.ai/artifact/2jE83aBf8Nmw5LxRsjp7HK, readable by anyone with the link. (The older "Who Bends" artifact is the first version; it is not the one to share.)
+- **To ship a change:** run the tests that cover it, commit on `main` and push, then
+  - `bash scripts/deploy-pages.sh` builds `dist/site/` (`node build.mjs site`) and pushes it to `gh-pages`; Pages updates within a minute or two.
+  - For the artifact, `node build.mjs artifact` and publish `dist/who-bends-artifact.html` to the artifact URL with the Artifact tool. Read the artifact first (a publish to an existing URL needs that), and leave `capabilities` out so the page keeps the `downloads` grant it already has.
+- **In a new Claude session:** attach the repo (jvcobl/made-to-fit, with push access), clone it, `npm install`, then work as above. A source zip works too if the repo isn't reachable.
+- The website version (`node build.mjs site`) is the tested full page plus a description, link-preview tags (`site/og-image.jpg`, the title screen), the lantern icon (`site/favicon.svg` and its PNGs) and a canonical link. If the address ever changes, change `SITE_URL` in `build.mjs`.
 - The design plan, its audit and the record of what changed live in the Claude Doc "Game Build Plan v3", https://claude.ai/artifact/AcHudQxxw4uX5Tt6E8huSV.
-- Play offline by opening `play-offline/made-to-fit.html` (in the backup zip) in a browser. Fonts fall back to the system ones without a connection.
 
 ## Files
 - `src/main.js`: the game loop and the world (movement, residents, crowds, autosave triggers, test hooks).
