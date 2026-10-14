@@ -158,7 +158,8 @@ export class Home extends Room {
   }
   setSign(v) { const t = v < 0.4 ? 'Drop by\nany time!' : v > 0.6 ? 'Text first,\nplease' : 'Knock if\nyou like'; this.sign.material.map = signMeshTex(t); this.sign.material.needsUpdate = true; }
   setCalendar(v) {
-    const t = v > 0.6 ? 'MON gym 7:00\nTUE groceries\nWED call mom\nTHU laundry' : v < 0.4 ? 'see what\nhappens!' : 'a few plans,\nroom to roam';
+    // (low = "Planned, in pen", high = "We will see what happens", as in SETUP.calendar)
+    const t = v < 0.4 ? 'MON gym 7:00\nTUE groceries\nWED call mom\nTHU laundry' : v > 0.6 ? 'see what\nhappens!' : 'a few plans,\nroom to roam';
     const m = this.objs.calendar.group.children[0]; m.material.map = signMeshTex(t, 256, 300, 26); m.material.needsUpdate = true;
   }
   setLight(v) { this.prefs.light = v; }

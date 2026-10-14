@@ -72,7 +72,9 @@ export class FX {
     const t = clamp(p.t / p.ms); let up = (1 - Math.pow(1 - t, 3)) * p.rise;
     // a pop over someone near the top of the screen stays below the top bar instead of riding up under it
     if (p.at) { const minY = p.h + 62; if (y - up < minY) { y = minY; up = 0; } }
-    const s = this.calm ? 1 : t < 0.12 ? 0.6 + t / 0.12 * 0.55 : t < 0.24 ? 1.15 - (t - 0.12) / 0.12 * 0.15 : 1;
+    // (the pop-in takes the same quick beat however long the pop stays up)
+    const ti = clamp(p.t / Math.min(p.ms, 2));
+    const s = this.calm ? 1 : ti < 0.12 ? 0.6 + ti / 0.12 * 0.55 : ti < 0.24 ? 1.15 - (ti - 0.12) / 0.12 * 0.15 : 1;
     p.el.style.transform = `translate(${Math.round(x + p.dx * t)}px, ${Math.round(y - up)}px) translate(-50%, -100%) scale(${s.toFixed(3)})`;
     p.el.style.opacity = String(t > 0.72 ? 1 - (t - 0.72) / 0.28 : 1);
   }

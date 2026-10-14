@@ -43,6 +43,8 @@ kbd { font-family: var(--display); font-size: 11px; padding: 1px 6px; border-rad
 #letterbox.on .lb { height: 8.5vh; }
 #caption { position: fixed; left: 50%; top: 38%; transform: translate(-50%, -50%); width: min(820px, 90vw); text-align: center; font-family: var(--display); font-weight: 500; font-size: clamp(22px, 3.2vw, 36px); color: #fffaf0; text-shadow: 0 2px 18px rgba(0, 0, 0, 0.55), 0 1px 2px rgba(0, 0, 0, 0.5); pointer-events: none; opacity: 0; transition: opacity 0.8s; line-height: 1.3; }
 #caption.on { opacity: 1; pointer-events: auto; cursor: pointer; }
+#caption.high { top: 15%; }
+@media (max-width: 600px) { .pop.thought { font-size: 15px; max-width: 170px; } }
 
 /* HUD */
 #hud { position: fixed; inset: 0; pointer-events: none; }
@@ -162,7 +164,7 @@ body.touch .choice .k { display: none; }
 .revealcount .rvcap { pointer-events: none; }
 .revealcount .rvgo { pointer-events: auto; margin-top: 14px; text-shadow: none; }
 /* sonder: a passerby's day, over their head */
-.pop.thought { white-space: normal; max-width: 210px; text-align: center; font-weight: 600; font-size: 14.5px; line-height: 1.25; padding: 4px 11px 5px; border-radius: 12px; background: rgba(20, 16, 26, 0.72); box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25); }
+.pop.thought { white-space: normal; max-width: 240px; text-align: center; font-weight: 600; font-size: 17px; line-height: 1.25; padding: 4px 11px 5px; border-radius: 12px; background: rgba(20, 16, 26, 0.72); box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25); }
 @keyframes tin { from { opacity: 0; transform: translateY(-8px) scale(0.98); } }
 
 /* panels: creator, setup, shop, proposals, settings */

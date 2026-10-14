@@ -146,11 +146,18 @@ export class Slice {
       // sonder first: from up high the town is one crowd; look closer and everyone in it has a day of their own. A town
       // planned from up there gets built for one imagined person, which is where the Standard Resident comes in.
       G.openingCrowd = true; G.busRide = true;
-      this.shot(new THREE.Vector3(30, 27, 60), new THREE.Vector3(30, 0, 27), 46, 0.6, true);
+      this.shot(new THREE.Vector3(30, 40, 74), new THREE.Vector3(30, 0, 27), 46, 0.6, true);
       await sleep(FAST ? 10 : 1200);
       await ui.caption('From up here, Larkspur looks like one crowd.', 2600);
-      const shown = G.sonder ? G.sonder.burst(6) : 0;
-      await ui.caption(shown ? 'Look closer. Everyone in it is in the middle of their own day.' : 'Up close, everyone in it is in the middle of their own day.', 4200);
+      // look closer: the camera comes down into the square, among the people, and their days show
+      this.shot(new THREE.Vector3(30.5, 10.5, 44), new THREE.Vector3(29.5, 1.4, 28.5), 42, 1.1);
+      await ui.caption('Look closer.', 1800);
+      await sleep(FAST ? 10 : 700);
+      // (the caption moves up to the sky for this one, so the thoughts can sit over the people in the square)
+      const capEl = ui.el('#caption'); capEl.classList.add('high');
+      const shown = G.sonder ? G.sonder.burst(7, 60000, [0.03, 0.27]) : 0;
+      await ui.caption(shown ? 'Everyone down there is in the middle of their own day.' : 'Up close, everyone in it is in the middle of their own day.', 4600);
+      capEl.classList.remove('high');
       if (G.sonder) G.sonder.clear();
       this.shot(new THREE.Vector3(35.5, 5.6, 31.5), new THREE.Vector3(30, 3.2, 24), 30, 0.5);
       await ui.caption('But the whole town was planned for one person, the Standard Resident.', 3200);

@@ -66,11 +66,11 @@ export class Sonder {
     return text;
   }
   // the opening: a handful of thoughts at once, spread over the screen
-  burst(n, ms = 60000) {
+  burst(n, ms = 60000, band = [0.27, 0.52]) {
     const G = this.G; if (!G.fx) return 0;
     const all = this.people().sort(() => Math.random() - 0.5); const picked = [];
-    // (spread out, and clear of the caption across the middle of the screen)
-    for (const p of all) { if (picked.length >= n) break; if (p.sy > innerHeight * 0.27 && p.sy < innerHeight * 0.52) continue; if (picked.every((q) => Math.hypot(q.sx - p.sx, q.sy - p.sy) > 150)) picked.push(p); }
+    // (spread out, and clear of the band where the caption sits)
+    for (const p of all) { if (picked.length >= n) break; if (p.sy > innerHeight * band[0] && p.sy < innerHeight * band[1]) continue; if (picked.every((q) => Math.hypot(q.sx - p.sx, q.sy - p.sy) > Math.min(150, innerWidth * 0.26))) picked.push(p); }
     const said = []; const open = shuffle(OPENING);
     picked.forEach((p, i) => setTimeout(() => said.push(this.say(p, ms, p.id && RESIDENT[p.id] ? null : open.at(i))), FAST ? 0 : 260 * i));
     if (picked.length) setTimeout(() => G.ui.announce('Over the crowd, one thought each: ' + said.join(' ')), FAST ? 10 : 260 * picked.length + 80);
