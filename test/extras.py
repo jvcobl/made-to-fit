@@ -49,9 +49,13 @@ with sync_playwright() as p:
     bi = next((k for k, o in enumerate(opts) if o['id'] == 'blend_pip'), None)
     check('Blend line offered, with its chip', bi is not None and 'Blend suggests' in opts[bi]['t'], opts)
     s0 = pg.evaluate("(() => { const S = __wb.state(); return { sc: S.blend.score, self: S.self, dep: S.blend.dep || 0 } })()")
+    # (the clock stands still for this one: once the conversation ends, time moves again, and in a place that fits you
+    # the same number recovers a little with every minute, which would blur what the line itself cost)
+    pg.evaluate("(() => { const G = __wb.G; G.__ts = G.timeScale; G.timeScale = 0; })()")
     if bi is not None: pg.evaluate('__wb.choose(%d)' % bi)
     idle(pg)
     s1 = pg.evaluate("(() => { const S = __wb.state(); const r = S.log.filter((x) => x.k === 'default' && x.by === 'blend'); return { sc: S.blend.score, self: S.self, dep: S.blend.dep || 0, rows: r.length, line: r.length ? r[r.length - 1].line : null, note: !!(S.notes || {}).nudges, said: S.blend.said } })()")
+    pg.evaluate("(() => { const G = __wb.G; G.timeScale = G.__ts; })()")
     check('Blend line: +5 points, a little colour, logged with its words', s1['sc'] - s0['sc'] == 5 and abs((s0['self'] - s1['self']) - 1.5) < 0.01 and s1['rows'] == 1 and s1['line'] == 'He LOVED them!!' and s1['note'], [s0, s1])
     check('one Blend line: no dependence yet', s1['dep'] == s0['dep'], s1)
     # a second one: dependence goes up by one

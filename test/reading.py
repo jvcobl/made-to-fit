@@ -48,7 +48,11 @@ with sync_playwright() as p:
     pg.click('#caption'); pg.wait_for_timeout(900); check('a click moves on', pg.evaluate('window.__capDone'))
     pg.evaluate("__wb.G.settings.readTime = 'normal'")
     pg.evaluate("(() => { window.__capDone = false; __wb.G.ui.caption('Night.', 1200).then(() => { window.__capDone = true; }); })()")
-    pg.wait_for_timeout(3200); check('in Normal, a short caption moves on by itself', pg.evaluate('window.__capDone'))
+    # (about two seconds on a device that draws at full speed; this machine draws a frame or two a second, and each
+    # slow frame holds the caption's timers back, so the wait is for "by itself", within six seconds)
+    t0 = time.time()
+    while time.time() - t0 < 6 and not pg.evaluate('window.__capDone'): pg.wait_for_timeout(200)
+    check('in Normal, a short caption moves on by itself', pg.evaluate('window.__capDone'))
     # sonder: out in town, standing still
     # (the day's own scenes stay out of it: stepping into the square would start the one that happens there)
     pg.evaluate("__wb.G.story.slice.hold = true; __wb.G.sonder.cool = 0; __wb.tp([28.5, 34.5])"); pg.wait_for_timeout(500)

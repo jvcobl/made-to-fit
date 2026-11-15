@@ -237,6 +237,9 @@ export class Slice {
     }
     st.inPrologue = false; st.skipIntro = false;
     await G.stage.fadeTo(1, 700);
+    // (while the screen is dark: the map of what blocks a line of sight in town is drawn up now, so the first
+    // conversation outside doesn't have to stop and make it)
+    try { if (G.occ) G.occ(); } catch (e) { /* (made later, when it's first needed) */ }
     // from the one they built it for, to you: your first morning, in your new room
     S.min = 520;
     G.setLoc('home'); G.player.root.visible = true; G.place([0.6, 0.2]); G.player.heading = 0.25;
