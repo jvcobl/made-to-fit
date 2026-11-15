@@ -32,8 +32,9 @@ with sync_playwright() as p:
     pg.wait_for_timeout(7000); check('the card is still up after 7 s', pg.evaluate("!!document.querySelector('#toasts .toast.cardt:not(.out)')"))
     pg.wait_for_timeout(ms - 7000 + 1500); check('it goes by itself once read', not pg.evaluate("!!document.querySelector('#toasts .toast.cardt')"))
     # hovering pauses it
-    pg.evaluate("__wb.G.ui.toast('<b>Hover test</b> a short notice with a few words in it', 'idea', 3000)")
-    pg.hover('#toasts .toast.idea'); short = pg.evaluate("__wb.G.ui.readMs('Hover test a short notice with a few words in it', 3000)")
+    # (six seconds on screen: on a slow machine the pointer takes a second or two to get there)
+    pg.evaluate("__wb.G.ui.toast('<b>Hover test</b> a short notice with a few words in it', 'idea', 6000)")
+    pg.hover('#toasts .toast.idea'); short = pg.evaluate("__wb.G.ui.readMs('Hover test a short notice with a few words in it', 6000)")
     pg.wait_for_timeout(short + 2500); check('hovering keeps a notice up past its time', pg.evaluate("!!document.querySelector('#toasts .toast.idea:not(.out)')"))
     pg.mouse.move(5, 700); pg.wait_for_timeout(short + 1500); check('moving away lets it go', not pg.evaluate("!!document.querySelector('#toasts .toast.idea')"))
     # "Until I close it"
@@ -47,9 +48,10 @@ with sync_playwright() as p:
     pg.click('#caption'); pg.wait_for_timeout(900); check('a click moves on', pg.evaluate('window.__capDone'))
     pg.evaluate("__wb.G.settings.readTime = 'normal'")
     pg.evaluate("(() => { window.__capDone = false; __wb.G.ui.caption('Night.', 1200).then(() => { window.__capDone = true; }); })()")
-    pg.wait_for_timeout(2200); check('in Normal, a short caption moves on by itself', pg.evaluate('window.__capDone'))
+    pg.wait_for_timeout(3200); check('in Normal, a short caption moves on by itself', pg.evaluate('window.__capDone'))
     # sonder: out in town, standing still
-    pg.evaluate("__wb.G.sonder.cool = 0; __wb.tp([28.5, 34.5])"); pg.wait_for_timeout(500)
+    # (the day's own scenes stay out of it: stepping into the square would start the one that happens there)
+    pg.evaluate("__wb.G.story.slice.hold = true; __wb.G.sonder.cool = 0; __wb.tp([28.5, 34.5])"); pg.wait_for_timeout(500)
     t0 = time.time(); got = []
     while time.time() - t0 < 20 and not got:
         got = pg.evaluate("[...document.querySelectorAll('.pop.thought')].map((e) => e.textContent)"); pg.wait_for_timeout(400)

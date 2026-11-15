@@ -33,6 +33,8 @@ export class Guide {
     this.mark = new THREE.Group(); this.mark.add(lamp, beam, ring); this.lamp = lamp; this.beam = beam; this.ring = ring; this.halo = halo;
     this.mark.visible = false;
     for (const o of [body, beam, ring]) o.userData.noOcc = true;
+    // a second lantern, for a day that offers two places to go: the same shape, a little smaller
+    this.mark2 = this.mark.clone(true); this.mark2.visible = false; this.mark2.traverse((o) => { o.userData.noOcc = true; });
     // the trail: small warm dots on the ground
     const dot = new THREE.CircleGeometry(0.12, 12); dot.rotateX(-Math.PI / 2);
     this.trail = new THREE.InstancedMesh(dot, new THREE.MeshBasicMaterial({ color: '#ffd98a', transparent: true, opacity: 0.9, depthWrite: false }), 80);
@@ -42,7 +44,7 @@ export class Guide {
     this.scene = null; this.target = null;
   }
   // which scene the marker lives in follows the player
-  attach(scene) { if (this.scene === scene) return; if (this.mark.parent) this.mark.parent.remove(this.mark); scene.add(this.mark); this.scene = scene; }
+  attach(scene) { if (this.scene === scene) return; for (const m of [this.mark, this.mark2]) { if (m.parent) m.parent.remove(m); scene.add(m); } this.scene = scene; }
   showTrail(on) { this.trailOn = on; this.repath = 0; if (!on) this.trail.count = 0; }
   // what to point at right now: in town, the objective; indoors, the thing the objective means in this room (your
   // desk, your bed, Gil) or else the door, when the objective is outside
@@ -57,6 +59,11 @@ export class Guide {
     const out = r.inter.find((i) => i.id === 'out'); if (!out) return null;
     return { x: out.x, z: out.z, label: 'Head out', obj, room: true };
   }
+  // the other place the objective offers, out in town (the first day's open middle: the square, the Works, or home)
+  pickMore() {
+    const G = this.G; if (G.mode !== 'play' || G.loc !== 'town') return null;
+    const obj = G.story.objective(); const m = obj && obj.more; return m && m.at ? { x: m.at[0], z: m.at[1], label: m.label || '' } : null;
+  }
   // a spot inside the room you are in: a resident here, or one of the room's things
   spotOf(id) {
     const G = this.G; if (!id) return null;
@@ -65,12 +72,16 @@ export class Guide {
   }
   update(dt) {
     const G = this.G; const set = G.settings.guide || 'full';
-    const tgt = set === 'off' ? null : this.pick(); this.target = tgt;
+    // (while you're talking with someone, the lantern over where to go next is put away)
+    const tgt = set === 'off' || G.talking ? null : this.pick(); this.target = tgt;
     const scene = G.loc === 'town' ? G.town.scene : G.rooms[G.loc] && G.rooms[G.loc].scene; if (scene) this.attach(scene);
     const p = G.player.root.position;
+    const t = now() / 1000;
+    // the second place, if there is one: its own lantern and its own arrow
+    { const m2 = set === 'off' || G.talking ? null : this.pickMore(); this.mark2.visible = !!m2;
+      if (m2) { const d2 = Math.hypot(m2.x - p.x, m2.z - p.z); this.mark2.position.set(m2.x, 0.4 + Math.sin(t * 2 + 1.7) * 0.1, m2.z); this.mark2.scale.setScalar(0.92); this.edgeFor(m2, d2, 1); } else G.ui.edge(null, 1); }
     if (!tgt) { this.mark.visible = false; this.trail.count = 0; G.ui.edge(null); return; }
     const d = Math.hypot(tgt.x - p.x, tgt.z - p.z);
-    const t = now() / 1000;
     this.mark.visible = true; this.mark.position.set(tgt.x, 0, tgt.z);
     const near = clamp((d - 1.2) / 3.5);
     const lift = tgt.room ? 2.3 : 3.9;
@@ -110,21 +121,22 @@ export class Guide {
     this.trail.count = n; this.trail.instanceMatrix.needsUpdate = true; if (this.trail.instanceColor) this.trail.instanceColor.needsUpdate = true;
   }
   // where on screen is the target? if it is off-screen, put an arrow at the edge
-  updateEdge(tgt, d) {
+  updateEdge(tgt, d) { this.edgeFor(tgt, d, 0); }
+  edgeFor(tgt, d, i) {
     const G = this.G; const cam = G.stage.camera;
-    if (G.loc !== 'town' || G.mode !== 'play' || G.ui.waiter || G.phoneOpen || G.mgActive || d < 3) { G.ui.edge(null); return; }
+    if (G.loc !== 'town' || G.mode !== 'play' || G.ui.waiter || G.phoneOpen || G.mgActive || d < 3) { G.ui.edge(null, i); return; }
     const v = new THREE.Vector3(tgt.x, 2.2, tgt.z).project(cam);
     const W = innerWidth, H = innerHeight; const pad = 64; const top = (G.hudBottom || 80) + 46, bot = G.ui.touch ? 120 : 92;
     const behind = v.z > 1;
     let sx = (v.x + 1) / 2 * W, sy = (1 - v.y) / 2 * H;
     const onScreen = !behind && sx > pad && sx < W - pad && sy > top && sy < H - bot;
-    if (onScreen) { G.ui.edge(null); return; }
+    if (onScreen) { G.ui.edge(null, i); return; }
     if (behind) { sx = W - sx; sy = H - sy; }
     const cx = W / 2, cy = H / 2; const dx = sx - cx, dy = sy - cy;
     const ang = Math.atan2(dy, dx);
     const kx = (W / 2 - pad) / Math.max(1e-3, Math.abs(Math.cos(ang))), ky = ((dy < 0 ? cy - top : H - bot - cy)) / Math.max(1e-3, Math.abs(Math.sin(ang)));
     const k = Math.min(kx, ky);
-    G.ui.edge({ x: cx + Math.cos(ang) * k, y: cy + Math.sin(ang) * k, ang: ang + Math.PI / 2, label: tgt.label || 'There', dist: Math.max(1, Math.round(d)) });
+    G.ui.edge({ x: cx + Math.cos(ang) * k, y: cy + Math.sin(ang) * k, ang: ang + Math.PI / 2, label: tgt.label || 'There', dist: Math.max(1, Math.round(d)) }, i);
   }
   // a dashed line on the phone map from you to where you are going
   routeSvg() {

@@ -80,6 +80,7 @@ export class Story {
     let again = null; try { again = JSON.parse(sessionStorage.getItem('mtf.again') || 'null'); sessionStorage.removeItem('mtf.again'); } catch (e) { again = null; }
     const pick = again && (again.act || 1) === 1 ? { kind: 'new' } : again ? { kind: 'return', act: again.act, carry: again.carry || this.carryFor(again.act - 1), again } : await this.titleScreen({ save: read.save || null, ret: this.nextReturn(read.save) });
     if (again && again.default) this.S.carryDefault = again.default;
+    if (pick.kind === 'sample') { await this.sampleNight(); return; }
     // starting another visit replaces a visit still in progress: say so first (finished visits always stay)
     const live = read.save && read.save.phase !== 'end' && !again ? read.save : null;
     const keepLive = async () => !live || G.menus.confirm('Start that visit?', 'This replaces your saved visit (' + (live.label || 'in progress') + '). Finished visits stay.', 'Start it', 'Keep my save');
@@ -194,8 +195,23 @@ export class Story {
     this.saveNow('end', 3);
     await this.ending();
   }
+  // "Short on time?" on the title: the end of a sample first day, for someone with two minutes. A sample creature, a
+  // day in which all three places were seen to, and lantern night from your own porch. Nothing is saved, so a game in
+  // progress on this device stays as it is; when the night ends, the title comes back.
+  async sampleNight() {
+    const G = this.G, S = this.S;
+    this.sample = true; seedRng(S.seed);
+    this.slice.init();
+    S.name = S.name || 'Sam'; S.look0 = Object.assign({}, S.look); S.wheels = !!S.look.wheels;
+    G.player.setLook(S.look); G.player.setComfort(S.look.comfort || 'hum', 0); S.portrait0 = G.portrait();
+    S.day = 1; S.dayStats = Object.assign({}, S.stats); S.metAt0 = []; S.fixAt0 = {};
+    G.mode = 'cine'; G.setLoc('town'); G.player.root.visible = true;
+    this.slice.debugTo('tonight', { sample: true });
+    await this.days(1, 'sample');
+  }
   saveNow(phase, day) {
     const G = this.G, S = this.S;
+    if (this.sample) return true;
     S.texts = G.texts.slice(-40);
     const label = phaseLabel(phase, day, S.act || 1, Math.round(S.min));
     const meta = { act: S.act || 1, day, phase, label, build: BUILD };
@@ -213,7 +229,7 @@ export class Story {
   // the last calm moment before them.
   canAutosave() {
     const G = this.G, S = this.S;
-    if (params.get('autosave') === '0') return false;
+    if (params.get('autosave') === '0' || this.sample) return false;
     if (G.mode !== 'play' || G.busy || G.ui.waiter || !G.ui.panel.hidden || G.mgActive || (G.menus && G.menus.open)) return false;
     if (!this.endDay || this.inPrologue || G.beaWay || G.busRide) return false;
     if ((S.day || 0) < 1 || S.flags.decided || S.flags.festival || S.flags.council && !S.flags.councilDone) return false;
@@ -228,7 +244,10 @@ export class Story {
     const ok = this.saveNow('free', S.day);
     // once per device: say that it saves by itself
     // (shown at a calm moment, so it never sits on top of a card or a conversation)
-    if (ok && !G.settings.savedTip && !FAST && !this.tipWait) {
+    // (and never in your first minutes: while you're setting up your room and learning the lantern, it would be one more
+    // thing to read)
+    const early = this.slice.on && ['room', 'door', 'homerow'].includes(this.slice.stage);
+    if (ok && !G.settings.savedTip && !FAST && !this.tipWait && !early) {
       this.tipWait = true;
       const tip = (n) => setTimeout(() => {
         const calm = G.mode === 'play' && !G.busy && !G.ui.waiter && G.ui.panel.hidden && !G.mgActive && !G.phoneOpen;
@@ -271,7 +290,7 @@ export class Story {
     home.setLight(P.light); home.setSign(1 - P.people); home.setCalendar(P.change);
     home.objs.clock.group.rotation.y = (P.time - 0.5) * 0.6; home.objs.note.group.rotation.y = 0.2 + P.talk * 0.6;
     if (home.setJar) home.setJar(S.jar || []);
-    home.setLantern(S.day >= 1 && !S.flags.lantern);
+    home.setLantern(!S.v2 && S.day >= 1 && !S.flags.lantern);
     if (S.w && S.w.standard_solved && G.town.setPlaque) G.town.setPlaque(true);
     this.revealQ = Object.keys(S.revealed || {}).filter((k) => S.revealed[k] === 'pending');
     if (S.look0) S.portrait0 = G.portraitOf(S.look0, {});
@@ -671,7 +690,7 @@ export class Story {
   todayCard(d) {
     const S = this.S;
     if (d === 1) return { day: 'Monday', title: 'Your first day', items: [{ t: 'Get to the Works by 9:00', sub: 'Bea from next door is heading that way.' }, { t: 'Say hi to your neighbors' }, { t: 'Find the Fix-It Shed', sub: 'In the Commons, past Town Hall.' }], note: 'When a place pinches, you choose who adjusts.' };
-    if (d === 2 && S.v2) return { day: 'Tuesday', title: 'A full day', items: [{ t: 'The bus stop, before work', sub: 'Bus routes there change with hardly any warning. Take the lantern.' }, { t: 'Team meeting at the Works, 9:00' }, { t: 'Clover found something in the loft', sub: 'The Fix-It Shed.' }, { t: 'Town meeting, 6 PM, Town Hall', sub: 'Any idea with two backers (neighbors who support it) gets a vote.' }], note: 'The town can afford two more fixes this season. Monday\'s three don\'t count toward that.' };
+    if (d === 2 && S.v2) return { day: 'Tuesday', title: 'A full day', items: [{ t: 'The bus stop, before work', sub: 'Bus routes there change with hardly any warning. Take the lantern.' }, { t: 'Team meeting at the Works, 9:00' }, { t: 'Clover found something in the loft', sub: 'The Fix-It Shed.' }, { t: 'Town meeting, 6 PM, Town Hall', sub: 'Any idea with two backers (neighbors who support it) gets a vote.' }], note: 'The town can afford two more fixes this season. ' + this.mondayNote() };
     if (d === 2) { const open = this.openThread(); return { day: 'Tuesday', title: 'A full day', items: [{ t: 'Team meeting at the Works, 9:00' }, { t: 'Clover found something in the loft', sub: 'The Fix-It Shed.' }, { t: 'Town meeting, 6 PM, Town Hall', sub: 'Proposals with two backers get a vote.' }], note: open ? 'Still open from yesterday: ' + open : 'Listen to people. They tell you what pinches them, if you let them.' }; }
     // Wednesday: the fixes in use first, then Wren's lanterns and the festival
     const items = [];
@@ -679,6 +698,12 @@ export class Story {
     if (!S.flags.statue_seen) items.push({ t: 'Clover found something in the loft', sub: 'The Fix-It Shed.' });
     items.push({ t: 'Wren needs three lanterns painted', sub: 'The Far End.' }, { t: 'The Lantern Festival, 8 PM', sub: 'Market Square.' });
     return { day: 'Wednesday', title: 'Festival day', items, note: S.burnout ? 'You woke up running on less. Places will cost more today.' : '' };
+  }
+  // Tuesday's card, about Monday: what went up then doesn't count against the season, and what you left is still open
+  mondayNote() {
+    const S = this.S; const n = ['lanterns', 'quiet', 'ramp'].filter((f) => S.fixes[f] === 'built' && (S.fixVia || {})[f] === 'slice').length;
+    const open = this.openThread();
+    return (n >= 2 ? 'Monday\'s ' + ['', '', 'two', 'three'][n] + ' don\'t count toward that.' : n === 1 ? 'Monday\'s porch lanterns don\'t count toward that.' : '') + (open ? ' Still open from yesterday: ' + open : '');
   }
   // the one unfinished thing worth coming back to (an open loop, not a streak)
   openThread() {
@@ -1389,7 +1414,19 @@ export class Story {
     const title = c.fix + c.ask > c.bend && c.fix + c.ask > 0 ? 'You changed something today.' : c.bend >= 3 ? 'You carried a lot today.' : c.leave >= 2 ? 'You looked after yourself today.' : 'A day in Larkspur.';
     const tomorrow = d === 1 ? ['Team meeting at the Works, 9:00.', 'Town meeting at 6 PM. Proposals with two backers get a vote.'] : d === 2 ? ['Festival day. The Works opens 9 to 11 for festival mail.', 'The Lantern Festival at 8 PM.'] : [];
     const nb = S.notesNew || 0;
-    return { day: ['', 'Monday', 'Tuesday', 'Wednesday'][d], title, counts: c, jar: S.jar || [], jarMax: 12, jarText: n >= 12 ? 'Full, and glowing.' : n + ' of 12. It does not need to be full.', news, open: ((t) => t.charAt(0).toUpperCase() + t.slice(1))(this.openThread()), tomorrow, notebook: nb ? 'New in your notebook: ' + nb + (d === 1 && S.flags.autismOpen ? ', including where this game\'s question came from.' : '.') : '' };
+    // the day's three questions (the new game): the row of counts is who adjusted; then who profited, and who checked
+    let three = null;
+    if (S.v2 && !this.ret) {
+      const log = (S.hookLog || []).filter((e) => (e.day || 1) === d); const mine = log.filter((e) => e.by !== 'blend').length, theirs = log.filter((e) => e.by === 'blend').length;
+      const T = (n) => (n === 1 ? 'once' : n === 2 ? 'twice' : n + ' times');
+      const B = S.blend || {};
+      const profit = (mine ? 'The game rewarded you ' + T(mine) + ' today, each time with its hook mark showing.' : this.ui.quietHooks() ? 'You played without the game\'s hook marks today.' : 'The game\'s rewards were few today.')
+        + (theirs ? ' Blend rewarded you ' + T(theirs) + ', and those pointed at Blend.' : B.has && !B.deleted ? ' Blend is still on your phone.' : '');
+      const st = S.stakes || {}; const fs = Object.keys(st).filter((f) => SIM.FIXES[f]); const yes = fs.filter((f) => st[f] === 'listened').length;
+      const check = fs.length ? 'Each change costs someone. So far, ' + yes + ' of ' + fs.length + ' went the way the person it costs asked.' : 'No change has gone ahead yet, so nobody has been asked what one would cost them.';
+      three = { profit, check };
+    }
+    return { three, day: ['', 'Monday', 'Tuesday', 'Wednesday'][d], title, counts: c, jar: S.jar || [], jarMax: 12, jarText: n >= 12 ? 'Full, and glowing.' : n + ' of 12. It does not need to be full.', news, open: ((t) => t.charAt(0).toUpperCase() + t.slice(1))(this.openThread()), tomorrow, notebook: nb ? 'New in your notebook: ' + nb + (d === 1 && S.flags.autismOpen ? ', including where this game\'s question came from.' : '.') : '' };
   }
   // ---------- nights ----------
   async night(d) {

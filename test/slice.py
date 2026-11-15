@@ -1,122 +1,83 @@
-# The first day (slice.js), played start to finish with real input where it matters: keys to raise the lantern and
-# tag marks, the porch choice, the market sketch, the hearing, lantern night, the hook sort and the day card.
-# Usage: python3 test/slice.py [desktop|phone] [OUTDIR] [seed] [policy]
-#   policy: 'good' (listens, solves the sketch, asks consent, declines Blend) or 'blend' (tries Blend, rushes)
-# Prints the time each part of the day took, and fails on any page error or a stage that never comes.
-import json, sys, time, os
-from playwright.sync_api import sync_playwright
-sys.path.insert(0, os.path.dirname(__file__))
-from drive import ARGS, BASE, drive_to, free
-
+# The first day (slice.js), played start to finish the ways a player can take it: the square first, the Works first,
+# and going home for lantern night after only one of them. Each run is a full playthrough by test/storyboard.py (real
+# clicks on the room's dots, keys to raise the lantern and tag marks, the porch choice, the two talks in the square,
+# the sketch, the hearing, lantern night, the day's card), in fast mode; this file checks what each run left behind.
+# Usage: python3 test/slice.py [desktop|phone] [OUTDIR] [seed]
+import json, os, subprocess, sys
+HERE = os.path.dirname(os.path.abspath(__file__))
 mode = sys.argv[1] if len(sys.argv) > 1 else 'desktop'
 OUT = sys.argv[2] if len(sys.argv) > 2 else '/tmp/slice_out'
-SEED = int(sys.argv[3]) if len(sys.argv) > 3 else 31
-POLICY = sys.argv[4] if len(sys.argv) > 4 else 'good'
-os.makedirs(OUT, exist_ok=True)
-ST = """(() => { const G = __wb.G, S = G.S, sl = G.story.slice; const o = G.story.objective();
-  return { stage: S.slice ? S.slice.stage : null, day: S.day, min: Math.round(S.min), mode: G.mode, busy: G.busy, waiter: __wb.waiter(), panel: __wb.panel(), mg: __wb.mg(),
-    loc: G.loc, zone: G.zone, raised: !!G.look.raised, near: G.marks.near ? G.marks.near.id : null, target: G.target ? G.target.id : null, hearing: !!document.querySelector('#hearing'),
-    ov: !!document.querySelector('#overlay:not([hidden])'), obj: o ? o.t : '', at: o ? o.at : null, inside: o ? o.inside || null : null, spot: o ? o.spot || null : null,
-    pos: [G.player.root.position.x, G.player.root.position.z], guests: Object.keys(S.guests || {}), color: S.color, path: G.path.length, phone: G.phoneOpen } })()"""
+SEED = sys.argv[3] if len(sys.argv) > 3 else '31'
+checks = []
+def check(name, ok, info=''):
+    checks.append([name, bool(ok), info]); print(('PASS ' if ok else 'FAIL ') + name + (('  ' + str(info)[:400]) if info and not ok else ''))
 
-def shot(pg, name):
-    pg.evaluate('__wb.G.forceRender = true'); pg.wait_for_timeout(120)
-    pg.screenshot(path=os.path.join(OUT, name + '.png'))
+def play(tag, policy='good', **env):
+    out = os.path.join(OUT, tag); os.makedirs(out, exist_ok=True)
+    e = dict(os.environ, SHOTS=os.environ.get('SHOTS', '0'), **env)
+    r = subprocess.run([sys.executable, os.path.join(HERE, 'storyboard.py'), mode, out, SEED, policy, '1'], env=e, capture_output=True, text=True, timeout=1500)
+    try: a = json.load(open(os.path.join(out, 'audit.json'))); T = json.load(open(os.path.join(out, 'events.json')))
+    except Exception: a = None; T = []
+    if a is None or r.returncode != 0: print(r.stdout[-1500:], r.stderr[-1500:])
+    return a, T, r.returncode
 
-with sync_playwright() as p:
-    b = p.chromium.launch(args=ARGS)
-    ctx = b.new_context(viewport={'width': 390, 'height': 844} if mode == 'phone' else {'width': 1280, 'height': 760}, is_mobile=mode == 'phone', has_touch=mode == 'phone', device_scale_factor=1)
-    pg = ctx.new_page(); errors = []
-    pg.on('pageerror', lambda e: errors.append(str(e)[:400]))
-    pg.on('console', lambda m: errors.append('console: ' + m.text[:400]) if m.type == 'error' else None)
-    pg.goto(BASE + '?test=1&mute=1&seed=%d' % SEED); pg.wait_for_function("window.__wb && __wb.G && __wb.panel() && __wb.panel().includes('title')", timeout=90000)
-    pg.evaluate('localStorage.clear(); sessionStorage.clear()'); pg.reload(); pg.wait_for_function("window.__wb && __wb.G && __wb.panel() && __wb.panel().includes('title')", timeout=90000)
-    pg.evaluate("__wb.G.settings.textSpeed = 'fast'")
-    t0 = time.time(); marks = {}
-    shots_done = set()
-    def mark_time(name):
-        if name not in marks: marks[name] = round(time.time() - t0, 1)
-    drive_to(pg, lambda st: st['mode'] == 'creator', budget=200)
-    mark_time('creator'); shot(pg, '01_creator')
-    drive_to(pg, lambda st: free(st) and st['day'] == 1, budget=300)
-    mark_time('morning'); shot(pg, '02_room')
-    last_stage = None; stuck = 0; last_pos = None; t_stage = time.time()
-    while time.time() - t0 < 1500:
-        st = pg.evaluate(ST)
-        if st['stage'] != last_stage:
-            mark_time(st['stage'] or 'none'); last_stage = st['stage']; t_stage = time.time()
-            if st['stage'] not in shots_done: shots_done.add(st['stage']); shot(pg, '10_' + str(st['stage']))
-        if st['day'] >= 2: mark_time('tuesday'); shot(pg, '90_tuesday'); break
-        if time.time() - t_stage > 240: raise Exception('stuck in stage %s: %s' % (st['stage'], json.dumps(st)))
-        if st['ov']:
-            pg.evaluate("(() => { const b = document.querySelector('#overlay #cGo') || document.querySelector('#overlay #nOk') || document.querySelector('#overlay .btn.primary') || document.querySelector('#overlay [data-back]'); if (b) b.click(); })()"); pg.wait_for_timeout(200); continue
-        if st['hearing']:
-            if 'hearingui' not in shots_done: shots_done.add('hearingui'); pg.wait_for_timeout(900); shot(pg, '50_hearing')
-            pg.evaluate("(() => { const h = __wb.G.story.slice.hearingNow; if (h && !h.busy) h.auto(); })()"); pg.wait_for_timeout(500); continue
-        if st['mg']:
-            if 'mg' not in shots_done: shots_done.add('mg'); pg.wait_for_timeout(800); shot(pg, '40_sketch')
-            pg.evaluate('__wb.mgAuto(%s)' % ('0.9' if POLICY == 'good' else '0.2')); pg.wait_for_timeout(400); continue
-        panel = st['panel'] or ''
-        if 'hooksort' in panel:
-            if 'hooksort' not in shots_done: shots_done.add('hooksort'); shot(pg, '70_hooksort')
-            pg.evaluate("(() => { const p = document.querySelector('#panel'); p.querySelectorAll('.hsrow').forEach((r, i) => { const b = r.querySelectorAll('[data-v]')[i % 2]; b.click(); }); const go = p.querySelector('#hsGo'); if (go && !go.disabled) go.click(); else { const ok = p.querySelector('#hsOk'); if (ok) { ok.click(); } } })()")
-            pg.wait_for_timeout(500)
-            if 'hookreveal' not in shots_done and pg.evaluate("!!document.querySelector('#panel #hsOk')"): shots_done.add('hookreveal'); shot(pg, '71_hookreveal'); pg.evaluate("document.querySelector('#panel #hsOk').click()")
-            continue
-        if 'daycard' in panel:
-            shot(pg, '80_daycard'); pg.evaluate("document.querySelector('#panel #dGo').click()"); pg.wait_for_timeout(400); continue
-        if 'taps' in panel: pg.evaluate("document.querySelector('#panel .pick').click()"); pg.wait_for_timeout(300); continue
-        if panel and 'center' in panel:
-            pg.evaluate("(() => { const g = document.querySelector('#panel #tgo') || document.querySelector('#panel #go') || document.querySelector('#panel #done') || document.querySelector('#panel .btn.primary'); if (g) g.click(); })()"); pg.wait_for_timeout(200); continue
-        if st['waiter'] == 'line': pg.evaluate('__wb.adv()'); pg.wait_for_timeout(60); continue
-        if st['waiter'] in ('choice', 'barrier'):
-            opts = pg.evaluate('__wb.options()')
-            if st['waiter'] == 'barrier' and 'whoadjusts' not in shots_done: shots_done.add('whoadjusts'); pg.wait_for_timeout(500); shot(pg, '30_whoadjusts')
-            pick = None
-            for i, o in enumerate(opts):
-                if o['disabled']: continue
-                if st['waiter'] == 'barrier' and o['key'] == 'fix' and POLICY == 'good': pick = i
-                if o['id'] == 'blend_yes' and POLICY == 'blend': pick = i
-                if o['id'] == 'blend_no' and POLICY == 'good': pick = i
-                if o['id'] == 'gil_ask' and POLICY == 'good': pick = i
-                if o['id'] == 'gil_later' and POLICY == 'blend': pick = i
-            if pick is None: pick = next((k for k, o in enumerate(opts) if not o['disabled']), 0)
-            pg.evaluate('__wb.choose(%d)' % pick); pg.wait_for_timeout(150); continue
-        # lantern night: Wren says raise it, and you do (the key, like a player)
-        if pg.evaluate("!!document.querySelector('.raisebtn')"):
-            if 'raise' not in shots_done: shots_done.add('raise'); pg.wait_for_timeout(300); shot(pg, '60_raise')
-            pg.keyboard.press('l'); pg.wait_for_timeout(1800)
-            if 'reveal' not in shots_done: shots_done.add('reveal'); shot(pg, '61_reveal')
-            continue
-        if 'porchfit' not in shots_done and pg.evaluate("(() => { const t = document.querySelector('.revealcount'); return !!t && /porch/.test(t.textContent) && /Not even/.test(t.textContent) })()"):
-            shots_done.add('porchfit'); shot(pg, '62_porchfit')
-        if not free(st): pg.wait_for_timeout(120); continue
-        # in a room: walk to the spot the objective names and use it, or head out
-        if st['loc'] != 'town':
-            if st['inside'] == st['loc'] and st['spot']:
-                pg.evaluate("__wb.way()"); pg.wait_for_timeout(900)
-                pg.keyboard.press('e'); pg.wait_for_timeout(500); continue
-            pg.evaluate("(() => { const r = __wb.G.rooms[__wb.G.loc]; const o = r.inter.find((i) => i.id === 'out'); __wb.G.walkTo(o.x, o.z); })()"); pg.wait_for_timeout(1200)
-            pg.keyboard.press('e'); pg.wait_for_timeout(1500); continue
-        # marks to tag: raise the lantern, walk up to the nearest, press E
-        if st['stage'] in ('homerow', 'market', 'worksmarks'):
-            if not st['raised']: pg.keyboard.press('l'); pg.wait_for_timeout(400); continue
-            if st['near']:
-                if st['stage'] + '_raised' not in shots_done: shots_done.add(st['stage'] + '_raised'); shot(pg, '20_%s_raised' % st['stage'])
-                pg.keyboard.press('e'); pg.wait_for_timeout(700); continue
-            # walk toward the next mark still to find: the beam finds it on the way (a person would sweep around)
-            nm = pg.evaluate("(() => { const sl = __wb.G.story.slice; const z = { homerow: 'homerow', market: 'market', worksmarks: 'works' }[sl.stage]; const m = sl.nextMark(z); return m ? [m.at[0], m.at[2] + 1.6] : null; })()")
-            if nm and st['path'] == 0: pg.evaluate("(a) => __wb.G.walkTo(a[0], a[1])", nm); pg.wait_for_timeout(500); continue
-            pg.wait_for_timeout(200); continue
-        if st['raised']: pg.keyboard.press('l'); pg.wait_for_timeout(200); continue
-        # otherwise: follow the objective, and use whatever is at the end of it
-        if st['at']:
-            d = ((st['pos'][0] - st['at'][0]) ** 2 + (st['pos'][1] - st['at'][1]) ** 2) ** 0.5
-            if d > 2.2 and st['path'] == 0: pg.evaluate('__wb.way()'); pg.wait_for_timeout(400); continue
-            if d <= 2.2 and st['target']: pg.keyboard.press('e'); pg.wait_for_timeout(600); continue
-            if d <= 2.2: pg.evaluate("(a) => __wb.G.walkTo(a[0], a[1] - 0.6)", st['at']); pg.wait_for_timeout(500); continue
-        pg.wait_for_timeout(200)
-    res = {'times': marks, 'errors': errors, 'final': pg.evaluate(ST), 'hooks': pg.evaluate('__wb.state().hooks'), 'cards': pg.evaluate('Object.keys(__wb.state().cards || {})'), 'fixes': pg.evaluate('__wb.state().fixes'), 'hearing': pg.evaluate('(__wb.state().slice || {}).hearing || null')}
-    print(json.dumps(res, indent=1))
-    b.close()
-    if errors: sys.exit(1)
+def said(T, words): return any(words in e['t'] or any(words in o for o in (e.get('opts') or [])) for e in T)
+ALL = ['wren', 'bea', 'moss', 'pomeroy', 'rue', 'pip', 'hollis', 'gil']
+built = lambda a, f: (a['state']['fixes'] or {}).get(f) == 'built'
+
+# 1. the square first, then the Works, then home
+a, T, rc = play('square_first')
+ok = a is not None and rc == 0
+check('square first: plays through to Tuesday with no page errors', ok and a['reached_day_2'] and not a['errors'], a and a['errors'])
+if ok:
+    check('  the opening asks you to look closer, then the room is yours to set, then Wren is at the door', said(T, 'Look closer') and said(T, 'Make this room fit you (0/6)') and said(T, 'Make this room fit you (5/6)') and (said(T, 'I only ever knock once') or said(T, 'so I texted first')))
+    check('  very little to read before you can first do something', a['words_before_first_input'] <= 12 and a['words_before_control'] <= 140, [a['words_before_first_input'], a['words_before_control']])
+    check('  the day opens on two places, and says so', said(T, 'Two places pinch someone you know'))
+    check('  in the square you ask Moss, then Pomeroy, and then Clover sketches', said(T, 'Now ask Moss') and said(T, 'Ask Pomeroy') and said(T, 'Let\'s sketch a square where everyone fits'))
+    check('  Rue can be asked what Blend costs', said(T, 'What does it cost?') and said(T, 'You pay in attention'))
+    check('  Bea knows about the square by the time you reach the Works', said(T, 'Moss says she can hear her own kettle again'))
+    check('  all three places changed, and everyone came', all(built(a, f) for f in ('lanterns', 'quiet', 'ramp')) and sorted(a['guests']) == sorted(ALL), [a['state']['fixes'], a['guests']])
+    check('  with both done, lantern night starts when you get home', said(T, 'Lantern night starts when you get home'))
+    check('  the day\'s card asks the three questions', said(T, 'Who adjusted?') and said(T, 'Who profited?') and said(T, 'Who checked?'))
+    check('  no sentence in the day runs past 25 words', a['longest_sentence_words'] <= 25, a['longest_sentence_words'])
+
+# 2. the Works first
+a, T, rc = play('works_first', FIRST='works')
+ok = a is not None and rc == 0
+check('Works first: plays through to Tuesday with no page errors', ok and a['reached_day_2'] and not a['errors'], a and a['errors'])
+if ok:
+    iw = next((i for i, e in enumerate(T) if 'My cart doesn\'t do steps' in e['t']), -1); im = next((i for i, e in enumerate(T) if 'I can\'t hear my own kettle' in e['t']), -1)
+    check('  Bea at the steps comes before Moss at the cart', 0 <= iw < im, [iw, im])
+    check('  the square is still at its loudest when you get there (the clock waited)', any(e['k'] == 'barrier' and e['m'] < 840 for e in T), [(e['k'], e['m']) for e in T if e['k'] == 'barrier'])
+    check('  Moss knows about the ramp, and Bea doesn\'t mention the kettle', said(T, 'You\'re the one who got Bea her ramp') and not said(T, 'Moss says she can hear her own kettle again'))
+    check('  Rue doesn\'t send you to steps that already have a ramp', not said(T, 'Something about steps?'))
+    check('  all three places changed, and everyone came', all(built(a, f) for f in ('lanterns', 'quiet', 'ramp')) and sorted(a['guests']) == sorted(ALL), [a['state']['fixes'], a['guests']])
+
+# 3. the square, then home early
+a, T, rc = play('early_square', EARLY='1')
+ok = a is not None and rc == 0
+check('home after the square only: plays through to Tuesday with no page errors', ok and a['reached_day_2'] and not a['errors'], a and a['errors'])
+if ok:
+    check('  your door asks before the day ends, and says what waits', said(T, 'End the day here?') and said(T, 'Bea is still stuck at the Works steps'))
+    check('  the people from the square came; the people the ramp was for did not', sorted(a['guests']) == sorted(['wren', 'bea', 'moss', 'pomeroy', 'rue']), a['guests'])
+    check('  the night says who is missing, and why', said(T, 'Pip couldn\'t come'))
+    check('  the ramp is not built, and the card says the steps are still waiting', not built(a, 'ramp') and said(T, 'Still waiting: the Works steps'), a['state']['fixes'])
+
+# 4. the Works, then home early
+a, T, rc = play('early_works', FIRST='works', EARLY='1')
+ok = a is not None and rc == 0
+check('home after the Works only: plays through to Tuesday with no page errors', ok and a['reached_day_2'] and not a['errors'], a and a['errors'])
+if ok:
+    check('  the people the ramp was for came; Moss could not', sorted(a['guests']) == sorted(['wren', 'bea', 'pip', 'hollis', 'gil']) and said(T, 'Moss couldn\'t come'), a['guests'])
+    check('  the square is still waiting, and Rue never made her pitch', not built(a, 'quiet') and said(T, 'Still waiting: Market Square') and not said(T, 'Install Blend?'), a['state']['fixes'])
+
+# 5. the other way through the choices: Blend, the rushed sketch, Gil not asked
+a, T, rc = play('blend', policy='blend')
+ok = a is not None and rc == 0
+check('saying yes to Blend and rushing: plays through to Tuesday with no page errors', ok and a['reached_day_2'] and not a['errors'], a and a['errors'])
+if ok:
+    check('  Blend is installed, and the card counts what it did', (a['state']['slice'] or {}).get('blend') == 'yes', a['state']['slice'])
+
+bad = [c[0] for c in checks if not c[1]]
+print(json.dumps({'ok': not bad, 'failed': bad}))
+sys.exit(0 if not bad else 1)

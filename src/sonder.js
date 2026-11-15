@@ -46,12 +46,14 @@ export class Sonder {
     return this.line();
   }
   // everyone out in town and on screen: passersby and residents, with where they are on screen
-  people() {
+  // (wide: right up to the edges of the screen, for a tap; a thought over someone at the edge slides in to stay readable)
+  people(wide) {
     const G = this.G; const cam = G.stage.camera; const out = []; const v = new THREE.Vector3();
     const add = (root, id) => {
       if (!root || !root.visible) return;
       v.copy(root.position); v.y += 2.1; v.project(cam);
-      if (v.z > 1 || Math.abs(v.x) > 0.86 || v.y > 0.72 || v.y < -0.8) return;
+      // (not at the very foot of the picture: the opening's dark bar is there, and a thought would sit on it)
+      if (v.z > 1 || Math.abs(v.x) > (wide ? 0.97 : 0.86) || v.y > 0.72 || v.y < (wide ? -0.78 : -0.66)) return;
       out.push({ root, id, sx: (v.x + 1) / 2 * innerWidth, sy: (1 - v.y) / 2 * innerHeight });
     };
     for (const a of G.crowd || []) if (a.active) add(a.c.root, null);
@@ -61,7 +63,7 @@ export class Sonder {
   say(p, ms, line) {
     const G = this.G; const text = line || this.lineFor(p);
     const el = G.fx.pop(p.root.position.clone(), text, { kind: 'thought', ms, follow: p.root, dy: 2.15, rise: 4 });
-    if (el) this.els.push(el);
+    if (el) { this.els.push(el); this.clearOf(el, 0); }
     this.recent.push(p.root); if (this.recent.length > 5) this.recent.shift();
     return text;
   }
@@ -76,6 +78,34 @@ export class Sonder {
     if (picked.length) setTimeout(() => G.ui.announce('Over the crowd, one thought each: ' + said.join(' ')), FAST ? 10 : 260 * picked.length + 80);
     return picked.length;
   }
+  // two people standing close have their thoughts one above the other, never one on top of the other: once a new
+  // thought is on screen, it's lifted clear of any it covers (by its own height, or twice that)
+  clearOf(el, n) {
+    requestAnimationFrame(() => {
+      if (!el.isConnected) return; const r = el.getBoundingClientRect();
+      // (not until it has been put in its place over the person)
+      if (!r.width || !el.style.transform) { if (n < 12) this.clearOf(el, n + 1); return; }
+      const others = this.els.filter((o) => o !== el && o.isConnected).map((o) => o.getBoundingClientRect()).filter((q) => q.width);
+      const hits = (dy) => others.some((q) => r.left < q.right - 4 && r.right > q.left + 4 && r.top + dy < q.bottom - 2 && r.bottom + dy > q.top + 2);
+      for (const dy of [0, -(r.height + 6), -2 * (r.height + 6)]) if (!hits(dy) && r.top + dy > 56) { if (dy) el.style.marginTop = dy + 'px'; return; }
+    });
+  }
+  // the opening, by hand: the person nearest a tap (or, with no place given, nearest the middle of the screen) shows
+  // what their day is about. used: the people who already have; band: the strip of screen the caption sits in.
+  // spaced: only someone whose thought would sit clear of the ones already showing (for the ones the game adds); or
+  // [how far apart sideways, how far apart up and down] for a closer fit when the square is crowded.
+  nearest(x, y, used, band, spaced) {
+    const ppl = this.people(!spaced);
+    const all = ppl.filter((p) => !used.has(p.root) && !(band && p.sy > innerHeight * band[0] && p.sy < innerHeight * band[1]));
+    if (!all.length) return null;
+    const cx = x == null ? innerWidth / 2 : x, cy = y == null ? innerHeight * 0.55 : y;
+    const d = (p) => Math.hypot(p.sx - cx, p.sy - cy);
+    if (!spaced) return all.sort((a, b) => d(a) - d(b))[0];
+    const shown = ppl.filter((q) => used.has(q.root)); const [w, h] = Array.isArray(spaced) ? spaced : [Math.min(230, innerWidth * 0.5), 50];
+    const clear = all.filter((p) => shown.every((q) => Math.abs(q.sx - p.sx) > w || Math.abs(q.sy - p.sy) > h));
+    return clear.length ? clear.sort((a, b) => d(a) - d(b))[0] : null;
+  }
+  openLine(p) { if (p.id && RESIDENT[p.id]) return RESIDENT[p.id][0]; this.openQ = this.openQ && this.openQ.length ? this.openQ : shuffle(OPENING); return this.openQ.pop(); }
   clear() { const G = this.G; for (const el of this.els) G.fx.unpop(el); this.els = []; }
   // in play: stand still for a moment, and someone nearby shows what their day is about
   update(dt) {
@@ -86,7 +116,9 @@ export class Sonder {
     const p = G.player.root.position;
     const moved = this.lastPos ? Math.hypot(p.x - this.lastPos.x, p.z - this.lastPos.z) : 1;
     if (!this.lastPos) this.lastPos = p.clone(); else this.lastPos.copy(p);
-    const free = G.loc === 'town' && G.mode === 'play' && !G.busy && (S.day || 0) >= 1 && ui.panel.hidden && !ui.waiter && !G.phoneOpen && !G.mgActive && !(G.look && G.look.raised);
+    // (on the first morning, while you're learning the lantern on Home Row, the street stays quiet)
+    const sl = G.story && G.story.slice; const learning = !!(sl && sl.on && ['room', 'door', 'homerow', 'porch'].includes(sl.stage));
+    const free = G.loc === 'town' && G.mode === 'play' && !G.busy && (S.day || 0) >= 1 && !learning && ui.panel.hidden && !ui.waiter && !G.phoneOpen && !G.mgActive && !(G.look && G.look.raised);
     if (!free || moved > 0.015 || (G.path && G.path.length)) { this.still = 0; return; }
     this.still += dt;
     if (this.still < 2.2 || this.cool > 0) return;
@@ -100,7 +132,7 @@ export class Sonder {
     // the first time: what this is, once, and a note to keep
     if (!S.flags.sonderSeen) {
       S.flags.sonderSeen = 1;
-      setTimeout(() => ui.toast('<b>Sonder</b><span class="tsub">Everyone walking past is in the middle of their own day, as full as yours. Stand still for a moment and you\'ll catch a little of it.</span>', 'note', 9000), FAST ? 10 : 900);
+      setTimeout(() => ui.toast('<b>Sonder</b><span class="tsub">Stand still for a moment, and someone walking past shows a little of their own day.</span>', 'note', 7000), FAST ? 10 : 900);
       if (G.story && G.story.fieldNote) G.story.fieldNote('sonder');
     }
   }

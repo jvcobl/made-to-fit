@@ -39,6 +39,9 @@ export class UI {
   constructor(G) {
     this.G = G;
     this.touch = isTouch();
+    // (where the pointer last was: a notice that appears under a resting pointer isn't being pointed at)
+    window.addEventListener('pointermove', (e) => { this._px = e.clientX; this._py = e.clientY; }, { passive: true });
+    window.addEventListener('pointerdown', (e) => { this._px = e.clientX; this._py = e.clientY; }, { passive: true });
     this.root = document.getElementById('ui');
     this.root.innerHTML = `
       <div id="letterbox"><div class="lb top"></div><div class="lb bot"></div></div>
@@ -46,7 +49,7 @@ export class UI {
       <div id="bubbles"></div>
       <div id="hud" hidden>
         <div class="clock"><div class="dial"></div><div class="cl"><div class="when"></div><div class="obj"></div><button class="way" id="wayBtn" hidden>${ICON.way}<span>Show the way</span></button><button class="way wait" id="waitBtn" hidden><span></span></button><div class="pstrip" role="group" aria-label="How this place fits you" hidden></div><div class="gstrip" role="status" aria-label="Lantern night guests" hidden></div></div></div>
-        <div class="hudbtns"><button class="btn hb" id="phoneBtn" aria-label="Phone">${ICON.phone}<span class="lbl">Phone</span>${this.touch ? '' : '<kbd class="kphone"></kbd>'}</button><button class="btn hb" id="setBtn" aria-label="Menu: pause and settings">${ICON.cog}<span class="lbl">Menu</span></button></div>
+        <div class="hudbtns"><button class="btn hb" id="phoneBtn" aria-label="Phone">${ICON.phone}<span class="lbl">Phone</span>${this.touch ? '' : '<kbd class="kphone" aria-hidden="true"></kbd>'}</button><button class="btn hb" id="setBtn" aria-label="Menu: pause and settings">${ICON.cog}<span class="lbl">Menu</span></button></div>
         <div class="dock"><div class="energy" title="Energy for today"><svg viewBox="0 0 36 36"><circle class="track" cx="18" cy="18" r="14" fill="none" stroke-width="5"/><circle class="bar" cx="18" cy="18" r="14" fill="none" stroke-width="5" stroke-linecap="round" stroke-dasharray="88" stroke-dashoffset="0"/></svg><span class="elabel">Energy</span></div><div class="gearbtns"></div></div>
       </div>
       <div id="edge" hidden><div class="arr">${ICON.way}</div><span></span></div>
@@ -174,8 +177,8 @@ export class UI {
     });
   }
   // a control that cannot be used right now says why, instead of doing nothing
-  nudge(el, reason) { el.classList.remove('shake'); void el.offsetWidth; el.classList.add('shake'); this.G.audio.sfx('back'); if (reason) this.toast(esc(reason), '', 2600); }
-  hideDialog() { this.dialog.hidden = true; if (this.waiter && this.waiter.type !== 'barrier') this.waiter = null; }
+  nudge(el, reason) { el.classList.remove('shake'); void el.offsetWidth; el.classList.add('shake'); this.G.audio.sfx('back'); if (reason) this.toast(esc(reason), '', 2600, 'now'); }
+  hideDialog() { this.dialog.hidden = true; if (this.waiter && this.waiter.type !== 'barrier') this.waiter = null; if (this.tq && this.tq.length) { clearTimeout(this._tqT); this._tqT = setTimeout(() => this.pumpToasts(), 900); } }
   // ---------- who adjusts? ----------
   barrier(b) {
     this.dialog.hidden = true;
@@ -224,7 +227,7 @@ export class UI {
     else this.holdCancel();
   }
   holdCancel() { const h = this.holding; if (!h) return; cancelAnimationFrame(h.raf); h.btn.querySelector('.fill').style.width = '0'; h.btn.classList.remove('holding'); const s = h.btn.querySelector('.hold'); if (s) s.textContent = 'Hold, or tap to start'; this.holding = null; this.G.onHold(false, false); }
-  hideBarrier() { this.barrierEl.hidden = true; }
+  hideBarrier() { this.barrierEl.hidden = true; if (this.tq && this.tq.length) { clearTimeout(this._tqT); this._tqT = setTimeout(() => this.pumpToasts(), 900); } }
   // ---------- small things ----------
   // ---------- reading time ----------
   // Text that carries meaning stays up long enough to read at a gentle pace (about 180 words a minute, plus a moment to
@@ -236,18 +239,36 @@ export class UI {
     return Math.max(min, Math.round((1300 + words * 330) * k));
   }
   holdText() { return !FAST && !!(this.G.settings && this.G.settings.readTime === 'hold'); }
-  toast(html, kind = '', ms = 3600) {
+  // (one thing at a time: while someone is talking, or two notices are already up, a new one waits its turn)
+  talkingNow() { return !this.dialog.hidden || !this.barrierEl.hidden; }
+  // (a notice held back during a conversation comes up at the next pause; while any are waiting this looks again every
+  // second and a half, so none can be left behind)
+  pumpToasts() {
+    const q = this.tq; if (!q || !q.length) return;
+    if (this.talkingNow() || this.el('#toasts').children.length >= 2) { clearTimeout(this._tqT); this._tqT = setTimeout(() => this.pumpToasts(), 1500); return; }
+    const [h, k, m] = q.shift(); this.toast(h, k, m, true);
+  }
+  // (from: true when it comes off the queue; 'now' for an answer to something you just pressed, which can't wait)
+  toast(html, kind = '', ms = 3600, from = false) {
     const box = this.el('#toasts');
-    if (!FAST && box.children.length >= 2) { (this.tq = this.tq || []).push([html, kind, ms]); if (this.tq.length > 6) this.tq.shift(); return; }
+    if (!FAST && from !== 'now' && (box.children.length >= 2 || this.talkingNow() || (!from && this.tq && this.tq.length))) {
+      (this.tq = this.tq || []).push([html, kind, ms]); if (this.tq.length > 8) this.tq.shift();
+      // (a text from someone still makes its sound when it arrives; the words come up at the next pause)
+      clearTimeout(this._tqT); this._tqT = setTimeout(() => this.pumpToasts(), 900); return;
+    }
     const t = $(`<div class="toast ${kind}">${html}<button type="button" class="tclose" aria-label="Close this notice">×</button></div>`); box.appendChild(t); this.announce(html);
     const all = box.children; if (all.length > 4) all[0].remove();
     // cards, notes and tips carry meaning: with "Until I close it" they wait for you; the rest fade once read
     const keep = /\b(cardt|idea|note|keep|lantern)\b/.test(kind) && this.holdText();
     let left = FAST ? 300 : this.readMs(html, ms), timer = 0, t0 = 0, gone = false;
-    const out = () => { if (gone) return; gone = true; clearTimeout(timer); t.classList.add('out'); setTimeout(() => { t.remove(); if (this.tq && this.tq.length) { const [h, k, m] = this.tq.shift(); this.toast(h, k, m); } }, 450); };
+    const out = () => { if (gone) return; gone = true; clearTimeout(timer); t.classList.add('out'); setTimeout(() => { t.remove(); this.pumpToasts(); }, 450); };
     const run = () => { if (keep || gone || timer) return; t0 = performance.now(); timer = setTimeout(out, left); };
     const pause = () => { if (!timer) return; clearTimeout(timer); timer = 0; left = Math.max(1500, left - (performance.now() - t0)); };
-    t.addEventListener('pointerenter', pause); t.addEventListener('pointerleave', run); t.addEventListener('focusin', pause); t.addEventListener('focusout', run);
+    // (pointing at a notice pauses it. A notice that comes up under a pointer that's simply resting there doesn't count:
+    // the pointer has to move)
+    const x0 = this._px, y0 = this._py; const moved = (e) => e.pointerType !== 'mouse' || x0 == null || Math.hypot(e.clientX - x0, e.clientY - y0) > 4;
+    t.addEventListener('pointerenter', (e) => { if (moved(e)) pause(); }); t.addEventListener('pointermove', (e) => { if (timer && moved(e)) pause(); });
+    t.addEventListener('pointerleave', run); t.addEventListener('focusin', pause); t.addEventListener('focusout', run);
     t.querySelector('.tclose').onclick = (ev) => { ev.stopPropagation(); out(); };
     run();
   }
@@ -266,7 +287,7 @@ export class UI {
   }
   skipCaption() { if (this.capSkip) this.capSkip(); }
   letterbox(on) { this.el('#letterbox').classList.toggle('on', on); }
-  hud(on) { this.el('#hud').hidden = !on; if (!on) { this.edge(null); this.act(null); } }
+  hud(on) { this.el('#hud').hidden = !on; if (!on) { this.edge(null); this.edge(null, 1); this.act(null); } }
   updateHud(S, obj) {
     const h = this.el('#hud'); if (h.hidden) return;
     const day = this.G.story && this.G.story.ret ? this.G.story.ret.dayName() : DAYNAME[S.day] || 'Day ' + S.day;
@@ -288,7 +309,7 @@ export class UI {
       this.gearKey = gk;
       const b = (g, on, label, ic) => `<button class="gb ${on ? 'on' : ''} ${g === 'smooth' ? 'sm' : ''}" data-g="${g}" aria-pressed="${on}" title="${label}${this.touch ? '' : ' (' + this.G.keyOf(g) + ')'}">${ic}<span>${label}</span></button>`;
       h.querySelector('.gearbtns').innerHTML = (lan ? b('look', up, 'Lantern', ICON.lantern) : '') + (S.gear.headphones ? b('headphones', S.wearing.headphones, 'Headphones', ICON.gear) : '') + (S.gear.shades ? b('shades', S.wearing.shades, 'Shades', ICON.shades) : '') + (smoothOk ? b('smooth', S.blend.smooth, 'Smooth Mode', ICON.smooth) : '');
-      const kp = h.querySelector('.kphone'); if (kp) kp.textContent = this.G.keyOf('phone');
+      const kp = h.querySelector('.kphone'); if (kp) kp.dataset.k = this.G.keyOf('phone');
     }
   }
   ping(on) { this.el('#phoneBtn').classList.toggle('ping', on); }
@@ -326,13 +347,16 @@ export class UI {
     }
   }
   // the arrow at the screen edge that points at where you are going
-  edge(info) {
-    const e = this.el('#edge'); if (!info) { e.hidden = true; return; }
+  // (i = 1: a second arrow, for a day that offers two places to go)
+  edge(info, i = 0) {
+    let e = i ? this._edge2 : this.el('#edge');
+    if (!e) { if (!info) return; const a = this.el('#edge'); e = a.cloneNode(true); e.id = 'edge2'; e.className = (a.className ? a.className + ' ' : '') + 'edge'; e.hidden = true; e.onclick = () => this.G.showWay(1); a.parentNode.insertBefore(e, a.nextSibling); this._edge2 = e; }
+    if (!info) { e.hidden = true; return; }
     e.hidden = false;
     e.querySelector('.arr').style.transform = `rotate(${info.ang}rad)`;
-    const t = info.label + ' · ' + info.dist + ' m'; const s = e.querySelector('span'); if (s.textContent !== t) { s.textContent = t; this._ew = e.offsetWidth; }
+    const t = info.label + ' · ' + info.dist + ' m'; const s = e.querySelector('span'); const wk = i ? '_ew2' : '_ew'; if (s.textContent !== t) { s.textContent = t; this[wk] = e.offsetWidth; }
     // the label is wider than the arrow: slide the pair in so the words stay on screen
-    const hw = (this._ew || 0) / 2 + 8; e.style.left = clamp(info.x, hw, Math.max(hw, innerWidth - hw)) + 'px'; e.style.top = info.y + 'px';
+    const hw = (this[wk] || 0) / 2 + 8; e.style.left = clamp(info.x, hw, Math.max(hw, innerWidth - hw)) + 'px'; e.style.top = info.y + 'px';
   }
   // ---------- panels ----------
   openPanel(cls, html) { const p = this.panel; p.style.cssText = ''; p.className = 'panel ' + cls; p.innerHTML = html; p.hidden = false; return p; }
@@ -346,7 +370,7 @@ export class UI {
       : ret ? `${back}<button class="btn" id="tNew">New game</button>` : '<button class="btn accent" id="tNew">Begin</button>';
     const banner = o.storage && o.storage !== 'ok' ? '<div class="tbanner" role="status">This browser isn\'t keeping saves here (a private window, or storage is blocked). You can still copy a save code from the Menu at any point, and paste it here next time.</div>' : '';
     const p = this.openPanel('title', `<h1>Made to Fit</h1><div class="sub">a town built for someone else</div>${banner}<div class="row">${main}<button class="btn" id="tSet">Settings</button></div>
-      <div class="fine">The first day takes about fifteen minutes; two more days and two short return visits follow if you like. Best with sound. Your game saves on this device as you play: no account, no tracking, nothing to buy. Nothing flashes more than three times a second.<div class="links"><button class="linkbtn" id="tIng">What keeps you playing</button><button class="linkbtn" id="tIn">What's in this game</button><button class="linkbtn" id="tPb">Played before?</button></div></div>`);
+      <div class="fine">The first day takes about fifteen minutes; two more days and two short return visits follow if you like. Best with sound. Your game saves on this device as you play: no account, no tracking, nothing to buy. Nothing flashes more than three times a second.<div class="links"><button class="linkbtn" id="tIng">What keeps you playing</button><button class="linkbtn" id="tIn">What's in this game</button><button class="linkbtn" id="tPb">Played before?</button><button class="linkbtn" id="tShort">Short on time?</button></div></div>`);
     const M = this.G.menus;
     p.querySelector('#tSet').onclick = () => M.settings();
     p.querySelector('#tIng').onclick = () => M.ingredients();
@@ -357,6 +381,8 @@ export class UI {
       const c = p.querySelector('#tCont'); if (c) c.onclick = () => done({ kind: 'continue', save });
       const rb = p.querySelector('#tRet'); if (rb) rb.onclick = () => done({ kind: 'return', act: ret.act });
       p.querySelector('#tPb').onclick = async () => { const r = await M.playedBefore(); if (r && r.recap) done({ kind: 'recap' }); else if (r) done(Object.assign({ kind: 'code' }, r)); };
+      // two minutes instead of fifteen: the end of a sample first day (nothing is saved, so a game in progress stays)
+      p.querySelector('#tShort').onclick = async () => { if (await M.confirm('Short on time?', 'See how the first day ends. A sample day has been played for you, with a sample creature. You arrive at lantern night. It takes about two minutes, and nothing is saved.', 'Go to lantern night', 'Back')) done({ kind: 'sample' }); };
       setTimeout(() => { const b = p.querySelector('#tCont') || p.querySelector('#tRet') || p.querySelector('#tNew'); if (b && !this.touch) b.focus(); }, 50);
     });
   }
@@ -702,7 +728,7 @@ export class UI {
     const solvedView = () => {
       const { mine, its } = L.roomValues(); const W = 210, rowH = 34;
       const dial = (vals, other) => `<svg class="rooms" viewBox="0 0 ${W} ${rowH * 6 + 8}" role="img" aria-label="${other ? 'Its room' : 'Your room'}">${rows.map((r, i) => { const y = 8 + i * rowH; const diff = Math.abs(mine[i] - its[i]) > 0.25; return `<g><text x="4" y="${y + 9}" font-size="10" fill="#5b5260">${esc(SETUP_NAMES[r.key])}</text><rect x="4" y="${y + 14}" width="${W - 8}" height="8" rx="4" fill="#e9dfd0" ${diff ? 'stroke="#c8553d" stroke-width="2"' : ''}/><circle cx="${8 + vals[i] * (W - 16)}" cy="${y + 18}" r="6" fill="${other ? '#c9b8a6' : S.look.color}" stroke="#2b2530" stroke-width="1.5"/></g>`; }).join('')}</svg>`;
-      return `<h2>The Standard's room</h2><p class="plaque">${esc(PLAQUE_TEXT)}</p><div class="tworooms"><figure>${dial(mine, false)}<figcaption>Your room</figcaption></figure><figure>${dial(its, true)}<figcaption>Its room</figcaption></figure></div><div class="pfoot"><button class="btn primary" id="sdone">Close</button></div>`;
+      return `<h2>The Standard's room</h2><p class="plaque">${esc(PLAQUE_TEXT)}</p><div class="tworooms"><figure>${dial(mine, false)}<figcaption>Your room</figcaption></figure><figure>${dial(its, true)}<figcaption>Its room</figcaption></figure></div>${S.slice && S.slice.came ? '<p class="small cameback">Its room is how yours stood on the morning you moved in.</p>' : ''}<div class="pfoot"><button class="btn primary" id="sdone">Close</button></div>`;
     };
     const view = () => {
       if (S.w && S.w.standard_solved) return solvedView();
@@ -756,7 +782,8 @@ export class UI {
     const resp = [['bend', 'Pushed through'], ['gear', 'Gear'], ['ask', 'Asked'], ['fix', 'Noted a fix'], ['leave', 'Left']].map(([k, n]) => `<div class="ev-r ${k} ${d.counts[k] ? '' : 'zero'}"><div class="ic">${ICON[k]}</div><b>${d.counts[k] || 0}</b><span>${n}</span></div>`).join('');
     const marbles = d.jar.map((m) => `<i style="--c:${m.c}" title="${esc(m.t)}"></i>`).join('') + '<i class="empty"></i>'.repeat(Math.max(0, d.jarMax - d.jar.length));
     const p = this.openPanel('center evening', `<div class="tday">${esc(d.day)} evening</div><h2>${esc(d.title)}</h2>
-      <h3 class="sec">Today, when a place did not fit</h3><div class="ev-row">${resp}</div>
+      <h3 class="sec">${d.three ? 'Who adjusted, when a place did not fit' : 'Today, when a place did not fit'}</h3><div class="ev-row">${resp}</div>
+      ${d.three ? `<h3 class="sec">Who profited</h3><p class="ev-open">${esc(d.three.profit)}</p><h3 class="sec">Who checked</h3><p class="ev-open">${esc(d.three.check)}</p>` : ''}
       <h3 class="sec">Your jar of kept moments</h3><div class="jarrow"><div class="jar">${marbles}</div><div class="jt">${this.hookMark('a collection to fill (almost there)')}${d.jarText}</div></div>
       ${d.news.length ? `<h3 class="sec">Around town</h3><ul class="ev-news">${d.news.map((n) => `<li>${esc(n)}</li>`).join('')}</ul>` : ''}
       ${d.open ? `<h3 class="sec">Still open</h3><p class="ev-open">${this.hookMark('unfinished business (an open loop)')}${esc(d.open)}</p>` : ''}

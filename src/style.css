@@ -21,6 +21,8 @@ body.text-s { --fs: 16px; } body.text-l { --fs: 21px; } body.text-xl { --fs: 24p
 [hidden] { display: none !important; }
 button { font-family: var(--display); font-weight: 600; cursor: pointer; color: var(--ink); }
 kbd { font-family: var(--display); font-size: 11px; padding: 1px 6px; border-radius: 6px; background: rgba(43, 37, 48, 0.08); border: 1px solid var(--line); margin-left: 6px; }
+/* the Phone button's key is drawn beside its word, not written into it: the button's name stays "Phone", as it is read aloud */
+.kphone::after { content: attr(data-k); }
 .btn { border: 0; border-radius: 999px; padding: 12px 22px; font-size: 16px; background: var(--paper); box-shadow: 0 2px 0 rgba(43, 37, 48, 0.18), 0 6px 18px rgba(20, 14, 30, 0.15); transition: transform 0.12s, box-shadow 0.12s; min-height: 44px; }
 .btn:hover { transform: translateY(-1px); } .btn:active { transform: translateY(1px); box-shadow: 0 1px 0 rgba(43, 37, 48, 0.18); }
 .btn.primary { background: var(--ink); color: var(--paper); }
@@ -34,7 +36,7 @@ kbd { font-family: var(--display); font-size: 11px; padding: 1px 6px; border-rad
 .shake { animation: shake 0.32s ease-in-out; }
 
 /* stacking inside the interface layer */
-#letterbox { position: relative; z-index: 0; } #bubbles { z-index: 1; } #hud { z-index: 2; } #edge, #prompt { z-index: 3; } #actbtn { z-index: 4; }
+#letterbox { position: relative; z-index: 0; } #bubbles { z-index: 1; } #hud { z-index: 2; } #edge, #edge2, #prompt { z-index: 3; } #actbtn { z-index: 4; }
 #dialog, #barrier { z-index: 5; } #toasts { z-index: 6; } #phone { z-index: 7; } #mg { z-index: 8; } #panel { z-index: 9; } #caption { z-index: 4; }
 
 /* letterbox + caption */
@@ -43,7 +45,7 @@ kbd { font-family: var(--display); font-size: 11px; padding: 1px 6px; border-rad
 #letterbox.on .lb { height: 8.5vh; }
 #caption { position: fixed; left: 50%; top: 38%; transform: translate(-50%, -50%); width: min(820px, 90vw); text-align: center; font-family: var(--display); font-weight: 500; font-size: clamp(22px, 3.2vw, 36px); color: #fffaf0; text-shadow: 0 2px 18px rgba(0, 0, 0, 0.55), 0 1px 2px rgba(0, 0, 0, 0.5); pointer-events: none; opacity: 0; transition: opacity 0.8s; line-height: 1.3; }
 #caption.on { opacity: 1; pointer-events: auto; cursor: pointer; }
-#caption.high { top: 15%; }
+#caption.high { top: 15%; } #caption.low { top: 76%; }
 @media (max-width: 600px) { .pop.thought { font-size: 15px; max-width: 170px; } }
 
 /* HUD */
@@ -76,10 +78,10 @@ kbd { font-family: var(--display); font-size: 11px; padding: 1px 6px; border-rad
 .gb.sm.on { background: #ffe0ee; color: #d0457f; box-shadow: inset 0 0 0 2px #ff8fbf; }
 
 /* where you are going */
-#edge { position: fixed; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer; filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.3)); }
-#edge .arr { width: 40px; height: 40px; border-radius: 50%; background: var(--amber); color: #6a4a1f; display: grid; place-items: center; }
-#edge .arr svg { width: 20px; height: 20px; }
-#edge span { font-family: var(--display); font-weight: 600; font-size: 12.5px; background: rgba(251, 246, 238, 0.95); padding: 3px 9px; border-radius: 999px; white-space: nowrap; }
+#edge, #edge2 { position: fixed; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer; filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.3)); }
+#edge .arr, #edge2 .arr { width: 40px; height: 40px; border-radius: 50%; background: var(--amber); color: #6a4a1f; display: grid; place-items: center; }
+#edge .arr svg, #edge2 .arr svg { width: 20px; height: 20px; }
+#edge span, #edge2 span { font-family: var(--display); font-weight: 600; font-size: 12.5px; background: rgba(251, 246, 238, 0.95); padding: 3px 9px; border-radius: 999px; white-space: nowrap; }
 #prompt { position: fixed; transform: translate(-50%, -100%); background: var(--ink); color: var(--paper); font-family: var(--display); font-weight: 600; font-size: 14px; padding: 8px 14px; border-radius: 12px; white-space: nowrap; box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3); cursor: pointer; }
 #prompt::after { content: ''; position: absolute; left: 50%; bottom: -6px; transform: translateX(-50%); border: 6px solid transparent; border-top-color: var(--ink); border-bottom: 0; }
 #prompt kbd { background: rgba(255, 255, 255, 0.16); border-color: rgba(255, 255, 255, 0.2); color: var(--paper); margin: 0 6px 0 0; }
@@ -767,20 +769,45 @@ body.touch.slice .gb[data-g="look"] span { display: inline !important; }
 #hearing { grid-template-rows: auto 1fr auto auto; }
 
 /* the first day's postcard: two equal ways on, and a quiet way out */
-.daycard .dq2 { text-align: center; color: var(--soft); font-size: 14px; margin: 10px 0 2px; }
-.daycard .dchoice { justify-content: center; gap: 10px; flex-wrap: wrap; }
-.daycard .dchoice .btn { min-width: 220px; }
-.daycard .dchoice .btn small { display: block; font-weight: 400; font-size: 12.5px; opacity: 0.8; margin-top: 2px; }
+/* the day's three questions: who adjusted, who profited, who checked */
+.panel.daycard { width: min(690px, 94vw); padding-top: 16px; }
+.daycard h2 { font-size: 21px; } .daycard .dchoice { gap: 8px; } .daycard .dchoice .btn { min-width: 0; flex: 1 1 150px; padding: 9px 12px; font-size: 15px; } .daycard .dchoice .btn small { font-size: 12px; }
+.daycard .dtom { font-size: 14.5px; margin: 6px 0 2px; }
+.daycard .dfaces { gap: 6px; margin: 6px 0 6px; } .daycard figure img { width: 42px; height: 42px; } .daycard figcaption { font-size: 11.5px; margin-top: 1px; }
+.daycard .d3 { display: flex; flex-direction: column; gap: 6px; margin: 4px 0 8px; text-align: left; }
+.daycard .d3 section { background: var(--paper2); border-radius: 16px; padding: 8px 14px 9px; }
+.daycard .d3 h3 { margin: 0 0 3px; font-family: var(--display); font-weight: 600; font-size: 16px; }
+.daycard .d3 p { margin: 1px 0; font-size: 14.5px; line-height: 1.4; }
+.daycard .dhook { display: flex; align-items: center; gap: 8px; background: #fff; border-radius: 12px; padding: 7px 10px; margin: 6px 0; font-family: var(--display); font-size: 15px; }
+.daycard .dhook .hk { width: 22px; height: 22px; background: #fbefd2; flex: none; }
+.daycard .dpick { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; } .daycard .dpick > span { font-size: 14px; color: var(--soft); margin-right: 2px; }
+.daycard .dpick .chip { min-height: 40px; padding: 6px 12px; }
+.daycard .dans { margin-top: 7px !important; }
+.daycard .dfrom { margin: 2px 6px 10px; text-align: center; }
+.daycard .dsrc { font-size: 13.5px !important; color: var(--soft); } .daycard .dsrc em { font-style: normal; font-weight: 700; color: var(--teal); }
+.daycard .dall { margin-top: 8px; } .daycard .dall summary { cursor: pointer; font-family: var(--display); font-size: 14px; color: var(--soft); padding: 4px 0; }
+.daycard .dall .hooklist { margin-top: 6px; } .daycard .dall .hookrow { background: #fff; }
+.daycard .dq2 { text-align: center; color: var(--soft); font-size: 14px; margin: 0 0 2px !important; flex: 1 1 100%; }
+.daycard .dchoice { justify-content: center; gap: 8px; flex-wrap: wrap; }
+.daycard .dchoice .btn small { display: block; font-weight: 400; font-size: 12px; opacity: 0.8; margin-top: 2px; }
 .daycard .dstop { text-align: center; margin-top: 6px; }
 .daycard .dchoice .btn#dStop { background: transparent; }
+/* on a phone: the faces in one row (names are in the list for screen readers), and the footer's three choices in two rows */
+@media (max-width: 520px) {
+  .daycard .dfaces { gap: 5px; flex-wrap: nowrap; } .daycard figure img { width: 34px; height: 34px; }
+  .daycard figcaption { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .daycard .dchoice .btn { flex: 1 1 130px; padding: 8px 8px; } .daycard .dchoice .btn#dStop { flex-basis: 100%; min-height: 38px; padding: 5px 8px; }
+  .daycard .dchoice .btn#dStop small { display: inline; margin-left: 6px; }
+}
 /* a hook mark beside a collection or an open loop, on paper-coloured cards */
 .jt .hk, .ev-open .hk, .toast .hk, #phone .small .hk { background: #fbefd2; vertical-align: -4px; margin-right: 2px; }
 .toast .hk { margin-left: 6px; }
 /* lantern night: everyone on the porch, and what doesn't fit them */
 .revealcount .rvcap { margin: 10px 0 0; font-size: 13px; opacity: 0.85; text-align: center; }
 .revealcount .rvlist { list-style: none; display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 8px; margin: 12px auto 0; padding: 0; max-width: 560px; }
-.revealcount .rvlist li { font-family: var(--display); font-size: 15px; background: rgba(20, 16, 26, 0.62); padding: 4px 11px; border-radius: 999px; text-shadow: none; animation: pop 0.25s ease-out; }
-@media (max-width: 640px) { .revealcount .rvlist li { font-size: 13.5px; padding: 3px 9px; } }
+.revealcount .rvlist li { font-family: var(--display); font-size: 15px; background: rgba(20, 16, 26, 0.72); padding: 4px 12px 4px 5px; border-radius: 999px; text-shadow: none; animation: pop 0.25s ease-out; display: flex; align-items: center; gap: 7px; }
+.revealcount .rvlist li img { width: 24px; height: 24px; border-radius: 50%; flex: none; background: #efe6d6; }
+@media (max-width: 640px) { .revealcount .rvlist li { font-size: 13.5px; padding: 3px 10px 3px 4px; gap: 5px; } .revealcount .rvlist li img { width: 20px; height: 20px; } }
 /* a hearing card opened on a touch screen: read it whole, tap again to present it */
 #hearing .hcard.sel { transform: translateY(-6px); box-shadow: 0 0 0 3px #ffcf7a, 0 8px 22px rgba(20, 14, 30, 0.4); }
 #hearing .hcard.sel .htx { -webkit-line-clamp: 12; }

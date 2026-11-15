@@ -5,7 +5,7 @@ REPO = str(Path(__file__).resolve().parents[1])  # the repo root, wherever it is
 import time
 ARGS = ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist']
 BASE = 'file://' + REPO + '/dist/who-bends.html'
-STATE_JS = "(() => { const s = __wb.state(); return { panel: __wb.panel(), waiter: __wb.waiter(), mode: __wb.mode(), busy: __wb.busy(), day: s.day, min: s.min, loc: __wb.loc(), zone: __wb.zone(), ov: !!document.querySelector('#overlay:not([hidden])'), mg: __wb.mg() } })()"
+STATE_JS = "(() => { const s = __wb.state(); return { panel: __wb.panel(), waiter: __wb.waiter(), mode: __wb.mode(), busy: __wb.busy(), day: s.day, min: s.min, loc: __wb.loc(), zone: __wb.zone(), ov: !!document.querySelector('#overlay:not([hidden])'), mg: __wb.mg(), sl: __wb.slice ? __wb.slice() : null } })()"
 
 def free(st):
     return st['mode'] == 'play' and not st['panel'] and not st['waiter'] and not st['busy'] and not st['ov'] and not st['mg']
@@ -28,7 +28,7 @@ def drive_to(pg, until, budget=150, creator=None, choose=None):
         if 'taps' in panel: pg.evaluate("(() => { const b = document.querySelector('#panel .pick'); if (b) b.click(); })()"); pg.wait_for_timeout(350); continue
         if 'setup' in panel: pg.evaluate("document.querySelector('#next').click()"); continue
         if 'center' in panel:
-            pg.evaluate("(() => { const g = document.querySelector('#panel #tgo') || document.querySelector('#panel #sleep') || document.querySelector('#panel #go') || document.querySelector('#panel #done'); if (g) g.click(); })()"); continue
+            pg.evaluate("(() => { const g = document.querySelector('#panel #tgo') || document.querySelector('#panel #sleep') || document.querySelector('#panel #go') || document.querySelector('#panel #done') || document.querySelector('#panel #dGo'); if (g) g.click(); })()"); continue
         if st['waiter'] == 'line': pg.evaluate('__wb.adv()'); continue
         if st['waiter'] in ('choice', 'barrier'):
             opts = pg.evaluate('__wb.options()')

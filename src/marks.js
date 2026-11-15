@@ -178,7 +178,10 @@ export class Marks {
     const el = this.cardEl; const hide = () => { clearTimeout(this.cardT); el.classList.add('out'); setTimeout(() => { if (el.classList.contains('out')) el.hidden = true; }, 400); };
     let left = FAST ? 200 : G.ui.readMs(m.name + ' ' + m.line + ' Pinches ' + m.who.length + ' people', 5200), t0 = performance.now();
     const run = () => { clearTimeout(this.cardT); if (G.ui.holdText()) return; t0 = performance.now(); this.cardT = setTimeout(hide, left); };
-    el.onpointerenter = () => { clearTimeout(this.cardT); left = Math.max(1500, left - (performance.now() - t0)); };
+    // (a pointer that was already resting where the card came up isn't pointing at it: it has to move)
+    const x0 = G.ui._px, y0 = G.ui._py; const moved = (e) => e.pointerType !== 'mouse' || x0 == null || Math.hypot(e.clientX - x0, e.clientY - y0) > 4;
+    const hold = () => { clearTimeout(this.cardT); left = Math.max(1500, left - (performance.now() - t0)); };
+    el.onpointerenter = (e) => { if (moved(e)) hold(); }; el.onpointermove = (e) => { if (moved(e)) hold(); };
     el.onpointerleave = run;
     el.querySelector('.tclose').onclick = (ev) => { ev.stopPropagation(); hide(); };
     run();
@@ -189,7 +192,9 @@ export class Marks {
     const z = G.zone === 'festival' ? 'market' : G.zone; return STREETS[z] ? z : null;
   }
   refreshChip(force) {
-    const z = this.active && this.G.mode === 'play' && !this.G.ui.el('#hud').hidden ? this.streetHere() : null;
+    // (the street's count belongs to the lantern: it shows once Wren has handed it over, and steps aside for a conversation
+    // or a scene)
+    const z = this.active && this.S.flags.lantern && this.G.mode === 'play' && !this.G.ui.el('#hud').hidden && !this.G.ui.el('#letterbox').classList.contains('on') ? this.streetHere() : null;
     const has = z && MARKS.some((m) => m.street === z && !m.fit);
     if (!has) { if (!this.chip.hidden) this.chip.hidden = true; this.chipKey = ''; return; }
     const c = this.count(z); const key = z + c.done + '/' + c.total + c.rare.join() + (this.G.look.raised ? 'u' : 'd');

@@ -7,7 +7,8 @@ import { Creature, OPTIONS } from './creature.js';
 import { Audio } from './audio.js';
 import { UI } from './ui.js';
 import * as SIM from './sim.js';
-import { CAST, ROUTINES, BLEND } from './content.js';
+import { CAST, ROUTINES, BLEND, SETUP } from './content.js';
+import { OccGrid } from './occgrid.js';
 import { Story } from './story.js';
 import { Sonder } from './sonder.js';
 import { Guide } from './guide.js';
@@ -29,7 +30,7 @@ const FEST = { bea: [26.2, 28.6], wren: [33.6, 28.8], rue: [35.6, 26.2], gil: [2
 const CROWD_ZONES = [['market', 13], ['street', 5], ['transit', 4], ['commons', 4], ['homerow', 4], ['farend', 1]];
 // on tall phone screens the fixed room cameras look down from the open side so every door stays in view
 const PORTRAIT_CAM = {
-  home: { pos: new THREE.Vector3(4.37, 15.78, -0.58), look: new THREE.Vector3(0, 0.4, 0), fov: 50 },
+  home: { pos: new THREE.Vector3(4.37, 15.78, -1.08), look: new THREE.Vector3(0, 0.4, -0.5), fov: 52 },
   works: { pos: new THREE.Vector3(5.62, 23.47, 0), look: new THREE.Vector3(-1, 0.4, 0), fov: 54 },
   hall: { pos: new THREE.Vector3(5.62, 23.47, 0), look: new THREE.Vector3(-1, 0.4, 0), fov: 54 },
 };
@@ -283,8 +284,17 @@ class Game {
       count[a.zone]++;
       if (a.path.length) {
         const [tx, tz] = a.path[0]; const dx = tx - c.root.position.x, dz = tz - c.root.position.z; const d = Math.hypot(dx, dz);
-        if (d < 0.2) a.path.shift(); else { const sp = Math.min(d, 1.5 * dt); c.root.position.x += dx / d * sp; c.root.position.z += dz / d * sp; c.heading = Math.atan2(dx, dz); }
-        c.speed = 0.45;
+        if (d < 0.2) a.path.shift();
+        else {
+          const sp = Math.min(d, 1.5 * dt); const nx = c.root.position.x + dx / d * sp, nz = c.root.position.z + dz / d * sp;
+          // (nobody walks into a conversation, or between it and the camera: a passerby about to step in waits at the
+          // edge until it's over)
+          const m = this.talking && this.talkMid ? this.talkMid : null; const tc = m ? this.talkCam : null;
+          const inTalk = (x, z) => Math.hypot(x - m.x, z - m.z) < 3.2 || (tc && segDist2(tc, m, x, z) < 1.6);
+          a.waiting = !!(m && inTalk(nx, nz) && !inTalk(c.root.position.x, c.root.position.z));
+          if (!a.waiting) { c.root.position.x = nx; c.root.position.z = nz; c.heading = Math.atan2(dx, dz); }
+        }
+        c.speed = a.waiting ? 0 : 0.45;
       } else {
         c.speed = 0; a.wait -= dt;
         if (S.spot > 0.3 && Math.hypot(c.root.position.x - p.x, c.root.position.z - p.z) < 7) c.faceToward(p.x, p.z);
@@ -303,7 +313,7 @@ class Game {
   }
   place(xz) { this.player.root.position.set(xz[0], 0, xz[1]); this.path = []; if (this.loc === 'town') this.stage.follow(this.player.root.position, this.followOpts({ snap: true })); }
   walkTo(x, z) {
-    this.walkGoal = [x, z]; this.stuckT = 0; this.repathed = false;
+    this.walkGoal = [x, z]; this.stuckT = 0; this.stuckN = 0; this.repathed = false;
     if (this.loc === 'town') this.path = this.town.findPath(this.player.root.position.x, this.player.root.position.z, x, z, this.S.wheels);
     else this.path = [[x, z]];
   }
@@ -332,8 +342,8 @@ class Game {
     const to = LEAVE_TO[zone]; if (to) this.walkTo(to[0], to[1]);
   }
   // "Show the way": walk toward the objective, and light the trail
-  showWay() {
-    const obj = this.story.objective(); if (!obj || this.mode !== 'play') return;
+  showWay(second) {
+    const ob0 = this.story.objective(); const obj = second && ob0 && ob0.more ? { at: ob0.more.at } : ob0; if (!obj || this.mode !== 'play') return;
     if (this.busy || this.ui.waiter || this.phoneOpen) return;
     // inside the place the objective names: walk to its spot (your desk, your bed, Gil), if it has one
     if (this.loc !== 'town' && obj.inside === this.loc) { const s = this.guide.spotOf(obj.spot); if (!s) return; this.audio.sfx('select'); const p = this.player.root.position; const d = Math.hypot(s.x - p.x, s.z - p.z) || 1; const k = this.npcs[obj.spot] ? 0.9 / d : 0; this.walkTo(s.x - (s.x - p.x) * k, s.z - (s.z - p.z) * k); return; }
@@ -367,56 +377,86 @@ class Game {
     const mid = a.clone().lerp(b, 0.5); const dir = new THREE.Vector3(b.x - a.x, 0, b.z - a.z); const len = dir.length() || 1; dir.divideScalar(len);
     const side = new THREE.Vector3(-dir.z, 0, dir.x); if (side.z < 0) side.negate();
     const inRoom = this.loc !== 'town';
-    // a camera beside the two of you: sd is which side, zb how far round toward the south, backK how far back, h how high
-    const camAt = (sd, zb, backK, h) => mid.clone().addScaledVector(sd.clone().add(new THREE.Vector3(0, 0, zb)).normalize(), backK * (this.tall ? 1.35 : 1) + len * 0.6).add(new THREE.Vector3(0, h, 0));
-    let cam = camAt(side, inRoom ? 0.6 : 1.1, inRoom ? 4.4 : 6.4, inRoom ? 2.6 : 3.4);
-    // out in town, a roof, an awning or a tree can stand between that camera and your faces: try the other side, then
-    // higher, and take the first place with a clear view of both of you
-    if (!inRoom) cam = this.clearTalkCam(a, b, mid, side, camAt) || cam;
+    // indoors: a camera beside the two of you, a little round toward the front of the room
+    let cam = mid.clone().addScaledVector(side.clone().add(new THREE.Vector3(0, 0, 0.6)).normalize(), 4.4 * (this.tall ? 1.35 : 1) + len * 0.6).add(new THREE.Vector3(0, 2.6, 0));
+    // out in town: the first place around the two of you with a clear view of both
+    if (!inRoom) cam = this.clearTalkCam(a, b, mid, side, len);
     this.stage.shot(cam, mid.clone().add(new THREE.Vector3(0, this.tall ? 1.1 : 0.75, 0)), this.tall ? 40 : 30, 3.2);
-    this.talkMid = mid;
+    this.talkMid = mid; this.talkCam = inRoom ? null : cam.clone();
     this.player.faceToward(b.x, b.z); n.c.faceToward(a.x, a.z);
     if (!inRoom) this.partCrowd(cam, a, b);
   }
-  // the first conversation camera, low to high, that sees both faces (nothing solid in the way); if none is clear,
-  // the one with the least in the way
-  clearTalkCam(a, b, mid, side, camAt) {
-    const occ = []; const shown = (o) => { for (let q = o; q; q = q.parent) if (!q.visible) return false; return true; };
-    this.town.scene.traverse((o) => { if (o.isMesh && !o.userData.noOcc && shown(o)) occ.push(o); });
-    if (!occ.length) return null;
-    const other = side.clone().negate(); const south = side.clone().multiplyScalar(0.2);
-    const cands = [[side, 1.1, 6.4, 3.4], [other, 1.1, 6.4, 3.4], [south, 1.1, 6.6, 3.6], [side, 1.0, 7.0, 5.4], [other, 1.0, 7.0, 5.4], [south, 1.0, 7.0, 5.6],
-      [south, 0.9, 7.2, 8.2], [side, 0.9, 7.2, 8.2], [other, 0.9, 7.2, 8.2], [south, 0.6, 6.0, 11.5]];
-    const ray = new THREE.Raycaster(); const to = new THREE.Vector3(); let best = null, bestN = 1e9;
-    const targets = [[a.x, 0.95, a.z], [b.x, 0.95, b.z], [a.x, 1.75, a.z], [b.x, 1.75, b.z]];
-    for (const c of cands) {
-      const cam = camAt(...c); let blocked = 0;
-      for (const t of targets) {
-        to.set(t[0], t[1], t[2]).sub(cam); const d = to.length(); ray.set(cam, to.divideScalar(d)); ray.near = 0.2; ray.far = d - 0.85;
-        if (ray.intersectObjects(occ, false).length) blocked++;
-        if (blocked >= bestN) break;
+  // the town's buildings, stalls and trees, as something a sight line can be checked against quickly (see occgrid.js)
+  occ() {
+    if (!this._occ) { const bus = this.town.bus; const under = (o, g) => { for (let q = o; q; q = q.parent) if (q === g) return true; return false; };
+      this._occ = new OccGrid(this.town.scene, (o) => (o.userData.noOcc && !o.userData.camBlock) || (bus && under(o, bus)) || (o.material && o.material.transparent && !o.userData.camBlock)); }
+    return this._occ;
+  }
+  // Where the camera goes for two people talking out in town. A ring of places around the pair is tried, the side they're
+  // best seen from first (two people side by side, from the south; one in front of the other, from beside them), low
+  // before high. Each place is marked down for whatever would spoil the picture: a wall, roof or tree between it and
+  // either face; one of the two standing in front of the other; someone else, a lamp post or a signpost in the way;
+  // something big right in front of the lens. The first clean place wins; otherwise the least spoiled.
+  clearTalkCam(a, b, mid, side, len) {
+    const g = this.occ(); g.refresh();
+    const tall = this.tall ? 1.35 : 1; const base = Math.atan2(side.x, side.z); const R = Math.PI / 180;
+    const ring = [];
+    for (const [h, back, angs] of [[3.4, 6.4, [0, 25, -25, 180, 50, -50, 155, 205]], [5.4, 7.0, [0, 180, 30, -30, 150, 210]], [8.2, 7.2, [0, 180, 60, -60]], [11.5, 6.0, [0]]]) for (const d of angs) ring.push([base + d * R, back, h]);
+    const ax = b.x - a.x, az = b.z - a.z; const al = Math.hypot(ax, az) || 1;
+    const others = Object.values(this.npcs).filter((n) => n.place === 'town' && n.c.root.visible && n.id !== this.talking).map((n) => n.c.root.position);
+    // (lamp posts and signposts are too thin for a few sight lines to find, so they're checked by where they stand:
+    // [x, z, how wide, how tall])
+    const poles = (this.town.lampPos || []).map(([x, z]) => [x, z, 0.4, 3.2]).concat((this.town.postPos || []).map(([x, z]) => [x, z, 0.9, 2.7])).filter(([x, z]) => Math.hypot(x - mid.x, z - mid.z) < 14);
+    let best = null, bestN = 1e9;
+    for (const [ang, back, h] of ring) {
+      const dist = back * tall + len * 0.6; const cx = mid.x + Math.sin(ang) * dist, cz = mid.z + Math.cos(ang) * dist, cy = h; const cam = { x: cx, z: cz };
+      let blocked = 0;
+      // in line with the two of you, the nearer one hides the other (unless the camera is high above)
+      if (h < 7 && Math.abs(((cx - mid.x) * ax + (cz - mid.z) * az) / (dist * al)) > 0.8) blocked += 2;
+      // (the game looks north everywhere else: a view from the north is a last resort among equals)
+      if (Math.cos(ang) < -0.3) blocked += 0.25;
+      if (h < 7) for (const o of others) if (segDist2(cam, a, o.x, o.z) < 1.0 || segDist2(cam, b, o.x, o.z) < 1.0) { blocked++; break; }
+      pole: for (const [px, pz, r, top] of poles) for (const s of [a, b]) {
+        const sx = s.x - cx, sz = s.z - cz; const u = clamp(((px - cx) * sx + (pz - cz) * sz) / (sx * sx + sz * sz || 1));
+        if (u > 0.04 && u < 0.93 && Math.hypot(px - (cx + sx * u), pz - (cz + sz * u)) < r && cy + u * (1.1 - cy) < top + 0.3) { blocked += 2; break pole; }
       }
-      if (blocked < bestN) { bestN = blocked; best = cam; }
+      // both of you in the picture, clear of its edges (a phone held upright has little room side to side)
+      { const pc = this._tcCam || (this._tcCam = new THREE.PerspectiveCamera()); pc.fov = this.tall ? 40 : 30; pc.aspect = innerWidth / Math.max(1, innerHeight); pc.near = 0.1; pc.far = 400; pc.updateProjectionMatrix();
+        pc.position.set(cx, cy, cz); pc.lookAt(mid.x, mid.y + (this.tall ? 1.1 : 0.75), mid.z); pc.updateMatrixWorld(true);
+        // (out of the picture, or half out of it, is worse than anything; near its edge counts a little)
+        const hard = this.tall ? 0.8 : 0.92, soft = this.tall ? 0.56 : 0.8;
+        for (const s of [a, b]) { const v = new THREE.Vector3(s.x, 1.0, s.z).project(pc); if (v.z > 1 || Math.abs(v.x) > hard) blocked += 3; else if (Math.abs(v.x) > soft || v.y < -0.5 || v.y > 0.86) blocked += 1; } }
+      if (blocked >= bestN) continue;
+      // a clear line to each of you, at chest and at head height (stopping just short of you)
+      for (const s of [a, b]) for (const y of [0.95, 1.75]) { const d = Math.hypot(s.x - cx, y - cy, s.z - cz); if (g.hit(cx, cy, cz, s.x, y, s.z, 0.2, d - 0.85)) blocked++; }
+      if (blocked >= bestN) continue;
+      // nothing big right in front of the lens: looking past either side of you, and at the ground in front of you
+      { const fx = (mid.x - cx) / dist, fz = (mid.z - cz) / dist; const rx = fz, rz = -fx;
+        for (const [sx, y, f, k] of [[-3.4, 1.2, 0, 0.6], [3.4, 1.2, 0, 0.6], [-1.8, 1.2, 0, 0.6], [1.8, 1.2, 0, 0.6], [-2.4, 2.8, 0, 0.6], [2.4, 2.8, 0, 0.6], [-2.2, 0.4, 0.38, 0.9], [2.2, 0.4, 0.38, 0.9], [0, 0.4, 0.3, 0.9]]) {
+          const tx = mid.x + rx * sx - fx * dist * f, tz = mid.z + rz * sx - fz * dist * f; const d = Math.hypot(tx - cx, y - cy, tz - cz);
+          if (g.hit(cx, cy, cz, tx, y, tz, 0.2, d * k)) blocked += 0.5;
+          if (blocked >= bestN) break;
+        } }
+      if (window.__tcLog) window.__tcLog.push({ ang: Math.round((ang - base) / R), h, total: blocked });
+      if (blocked < bestN) { bestN = blocked; best = new THREE.Vector3(cx, cy, cz); }
       if (!blocked) break;
     }
     return best;
   }
   // tests: from where the camera is now, how many of the sight lines to the two of you are blocked, and are you both on screen
   talkView() {
-    const n = this.npcs[this.talking]; if (!n) return null; const a = this.player.root.position, b = n.c.root.position; const cam = this.stage.camera;
-    const occ = []; const shown = (o) => { for (let q = o; q; q = q.parent) if (!q.visible) return false; return true; };
-    const sc = this.loc === 'town' ? this.town.scene : this.rooms[this.loc].scene; sc.traverse((o) => { if (o.isMesh && !o.userData.noOcc && shown(o)) occ.push(o); });
-    const ray = new THREE.Raycaster(); const to = new THREE.Vector3(); let blocked = 0; const on = [];
+    const n = this.npcs[this.talking]; if (!n) return null; const a = this.player.root.position, b = n.c.root.position; const cam = this.stage.camera; const c = cam.position;
+    const g = this.loc === 'town' ? this.occ() : null; if (g) g.refresh(); let blocked = 0; const on = [];
     for (const q of [a, b]) {
-      to.set(q.x, 0.95, q.z).sub(cam.position); const d = to.length(); ray.set(cam.position, to.divideScalar(d)); ray.near = 0.2; ray.far = d - 0.85; if (ray.intersectObjects(occ, false).length) blocked++;
+      if (g && g.hit(c.x, c.y, c.z, q.x, 0.95, q.z, 0.2, Math.hypot(q.x - c.x, 0.95 - c.y, q.z - c.z) - 0.85)) blocked++;
       const v = new THREE.Vector3(q.x, 0.95, q.z).project(cam); on.push(v.z < 1 && Math.abs(v.x) < 0.92 && v.y > -0.55 && v.y < 0.9);
     }
-    return { blocked, onScreen: on, cam: cam.position.toArray().map((x) => +x.toFixed(2)) };
+    return { blocked, onScreen: on, cam: [+c.x.toFixed(2), +c.y.toFixed(2), +c.z.toFixed(2)] };
   }
-  // passersby standing between the camera and the two of you step out of the picture until you're done talking
+  // passersby standing where the picture is step out of it until the talk is over
   partCrowd(cam, a, b) {
     this.parted = this.parted || [];
-    const seg = (p, q, x, z) => { const dx = q.x - p.x, dz = q.z - p.z; const l2 = dx * dx + dz * dz || 1; const k = clamp(((x - p.x) * dx + (z - p.z) * dz) / l2); return Math.hypot(x - (p.x + dx * k), z - (p.z + dz * k)); };
+    const seg = segDist2;
     for (const w of this.crowd || []) {
       if (!w.active || w.held || !w.c.root.visible) continue; const q = w.c.root.position;
       const near = Math.min(Math.hypot(q.x - a.x, q.z - a.z), Math.hypot(q.x - b.x, q.z - b.z)) < 1.7;
@@ -426,7 +466,7 @@ class Game {
   faceTalk(who) { const n = this.npcs[who]; if (!n) return; const a = this.player.root.position; n.c.faceToward(a.x, a.z); this.player.faceToward(n.c.root.position.x, n.c.root.position.z); n.c.hop && Math.random() < 0.25 && n.c.hop(); }
   setFace(who, e) { const c = who === 'you' ? this.player : this.npcs[who] && this.npcs[who].c; if (!c) return; c.setExpression(e); clearTimeout(c._ft); c._ft = setTimeout(() => c.setExpression('neutral'), 3500); }
   endTalk() {
-    this.talking = null; this.talkMid = null;
+    this.talking = null; this.talkMid = null; this.talkCam = null;
     for (const w of this.parted || []) if (w.active && !w.held) w.c.root.visible = true;
     this.parted = [];
     if (this.loc === 'town') this.stage.follow(this.player.root.position, this.followOpts());
@@ -512,6 +552,8 @@ class Game {
       const tg = e.target && e.target.tagName; if (tg === 'INPUT' || tg === 'TEXTAREA') return;
       // letters and digits by position (e.code), so WASD works on AZERTY and in Hangul mode
       const k = keyName(e).toLowerCase(); this.keys[k] = true;
+      // a scene that is waiting for a tap (the opening's "Look closer") takes Space and Enter as one
+      if (this.onTap && (k === ' ' || k === 'enter') && !this.settingsOpen) { e.preventDefault(); if (!e.repeat) this.onTap(null, null); return; }
       const act = actionOf(this.settings.keys, e);
       if (this.look && this.look.raised && this.mode === 'play' && !this.ui.waiter && !this.phoneOpen) {
         if (k === 'escape') { e.preventDefault(); if (this.look.open) this.look.closeCard(); else this.look.lower(); return; }
@@ -540,7 +582,7 @@ class Game {
     window.addEventListener('keyup', (e) => { this.keys[keyName(e).toLowerCase()] = false; });
     window.addEventListener('blur', () => { this.keys = {}; });
     const cv = this.stage.renderer.domElement; let down = null;
-    cv.addEventListener('pointerdown', (e) => { down = [e.clientX, e.clientY]; this.audio.unlock(); if (this.ui.capSkip) this.ui.skipCaption(); });
+    cv.addEventListener('pointerdown', (e) => { this.audio.unlock(); if (this.onTap) { down = null; this.onTap(e.clientX, e.clientY); return; } down = [e.clientX, e.clientY]; if (this.ui.capSkip) this.ui.skipCaption(); });
     cv.addEventListener('pointerup', (e) => {
       if (!down) return; const moved = Math.hypot(e.clientX - down[0], e.clientY - down[1]); down = null; if (moved >= 12) return;
       // a tap on the scene while someone is talking moves the conversation on
@@ -568,7 +610,10 @@ class Game {
       spot = spot || [q.x + 0.9, q.z + 0.9];
       this.walkTo(spot[0], spot[1]); this.pendingTalk = n.id; return;
     }
-    const pt = new THREE.Vector3(); if (ray.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), pt)) { this.pendingTalk = null; this.walkTo(pt.x, pt.z); }
+    // a thing in your room you can set: walk over to it, and it opens
+    { const sl = this.story.slice; const it = sl && sl.on && sl.roomHit ? sl.roomHit(x, y) : null;
+      if (it) { const p = this.player.root.position; this.pendingTalk = null; if (Math.hypot(it.x - p.x, it.z - p.z) < 0.5) { this.path = []; this.run(() => this.handle({ kind: it.kind, id: it.id })); } else { this.walkTo(it.x, it.z); this.pendingUse = it; } return; } }
+    const pt = new THREE.Vector3(); if (ray.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), pt)) { this.pendingTalk = null; this.pendingUse = null; this.walkTo(pt.x, pt.z); }
   }
   // what is in reach, and what pressing E would do
   findTarget() {
@@ -577,7 +622,8 @@ class Game {
     const ob = this.story.objective(); const want = ob && ob.label;
     for (const n of Object.values(this.npcs)) { if (!n.c.root.visible || n.c.root.parent !== this.player.root.parent) continue; if (n.id === 'bea' && this.beaWay) continue; const raw = Math.hypot(n.c.root.position.x - p.x, n.c.root.position.z - p.z); const d = raw - (want && CAST[n.id].name === want ? 1 : 0); if (raw < 2.1 && d < bd) { bd = d; best = { kind: 'npc', id: n.id, label: (this.S.met[n.id] ? 'Talk to ' : 'Say hi to ') + CAST[n.id].name, obj: n.c.root.position }; } }
     const list = this.loc === 'town' ? this.town.inter : this.rooms[this.loc].inter;
-    for (const it of list) { if (it.kind === 'set' || it.hidden) continue; const d = Math.hypot(it.x - p.x, it.z - p.z); const prio = it.id === 'statue' && this.S.flags.festival && !this.S.flags.released; if (d < it.r + (prio ? 0.6 : 0) && (d < bd - 0.4 || prio)) { bd = prio ? -1 : d; best = { kind: it.kind, id: it.id, label: this.labelFor(it), obj: new THREE.Vector3(it.x, 0, it.z) }; } }
+    const sl = this.story.slice; const setting = !!(sl && sl.on && sl.stage === 'room');
+    for (const it of list) { if ((it.kind === 'set' && !setting) || it.hidden) continue; const d = Math.hypot(it.x - p.x, it.z - p.z) + (it.kind === 'set' && sl.roomHas(it.id) ? 0.9 : 0); const prio = it.id === 'statue' && this.S.flags.festival && !this.S.flags.released; if (d < it.r + (prio ? 0.6 : 0) && (d < bd - 0.4 || prio)) { bd = prio ? -1 : d; best = { kind: it.kind, id: it.id, label: this.labelFor(it), obj: new THREE.Vector3(it.x, 0, it.z) }; } }
     // with the lantern up, a mark you could tag, unless a door or a person is nearer than it is
     { const m = this.marks.near; if (m) { const dm = Math.hypot(m.at[0] - p.x, m.at[2] - p.z); if (!best || dm < 2.5 || dm < bd) best = { kind: 'mark', id: m.id, label: 'Tag: ' + m.name, obj: new THREE.Vector3(m.at[0], Math.max(0, m.at[1] - 1.9), m.at[2]) }; } }
     return best;
@@ -646,11 +692,18 @@ class Game {
     if (free) { if (K.w || K.arrowup) dz -= 1; if (K.s || K.arrowdown) dz += 1; if (K.a || K.arrowleft) dx -= 1; if (K.d || K.arrowright) dx += 1; }
     const following = !(dx || dz) && this.path.length && (free || this.busy || this.mode === 'cine');
     let toGo = 1e9;
-    if (dx || dz) { this.path = []; this.pendingTalk = null; const l = Math.hypot(dx, dz); dx /= l; dz /= l; }
+    if (dx || dz) { this.path = []; this.pendingTalk = null; this.pendingUse = null; const l = Math.hypot(dx, dz); dx /= l; dz /= l; }
     else if (following) {
-      const [tx, tz] = this.path[0]; const ddx = tx - p.x, ddz = tz - p.z; const d = Math.hypot(ddx, ddz);
-      if (d < 0.22) { this.path.shift(); this.stuckT = 0; if (!this.path.length && this.pendingTalk && free) { const id = this.pendingTalk; this.pendingTalk = null; this.run(() => this.story.talkTo(id)); } }
-      else { dx = ddx / d; dz = ddz / d; if (this.path.length === 1) toGo = d; }
+      let [tx, tz] = this.path[0]; let ddx = tx - p.x, ddz = tz - p.z; let d = Math.hypot(ddx, ddz);
+      // a corner is turned at the corner itself: the route runs through the middle of each square of ground, and a
+      // turn begun a step early can put you against the wall the route goes round (the last point only needs to be near)
+      if (d < (this.path.length > 1 ? 0.05 : 0.22)) {
+        this.path.shift(); this.stuckT = 0;
+        if (!this.path.length && this.pendingTalk && free) { const id = this.pendingTalk; this.pendingTalk = null; this.run(() => this.story.talkTo(id)); }
+        if (this.path.length) { [tx, tz] = this.path[0]; ddx = tx - p.x; ddz = tz - p.z; d = Math.hypot(ddx, ddz); }
+      }
+      if (!this.path.length && this.pendingUse && free) { const it = this.pendingUse; this.pendingUse = null; if (Math.hypot(it.x - p.x, it.z - p.z) < it.r + 0.5) this.run(() => this.handle({ kind: it.kind, id: it.id })); }
+      else if (d > 1e-6) { dx = ddx / d; dz = ddz / d; if (this.path.length) toGo = d; }
     }
     // jog: hold Shift, or a long walk to somewhere you tapped (never on low energy, never indoors)
     const town = this.loc === 'town';
@@ -679,7 +732,7 @@ class Game {
         this.stuckT = moved ? 0 : (this.stuckT || 0) + dt;
         // no progress for a moment: plan the route again from here, and give up quietly if that fails too
         if (this.stuckT > 0.35 && this.walkGoal && this.loc === 'town' && !this.repathed) { const g = this.walkGoal; const np = this.town.findPath(p.x, p.z, g[0], g[1], this.S.wheels); this.repathed = true; this.stuckT = 0; if (np.length) this.path = np; }
-        else if (this.stuckT > 0.6) { this.path.shift(); this.stuckT = 0; this.repathed = false; }
+        else if (this.stuckT > 0.6) { this.path.shift(); this.stuckT = 0; this.repathed = false; this.stuckN = (this.stuckN || 0) + 1; if (this.stuckN > 3) { this.path = []; this.stuckN = 0; } if (!this.path.length && this.pendingUse && free) { const it = this.pendingUse; this.pendingUse = null; if (Math.hypot(it.x - p.x, it.z - p.z) < it.r + 0.5) this.run(() => this.handle({ kind: it.kind, id: it.id })); } }
       }
       // lean into turns, a little
       const h0 = this.player.heading, h1 = Math.atan2(mx, mz); let dh = h1 - h0; while (dh > Math.PI) dh -= Math.PI * 2; while (dh < -Math.PI) dh += Math.PI * 2;
@@ -838,6 +891,8 @@ class Game {
   }
 }
 
+// how far a point on the ground is from the line between two others (p and q: anything with x and z)
+function segDist2(p, q, x, z) { const dx = q.x - p.x, dz = q.z - p.z; const l2 = dx * dx + dz * dz || 1; const k = clamp(((x - p.x) * dx + (z - p.z) * dz) / l2); return Math.hypot(x - (p.x + dx * k), z - (p.z + dz * k)); }
 let G;
 const boot = () => { G = new Game(); window.__wb.G = G; };
 // hooks for automated playtests
@@ -863,6 +918,22 @@ window.__wb = {
   // tests: jump the first day to a stage, as if everything before it went the usual way
   sliceTo: (stage, o) => G.story.slice.debugTo(stage, o),
   sliceSkip: (o) => { G.story.slice.debugTo('night', o); G.story.slice.S.flags.hooksShown = 1; G.story.finishDay('night'); },
+  // the sight-line grid against three.js's own raycaster, on n random lines across town (see test/occgrid.py)
+  occCheck: (n = 200) => {
+    const g = G.occ(); g.refresh(); const meshes = g.meshes.filter((m, i) => g.vis[i]); const ray = new THREE.Raycaster(); const o = new THREE.Vector3(), d = new THREE.Vector3();
+    let seed = 7; const rnd = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
+    const lines = []; for (let i = 0; i < n; i++) { const x = 4 + rnd() * 50, z = 8 + rnd() * 38, a = rnd() * Math.PI * 2, L = 4 + rnd() * 9; lines.push([x, i % 2 ? 3.4 : 1.2 + rnd() * 2, z, x + Math.cos(a) * L, 0.9 + rnd(), z + Math.sin(a) * L]); }
+    // (three.js with both faces counted, as the grid counts them)
+    const sides = new Map(); for (const m of meshes) for (const mat of [].concat(m.material)) if (mat && !sides.has(mat)) { sides.set(mat, mat.side); mat.side = THREE.DoubleSide; }
+    let t0 = performance.now(); const A = lines.map(([x, y, z, tx, ty, tz]) => { o.set(x, y, z); d.set(tx - x, ty - y, tz - z); const L = d.length(); ray.set(o, d.divideScalar(L)); ray.near = 0.2; ray.far = L; return ray.intersectObjects(meshes, false).length > 0; }); const msThree = performance.now() - t0;
+    for (const [mat, side] of sides) mat.side = side;
+    t0 = performance.now(); const B = lines.map(([x, y, z, tx, ty, tz]) => g.hit(x, y, z, tx, ty, tz, 0.2)); const msGrid = performance.now() - t0;
+    let missed = 0, extra = 0, both = 0; A.forEach((v, i) => { if (v && !B[i]) missed++; else if (!v && B[i]) extra++; else if (v) both++; });
+    return { n, blockedByThree: A.filter(Boolean).length, both, missed, extra, msThree: Math.round(msThree), msGrid: Math.round(msGrid) };
+  },
+  // the first day: where it stands (stage, and the two threads of its open middle), and the room set at once
+  slice: () => { const sl = G.story.slice; return sl && sl.on ? { stage: sl.stage, mk: sl.mk, wk: sl.wk, room: sl.roomCount() } : null; },
+  roomSet: (vals) => { const sl = G.story.slice, S = G.S; if (!sl || sl.stage !== 'room') return false; const R = S.slice.room = S.slice.room || {}; for (const k of ['lamp', 'radio', 'sign', 'note', 'clock', 'calendar']) { if (R[k] != null) continue; const v = vals && vals[k] != null ? vals[k] : 0.22; const sp = SETUP[k]; R[k] = v; S.profile[sp.dim] = sp.invert ? 1 - v : v; sl.applyRoom(k, v); } return true; },
   // a visit code for a sample carry (to test typing a code on the title)
   visitCode: (n, o = {}) => { const c = sampleCarry(o); c.act = n; return SAVE.encodeVisit(c); },
   G: null,

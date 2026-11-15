@@ -308,6 +308,7 @@ export class Town {
   }
   // wooden signposts at the junctions where a new arrival would hesitate
   signpost(x, z, lines) {
+    (this.postPos = this.postPos || []).push([x, z]);
     this.batch.add(new THREE.CylinderGeometry(0.06, 0.075, 2.5, 8), PAL.woodDark, mtx(x, 1.25, z));
     this.batch.add(new THREE.ConeGeometry(0.09, 0.14, 8), PAL.woodDark, mtx(x, 2.57, z));
     lines.forEach((t, i) => { const m = signMesh(t, 1.55, 0.34, { size: 44, bg: '#fbf6ee', fg: '#5a4630', border: '#8a6f4e', w: 512, h: 112 }); m.position.set(x + (i % 2 ? 0.06 : -0.06), 2.12 - i * 0.42, z + 0.07); m.rotation.z = (i % 2 ? 0.025 : -0.03); this.scene.add(m); });
@@ -396,7 +397,7 @@ export class Town {
     const st = new Creature(STANDARD, { scale: 2.3, seed: 1945, form: 'baked' });
     st.root.position.set(cx, 1.5, cz); st.update(0.01);
     st.bodyMat.roughness = 0.38; st.bodyMat.metalness = 0.12;
-    st.root.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.userData.noOcc = true; } });
+    st.root.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.userData.noOcc = true; o.userData.camBlock = true; } });
     this.scene.add(st.root); this.statue = st;
     this.plaque = this.addSign('THE STANDARD RESIDENT\nLarkspur\'s measure.', cx, 0.8, cz + 1.32, 2.2, 0.62, { size: 30, bg: '#efe3cf', border: '#8a6f4e', fg: '#5a4630', h: 160 });
     // once you have worked out its room, the plaque says what the Standard was
@@ -583,7 +584,9 @@ export class Town {
   }
   buildTrees() {
     const pts = [];
-    const add = (x, z, s) => { if (this.cell(x, z) !== 0) return; if (x > 17 && x < 21 && z > 23.5 && z < 38.5) return; pts.push([x, z, s]); this.block(x - 0.35, z - 0.35, x + 0.35, z + 0.35); };
+    // (no tree in the walk between Home Row and the Works; and none across the street from No. 2, where the camera stands
+    // for lantern night: a tree there filled the picture with leaves)
+    const add = (x, z, s) => { if (this.cell(x, z) !== 0) return; if (x > 17 && x < 21 && z > 23.5 && z < 38.5) return; if (x > 4 && x < 15 && z > 44.5 && z < 48.5) return; pts.push([x, z, s]); this.block(x - 0.35, z - 0.35, x + 0.35, z + 0.35); };
     // a fixed camera looks north, so nothing tall stands just south of a walkway
     for (let i = 0; i < 22; i++) add(43 + this.rng() * 19, 2.2 + this.rng() * 5.5, 0.9 + this.rng() * 0.5);
     for (let i = 0; i < 6; i++) add(60 + this.rng() * 2.5, 8 + this.rng() * 8, 0.9 + this.rng() * 0.4);
@@ -610,6 +613,8 @@ export class Town {
       c.set(leaf); cans.setColorAt(i * 2, c); c.offsetHSL(0, 0, 0.05); cans.setColorAt(i * 2 + 1, c);
     });
     trunks.castShadow = cans.castShadow = true; cans.receiveShadow = true;
+    // (trees count when a camera looks for a clear line of sight: see occgrid.js)
+    trunks.userData.occInst = cans.userData.occInst = true;
     this.scene.add(trunks, cans); this.treePts = pts;
   }
 

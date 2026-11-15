@@ -64,7 +64,7 @@ export class Audio {
   applyVolumes() {
     if (!this.ready) return; const t = this.ctx.currentTime; const m = this.muted ? 0 : this.vol.master;
     this.master.gain.setTargetAtTime(m, t, 0.1);
-    this.music.gain.setTargetAtTime(this.vol.music * 0.9, t, 0.3);
+    this.music.gain.setTargetAtTime(this.vol.music * 0.9 * (this.radio == null ? 1 : this.radio), t, 0.3);
     this.sfxBus.gain.setTargetAtTime(this.vol.sfx, t, 0.05);
   }
   setMuted(v) { this.muted = v; this.applyVolumes(); }
@@ -199,6 +199,8 @@ export class Audio {
       case 'page': this.shaker(t); break;
       case 'jar': bl(mtof(88), 0, 0.9, 0.05); bl(mtof(95), 0.05, 1.1, 0.03); bl(mtof(100), 0.11, 0.8, 0.02); break;
       case 'thwip': bl(mtof(o.n || 79), 0, 0.09, 0.07, 'triangle'); bl(mtof((o.n || 79) + 7), 0.04, 0.12, 0.05, 'triangle'); break;
+      // one knock at a door
+      case 'knock': { const o2 = c.createOscillator(); o2.type = 'triangle'; o2.frequency.setValueAtTime(190, t); o2.frequency.exponentialRampToValueAtTime(95, t + 0.07); const g = c.createGain(); o2.connect(g); g.connect(B); this.env(g, t, 0.002, 0.26, 0.1); o2.start(t); o2.stop(t + 0.16); const s2 = c.createBufferSource(); s2.buffer = this.noise.pink; const f = c.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 700; const g2 = c.createGain(); s2.connect(f); f.connect(g2); g2.connect(B); this.env(g2, t, 0.002, 0.1, 0.05); s2.start(t); s2.stop(t + 0.08); break; }
       case 'bonk': bl(mtof(48), 0, 0.16, 0.09, 'triangle'); bl(mtof(43), 0.05, 0.22, 0.06, 'sine'); break;
       case 'stamp': { const o2 = c.createOscillator(); o2.frequency.setValueAtTime(150, t); o2.frequency.exponentialRampToValueAtTime(60, t + 0.12); const g = c.createGain(); o2.connect(g); g.connect(B); this.env(g, t, 0.002, 0.3, 0.14); o2.start(t); o2.stop(t + 0.2); const s2 = c.createBufferSource(); s2.buffer = this.noise.pink; const f = c.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 900; const g2 = c.createGain(); s2.connect(f); f.connect(g2); g2.connect(B); this.env(g2, t, 0.002, 0.18, 0.08); s2.start(t); s2.stop(t + 0.12); break; }
       case 'pop': bl(mtof(84 + Math.floor(Math.random() * 5)), 0, 0.06, 0.05, 'sine'); break;

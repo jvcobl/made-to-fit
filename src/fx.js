@@ -71,7 +71,7 @@ export class FX {
     if (!p.w) { p.w = p.el.offsetWidth || 160; p.h = p.el.offsetHeight || 34; } x = clamp(x, p.w / 2 + 8, innerWidth - p.w / 2 - 8);
     const t = clamp(p.t / p.ms); let up = (1 - Math.pow(1 - t, 3)) * p.rise;
     // a pop over someone near the top of the screen stays below the top bar instead of riding up under it
-    if (p.at) { const minY = p.h + 62; if (y - up < minY) { y = minY; up = 0; } }
+    if (p.at) { const G = this.G; const top = G.hudBottom && x - p.w / 2 < (G.hudRight || 0) + 6 ? G.hudBottom + 6 : 62; const minY = p.h + top; if (y - up < minY) { y = minY; up = 0; } }
     // (the pop-in takes the same quick beat however long the pop stays up)
     const ti = clamp(p.t / Math.min(p.ms, 2));
     const s = this.calm ? 1 : ti < 0.12 ? 0.6 + ti / 0.12 * 0.55 : ti < 0.24 ? 1.15 - (ti - 0.12) / 0.12 * 0.15 : 1;
