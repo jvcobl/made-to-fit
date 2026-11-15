@@ -50,11 +50,14 @@ with sync_playwright() as p:
     # three people well apart, below the strip the words sit in (each found where they are at the moment of the tap:
     # they keep walking)
     picks = []
+    BOTH = "({ th: " + THOUGHTS + ", ppl: " + PPL + " })"
     for i in range(3):
-        before = pg.evaluate(THOUGHTS); ppl = pg.evaluate(PPL)
+        # (one look at the screen and one click per tap: the square moves on after seven quiet seconds, and on a slow
+        # machine every look takes a moment)
+        now = pg.evaluate(BOTH); before, ppl = now['th'], now['ppl']
         # someone below the strip the words sit in (and above the dark bar at the foot of the picture), with nobody close
-        # enough to be mistaken for them, as far as can be
-        # from the people already tapped (the game takes a tap anywhere: this only keeps the check unambiguous)
+        # enough to be mistaken for them, as far as can be from the people already tapped (the game takes a tap anywhere:
+        # this only keeps the check unambiguous)
         far = lambda q: min([abs(q['x'] - r['x']) + abs(q['y'] - r['y']) for r in picks + before] or [9999])
         q = None
         for alone, apart in ((70, 150), (50, 110), (35, 70), (0, 40)):   # (the crowd is where it is: ask for less when it's bunched up)
@@ -62,12 +65,12 @@ with sync_playwright() as p:
             if cand: q = sorted(cand, key=far, reverse=True)[0]; break
         if not q: check('tap %d: someone to tap' % (i + 1), False, {'picks': picks, 'people': ppl}); break
         picks.append(q)
-        pg.mouse.click(q['x'], q['y'] + 30); pg.wait_for_timeout(900)
+        pg.mouse.click(q['x'], q['y'] + 30); pg.wait_for_timeout(600)
         after = pg.evaluate(THOUGHTS)
         new = [t for t in after if t['t'] not in [u['t'] for u in before]]
         near = [t for t in new if abs(t['x'] - q['x']) < 190 and abs(t['y'] - q['y']) < 190]
         check('tap %d: a thought appears over the person tapped' % (i + 1), len(new) >= 1 and len(near) >= 1, {'tap': q, 'new': new})
-        if i == 0: pg.screenshot(path=os.path.join(OUT, '02_one_thought.jpg'), type='jpeg', quality=75)
+    pg.screenshot(path=os.path.join(OUT, '02_three_thoughts.jpg'), type='jpeg', quality=75)
     c = wait_cap(pg, 'middle of their own day', 30)
     th = pg.evaluate(THOUGHTS)
     check('after three taps the rest of the crowd joins in, and the caption says what you saw', c is not None and len(th) >= 5, {'cap': c, 'n': len(th)})

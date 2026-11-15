@@ -286,7 +286,9 @@ export class Slice {
         rest.forEach((p, i) => setTimeout(() => { said.push(so.say(p, ms, so.openLine(p))); }, FAST ? 0 : 220 * i));
         setTimeout(() => { if (said.length) ui.announce('Over the crowd, one thought each: ' + said.join(' ')); resolve(said.length); }, FAST ? 20 : 220 * rest.length + 500);
       };
-      const wait = () => { clearTimeout(idle); idle = setTimeout(finish, FAST ? 30 : (taps ? 5000 : 7000) * (ui.holdText() ? 2.5 : 1)); };
+      // (seven quiet seconds, at the start or after a tap, and the rest of the square joins in: long enough to read
+      // one thought and pick the next person)
+      const wait = () => { clearTimeout(idle); idle = setTimeout(finish, FAST ? 30 : 7000 * (ui.holdText() ? 2.5 : 1)); };
       // (a tap shows the person nearest it; the keyboard, someone whose words have room)
       G.onTap = (x, y) => { if (over) return; if (show(so.nearest(x, y, used, band, x == null), true)) taps++; if (taps >= 3 || !so.nearest(null, null, used, band)) setTimeout(finish, FAST ? 0 : 700); else wait(); };
       const iv = setInterval(() => { if (st.skipIntro) finish(); }, 120);

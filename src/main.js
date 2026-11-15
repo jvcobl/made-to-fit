@@ -418,7 +418,8 @@ class Game {
       if (h < 7) for (const o of others) if (segDist2(cam, a, o.x, o.z) < 1.0 || segDist2(cam, b, o.x, o.z) < 1.0) { blocked++; break; }
       pole: for (const [px, pz, r, top] of poles) for (const s of [a, b]) {
         const sx = s.x - cx, sz = s.z - cz; const u = clamp(((px - cx) * sx + (pz - cz) * sz) / (sx * sx + sz * sz || 1));
-        if (u > 0.04 && u < 0.93 && Math.hypot(px - (cx + sx * u), pz - (cz + sz * u)) < r && cy + u * (1.1 - cy) < top + 0.3) { blocked += 2; break pole; }
+        // (right up to the person: a post you are standing beside, on the camera's side, is drawn across you)
+        if (u > 0.04 && u < 0.985 && Math.hypot(px - (cx + sx * u), pz - (cz + sz * u)) < r && cy + u * (1.1 - cy) < top + 0.3) { blocked += 2; break pole; }
       }
       // both of you in the picture, clear of its edges (a phone held upright has little room side to side)
       { const pc = this._tcCam || (this._tcCam = new THREE.PerspectiveCamera()); pc.fov = this.tall ? 40 : 30; pc.aspect = innerWidth / Math.max(1, innerHeight); pc.near = 0.1; pc.far = 400; pc.updateProjectionMatrix();
