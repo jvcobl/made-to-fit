@@ -362,21 +362,73 @@ class Game {
   // ---------- conversation framing ----------
   talkFrame(id) {
     const n = this.npcs[id]; if (!n) return; this.talking = id; this.ui.clearBubbles();
+    if (this.sonder) this.sonder.clear();
     const a = this.player.root.position, b = n.c.root.position;
     const mid = a.clone().lerp(b, 0.5); const dir = new THREE.Vector3(b.x - a.x, 0, b.z - a.z); const len = dir.length() || 1; dir.divideScalar(len);
     const side = new THREE.Vector3(-dir.z, 0, dir.x); if (side.z < 0) side.negate();
     const inRoom = this.loc !== 'town';
-    const camDir = side.clone().add(new THREE.Vector3(0, 0, inRoom ? 0.6 : 1.1)).normalize();
-    const back = (inRoom ? 4.4 : 6.4) * (this.tall ? 1.35 : 1);
-    const cam = mid.clone().addScaledVector(camDir, back + len * 0.6).add(new THREE.Vector3(0, inRoom ? 2.6 : 3.4, 0));
+    // a camera beside the two of you: sd is which side, zb how far round toward the south, backK how far back, h how high
+    const camAt = (sd, zb, backK, h) => mid.clone().addScaledVector(sd.clone().add(new THREE.Vector3(0, 0, zb)).normalize(), backK * (this.tall ? 1.35 : 1) + len * 0.6).add(new THREE.Vector3(0, h, 0));
+    let cam = camAt(side, inRoom ? 0.6 : 1.1, inRoom ? 4.4 : 6.4, inRoom ? 2.6 : 3.4);
+    // out in town, a roof, an awning or a tree can stand between that camera and your faces: try the other side, then
+    // higher, and take the first place with a clear view of both of you
+    if (!inRoom) cam = this.clearTalkCam(a, b, mid, side, camAt) || cam;
     this.stage.shot(cam, mid.clone().add(new THREE.Vector3(0, this.tall ? 1.1 : 0.75, 0)), this.tall ? 40 : 30, 3.2);
     this.talkMid = mid;
     this.player.faceToward(b.x, b.z); n.c.faceToward(a.x, a.z);
+    if (!inRoom) this.partCrowd(cam, a, b);
+  }
+  // the first conversation camera, low to high, that sees both faces (nothing solid in the way); if none is clear,
+  // the one with the least in the way
+  clearTalkCam(a, b, mid, side, camAt) {
+    const occ = []; const shown = (o) => { for (let q = o; q; q = q.parent) if (!q.visible) return false; return true; };
+    this.town.scene.traverse((o) => { if (o.isMesh && !o.userData.noOcc && shown(o)) occ.push(o); });
+    if (!occ.length) return null;
+    const other = side.clone().negate(); const south = side.clone().multiplyScalar(0.2);
+    const cands = [[side, 1.1, 6.4, 3.4], [other, 1.1, 6.4, 3.4], [south, 1.1, 6.6, 3.6], [side, 1.0, 7.0, 5.4], [other, 1.0, 7.0, 5.4], [south, 1.0, 7.0, 5.6],
+      [south, 0.9, 7.2, 8.2], [side, 0.9, 7.2, 8.2], [other, 0.9, 7.2, 8.2], [south, 0.6, 6.0, 11.5]];
+    const ray = new THREE.Raycaster(); const to = new THREE.Vector3(); let best = null, bestN = 1e9;
+    const targets = [[a.x, 0.95, a.z], [b.x, 0.95, b.z], [a.x, 1.75, a.z], [b.x, 1.75, b.z]];
+    for (const c of cands) {
+      const cam = camAt(...c); let blocked = 0;
+      for (const t of targets) {
+        to.set(t[0], t[1], t[2]).sub(cam); const d = to.length(); ray.set(cam, to.divideScalar(d)); ray.near = 0.2; ray.far = d - 0.85;
+        if (ray.intersectObjects(occ, false).length) blocked++;
+        if (blocked >= bestN) break;
+      }
+      if (blocked < bestN) { bestN = blocked; best = cam; }
+      if (!blocked) break;
+    }
+    return best;
+  }
+  // tests: from where the camera is now, how many of the sight lines to the two of you are blocked, and are you both on screen
+  talkView() {
+    const n = this.npcs[this.talking]; if (!n) return null; const a = this.player.root.position, b = n.c.root.position; const cam = this.stage.camera;
+    const occ = []; const shown = (o) => { for (let q = o; q; q = q.parent) if (!q.visible) return false; return true; };
+    const sc = this.loc === 'town' ? this.town.scene : this.rooms[this.loc].scene; sc.traverse((o) => { if (o.isMesh && !o.userData.noOcc && shown(o)) occ.push(o); });
+    const ray = new THREE.Raycaster(); const to = new THREE.Vector3(); let blocked = 0; const on = [];
+    for (const q of [a, b]) {
+      to.set(q.x, 0.95, q.z).sub(cam.position); const d = to.length(); ray.set(cam.position, to.divideScalar(d)); ray.near = 0.2; ray.far = d - 0.85; if (ray.intersectObjects(occ, false).length) blocked++;
+      const v = new THREE.Vector3(q.x, 0.95, q.z).project(cam); on.push(v.z < 1 && Math.abs(v.x) < 0.92 && v.y > -0.55 && v.y < 0.9);
+    }
+    return { blocked, onScreen: on, cam: cam.position.toArray().map((x) => +x.toFixed(2)) };
+  }
+  // passersby standing between the camera and the two of you step out of the picture until you're done talking
+  partCrowd(cam, a, b) {
+    this.parted = this.parted || [];
+    const seg = (p, q, x, z) => { const dx = q.x - p.x, dz = q.z - p.z; const l2 = dx * dx + dz * dz || 1; const k = clamp(((x - p.x) * dx + (z - p.z) * dz) / l2); return Math.hypot(x - (p.x + dx * k), z - (p.z + dz * k)); };
+    for (const w of this.crowd || []) {
+      if (!w.active || w.held || !w.c.root.visible) continue; const q = w.c.root.position;
+      const near = Math.min(Math.hypot(q.x - a.x, q.z - a.z), Math.hypot(q.x - b.x, q.z - b.z)) < 1.7;
+      if (near || seg(cam, a, q.x, q.z) < 1.5 || seg(cam, b, q.x, q.z) < 1.5) { w.c.root.visible = false; this.parted.push(w); }
+    }
   }
   faceTalk(who) { const n = this.npcs[who]; if (!n) return; const a = this.player.root.position; n.c.faceToward(a.x, a.z); this.player.faceToward(n.c.root.position.x, n.c.root.position.z); n.c.hop && Math.random() < 0.25 && n.c.hop(); }
   setFace(who, e) { const c = who === 'you' ? this.player : this.npcs[who] && this.npcs[who].c; if (!c) return; c.setExpression(e); clearTimeout(c._ft); c._ft = setTimeout(() => c.setExpression('neutral'), 3500); }
   endTalk() {
     this.talking = null; this.talkMid = null;
+    for (const w of this.parted || []) if (w.active && !w.held) w.c.root.visible = true;
+    this.parted = [];
     if (this.loc === 'town') this.stage.follow(this.player.root.position, this.followOpts());
     else { const c = this.roomCam(this.loc); this.stage.shot(c.pos, c.look, c.fov, 2.5); }
   }
