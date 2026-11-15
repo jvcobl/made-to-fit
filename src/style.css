@@ -74,7 +74,7 @@ kbd { font-family: var(--display); font-size: 11px; padding: 1px 6px; border-rad
 .energy.low .bar { stroke: var(--accent); }
 .gearbtns { display: flex; gap: 6px; }
 .gb { border: 0; display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px 8px 9px; border-radius: 999px; background: rgba(251, 246, 238, 0.9); box-shadow: 0 4px 14px rgba(20, 14, 30, 0.16); font-size: 12.5px; color: var(--soft); min-height: 44px; }
-.gb svg { width: 17px; height: 17px; } .gb.on { background: #dbf0ee; color: var(--teal); box-shadow: inset 0 0 0 2px #4fb3a9, 0 4px 14px rgba(20, 14, 30, 0.16); }
+.gb svg { width: 17px; height: 17px; } .gb.on { background: #dbf0ee; color: #236866; box-shadow: inset 0 0 0 2px #4fb3a9, 0 4px 14px rgba(20, 14, 30, 0.16); }
 .gb.sm.on { background: #ffe0ee; color: #d0457f; box-shadow: inset 0 0 0 2px #ff8fbf; }
 
 /* where you are going */
@@ -263,7 +263,7 @@ body.touch .choice .k { display: none; }
 .nowcard { background: #fff8de; border-radius: 14px; padding: 10px 12px; margin-bottom: 10px; font-size: 15px; line-height: 1.4; box-shadow: inset 0 0 0 1.5px rgba(255, 207, 122, 0.7); }
 .nowcard .nl { font-family: var(--display); font-weight: 600; font-size: 11.5px; letter-spacing: 0.08em; text-transform: uppercase; color: #8f5f12; }
 .nowcard .btn { margin-top: 8px; width: 100%; font-size: 14.5px; }
-.gearrow { display: flex; flex-direction: column; gap: 6px; } .gbig { font-size: 14px; padding: 10px 14px; text-align: left; } .gbig.on { background: #dbf0ee; color: var(--teal); }
+.gearrow { display: flex; flex-direction: column; gap: 6px; } .gbig { font-size: 14px; padding: 10px 14px; text-align: left; } .gbig.on { background: #dbf0ee; color: #236866; }
 .msg { background: #fff; border-radius: 14px; padding: 10px 12px; margin: 8px 0; font-size: 14.5px; line-height: 1.4; box-shadow: 0 1px 0 var(--line); }
 .msg b { font-family: var(--display); font-weight: 600; display: block; font-size: 12.5px; color: var(--soft); margin-bottom: 2px; }
 .goal { display: flex; gap: 10px; align-items: flex-start; padding: 8px 0; border-bottom: 1px dashed var(--line); font-size: 15px; }

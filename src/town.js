@@ -584,9 +584,17 @@ export class Town {
   }
   buildTrees() {
     const pts = [];
-    // (no tree in the walk between Home Row and the Works; and none across the street from No. 2, where the camera stands
-    // for lantern night: a tree there filled the picture with leaves)
-    const add = (x, z, s) => { if (this.cell(x, z) !== 0) return; if (x > 17 && x < 21 && z > 23.5 && z < 38.5) return; if (x > 4 && x < 15 && z > 44.5 && z < 48.5) return; pts.push([x, z, s]); this.block(x - 0.35, z - 0.35, x + 0.35, z + 0.35); };
+    // (no tree in the walk between Home Row and the Works. And none across the street from No. 2, where the camera stands
+    // for lantern night: a tree there filled the picture with leaves. The few that fall in that gap are still counted,
+    // so every other tree, and everything placed after the trees, is exactly where it has always been: they just
+    // aren't drawn, and aren't in the way.)
+    const gap = new Set();
+    const add = (x, z, s) => {
+      if (this.cell(x, z) !== 0 || gap.has(Math.floor(z) * GW + Math.floor(x))) return; if (x > 17 && x < 21 && z > 23.5 && z < 38.5) return;
+      const ghost = x > 4 && x < 15 && z > 44.5 && z < 48.5; pts.push([x, z, s, ghost]);
+      if (!ghost) { this.block(x - 0.35, z - 0.35, x + 0.35, z + 0.35); return; }
+      for (let cz = Math.floor(z - 0.35); cz < Math.ceil(z + 0.35); cz++) for (let cx = Math.floor(x - 0.35); cx < Math.ceil(x + 0.35); cx++) gap.add(cz * GW + cx);
+    };
     // a fixed camera looks north, so nothing tall stands just south of a walkway
     for (let i = 0; i < 22; i++) add(43 + this.rng() * 19, 2.2 + this.rng() * 5.5, 0.9 + this.rng() * 0.5);
     for (let i = 0; i < 6; i++) add(60 + this.rng() * 2.5, 8 + this.rng() * 8, 0.9 + this.rng() * 0.4);
@@ -604,12 +612,12 @@ export class Town {
     const trunks = new THREE.InstancedMesh(trunkG, new THREE.MeshStandardMaterial({ color: PAL.trunk, roughness: 0.9 }), pts.length);
     const cans = new THREE.InstancedMesh(can2, new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.85, flatShading: true }), pts.length * 2);
     const c = new THREE.Color();
-    pts.forEach(([x, z, s], i) => {
-      const h = 1.3 * s + 0.4;
-      trunks.setMatrixAt(i, mtx(x, 0, z, 0, s, h, s));
+    pts.forEach(([x, z, s, ghost], i) => {
+      const h = 1.3 * s + 0.4; const k = ghost ? 0 : 1;   // (a tree in the gap: the same throws of the dice, drawn at no size)
+      trunks.setMatrixAt(i, mtx(x, 0, z, 0, s * k, h * k, s * k));
       const leaf = PAL.leaves[Math.floor(this.rng() * PAL.leaves.length)];
-      cans.setMatrixAt(i * 2, mtx(x, h + 0.75 * s, z, this.rng() * 3, 1.35 * s, 1.25 * s, 1.35 * s));
-      cans.setMatrixAt(i * 2 + 1, mtx(x + (this.rng() - 0.5) * s, h + 1.55 * s, z + (this.rng() - 0.5) * 0.6 * s, this.rng() * 3, 0.85 * s, 0.85 * s, 0.85 * s));
+      cans.setMatrixAt(i * 2, mtx(x, h + 0.75 * s, z, this.rng() * 3, 1.35 * s * k, 1.25 * s * k, 1.35 * s * k));
+      cans.setMatrixAt(i * 2 + 1, mtx(x + (this.rng() - 0.5) * s, h + 1.55 * s, z + (this.rng() - 0.5) * 0.6 * s, this.rng() * 3, 0.85 * s * k, 0.85 * s * k, 0.85 * s * k));
       c.set(leaf); cans.setColorAt(i * 2, c); c.offsetHSL(0, 0, 0.05); cans.setColorAt(i * 2 + 1, c);
     });
     trunks.castShadow = cans.castShadow = true; cans.receiveShadow = true;
@@ -735,7 +743,7 @@ export class Town {
   buildAmbient() {
     const n = 70; const geo = new THREE.BufferGeometry(); const p = new Float32Array(n * 3); const col = new Float32Array(n * 3); const c = new THREE.Color();
     this.leafData = [];
-    for (let i = 0; i < n; i++) { const t = this.treePts[Math.floor(this.rng() * Math.min(this.treePts.length, 100))]; const d = { x: t[0], z: t[1], y: 1 + this.rng() * 4, ox: t[0], oz: t[1], h: 3 + this.rng() * 2, v: 0.3 + this.rng() * 0.4, ph: this.rng() * 6 }; this.leafData.push(d); c.set(PAL.leaves[i % PAL.leaves.length]); col.set([c.r, c.g, c.b], i * 3); }
+    for (let i = 0; i < n; i++) { let ti = Math.floor(this.rng() * Math.min(this.treePts.length, 100)); while (this.treePts[ti][3]) ti = (ti + 1) % this.treePts.length; const t = this.treePts[ti]; const d = { x: t[0], z: t[1], y: 1 + this.rng() * 4, ox: t[0], oz: t[1], h: 3 + this.rng() * 2, v: 0.3 + this.rng() * 0.4, ph: this.rng() * 6 }; this.leafData.push(d); c.set(PAL.leaves[i % PAL.leaves.length]); col.set([c.r, c.g, c.b], i * 3); }
     geo.setAttribute('position', new THREE.BufferAttribute(p, 3)); geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
     this.leaves = new THREE.Points(geo, new THREE.PointsMaterial({ size: 0.16, vertexColors: true, sizeAttenuation: true })); this.scene.add(this.leaves);
     const fn = 36; const fg = new THREE.BufferGeometry(); fg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(fn * 3), 3));

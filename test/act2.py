@@ -93,7 +93,11 @@ with sync_playwright() as p:
     # the clock runs at 22 minutes a second here, so every wait below is short)
     pg.evaluate("(() => { const S = __wb.state(); S.stakeDue = {}; if (S.fixes.bay) S.stakes.bay = 'listened'; })()")
     # the kiosk in Town Hall
-    pg.evaluate("(() => { const S = __wb.state(); S.min = Math.max(S.min, 700); __wb.tp([32, 14.6]); })()")
+    # (the Hall's door stands at the edge of Market Square, which is loud at this hour: the square's own "Who adjusts?"
+    # card comes up within a fraction of a second of standing there, and whether that is before or after this test
+    # walks in depended on how fast the machine drew the next frame. The square and the street are marked as dealt
+    # with, so the card this step is about, the kiosk's, is the one that opens.)
+    pg.evaluate("(() => { const S = __wb.state(); S.handled[S.day + ':street'] = 1; S.handled[S.day + ':market'] = 1; S.min = Math.max(S.min, 700); __wb.tp([32, 14.6]); })()")
     until(pg, "__wb.target() === 'hall' && !__wb.busy() && !__wb.waiter()", 40, pick=first)
     pg.evaluate('__wb.act()')
     ok = until(pg, "__wb.waiter() === 'barrier' && __wb.options().some((o) => o.t.includes('counter'))", 40, pick=first)

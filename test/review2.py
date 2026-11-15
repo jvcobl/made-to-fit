@@ -87,7 +87,10 @@ with sync_playwright() as p:
         check('A: restored: the soft lights are on file, the windows cold, the lamps gone', ok and S['dim'] == 'onfile' and S['restored'] == 'dim' and S['windows'] is False and S['lamps'] is False, S)
         pg.evaluate("__wb.G.run(() => __wb.G.exitRoom())"); until(pg, "__wb.loc() === 'town' && !__wb.busy() && !__wb.waiter()", 30)
         # the kiosk: ring the call bell (Sana answers; she has no face to draw)
-        pg.evaluate("(() => { const S = __wb.state(); S.min = Math.max(S.min, 700); S.look.voice = 'chime'; __wb.tp([32, 14.6]); })()")
+        # (the Hall's door stands at the edge of the square, which is loud at this hour: the square's own card would come up
+        # at the door within a fraction of a second, before or after this test walks in depending on the machine, so the
+        # square and the street are marked as dealt with; see test/act2.py)
+        pg.evaluate("(() => { const S = __wb.state(); S.handled[S.day + ':street'] = 1; S.handled[S.day + ':market'] = 1; S.min = Math.max(S.min, 700); S.look.voice = 'chime'; __wb.tp([32, 14.6]); })()")
         until(pg, "__wb.target() === 'hall' && !__wb.busy() && !__wb.waiter()", 40)
         pg.evaluate('__wb.act()')
         ok = until(pg, "__wb.waiter() === 'barrier' && __wb.options().some((o) => o.t.includes('counter'))", 40)
