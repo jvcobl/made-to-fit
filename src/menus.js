@@ -134,7 +134,7 @@ export class Menus {
   }
   // ---------- what's in this game, and support ----------
   contentNotes() {
-    this.push('content', () => `<h2>${esc(CONTENT_NOTES.title)}</h2><ul class="cnotes">${CONTENT_NOTES.items.map((it) => `<li><b>${esc(it.label)}</b><span>${esc(it.detail || '')}</span></li>`).join('')}</ul><p>${esc(CONTENT_NOTES.notIn)}</p><p class="small">Settings can summarize the card packs, Blend's feed and Rue's hardest scenes, so they're told in a sentence instead of played.</p><div class="pfoot"><button class="btn" id="cSup">Support</button><button class="btn primary" data-back>Back</button></div>`, {
+    this.push('content', () => `<h2>${esc(CONTENT_NOTES.title)}</h2><ul class="cnotes">${CONTENT_NOTES.items.map((it) => `<li><b>${esc(it.label)}</b><span>${esc(it.detail || '')}</span></li>`).join('')}</ul><p>${esc(CONTENT_NOTES.notIn)}</p><p class="small">${esc(CONTENT_NOTES.sources)}</p><p class="small">Settings can summarize the card packs, Blend's feed and Rue's hardest scenes, so they're told in a sentence instead of played.</p><div class="pfoot"><button class="btn" id="cSup">Support</button><button class="btn primary" data-back>Back</button></div>`, {
       bind: (el) => { el.querySelector('#cSup').onclick = () => this.support(); },
     });
   }

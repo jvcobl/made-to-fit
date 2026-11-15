@@ -305,6 +305,7 @@ export const CONTENT_NOTES = {
     { label: 'Fewer children (later visits)', detail: 'The school has fewer pupils. Nobody is blamed, and no choice you make changes it.' },
   ],
   notIn: 'Not in this game: suicide, self-harm, violence, sexual content, or anything bought with real money.',
+  sources: 'How the game treats masking draws on published research and on first-person accounts from autistic adults. Each source is listed in the notes on your in-game phone.',
 };
 
 export const CREDIT = "The word 'misfit' in this sense comes from disability studies (Rosemarie Garland-Thomson, 2011).";
